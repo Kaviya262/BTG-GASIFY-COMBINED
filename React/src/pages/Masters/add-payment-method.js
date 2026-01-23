@@ -1,0 +1,80 @@
+import React from "react";
+import { Container, Row, Col, Card, CardBody, FormGroup, Label, Button } from "reactstrap";
+import Breadcrumbs from "../../components/Common/Breadcrumb";
+import { Formik, Form, Field, ErrorMessage } from "formik";
+import * as Yup from "yup";
+
+const validationSchema = Yup.object().shape({
+    paymentMethodCode: Yup.string().required("Payment Method Code is required"),
+});
+
+const AddPaymentMethod = () => {
+    const handleSubmit = (values) => {
+        console.log("Submitted Data:", values);
+    };
+
+    return (
+        <React.Fragment>
+            <div className="page-content">
+                <Container fluid>
+                    <Breadcrumbs title="Masters" breadcrumbItem="Add Payment Method" />
+                    <Row>
+                        <Col lg="12">
+                            <Card>
+                                <CardBody>
+                                    <Formik
+                                        initialValues={{
+                                            paymentMethodCode: "",
+                                            paymentMethodName: "",
+                                        }}
+                                        validationSchema={validationSchema}
+                                        onSubmit={handleSubmit}
+                                    >
+                                        {({ values }) => (
+                                            <Form>
+                                                <div className="row align-items-center g-3 justify-content-end"> 
+                                                    <div className="col-md-12 button-items"> 
+                                                        <Button type="button" color="danger" className="fa-pull-right">
+                                                            <i className="bx bx-window-close label-icon font-size-14 align-middle me-2"></i>Cancel
+                                                        </Button>
+                                                        <Button type="submit" color="info" className="fa-pull-right">
+                                                            <i className="bx bx-comment-check label-icon font-size-16 align-middle me-2"></i>Save
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                                <Row>
+                                                    <Col md="4">
+                                                        <FormGroup>
+                                                            <Label>Payment Method Code *</Label>
+                                                            <Field name="paymentMethodCode" className="form-control" />
+                                                            <ErrorMessage name="paymentMethodCode" component="div" className="text-danger" />
+                                                        </FormGroup>
+                                                    </Col>                                                    
+                                                </Row>
+                                                <Row>
+                                                    <Col md="4">
+                                                        <FormGroup>
+                                                            <Label>Payment Method Name</Label>
+                                                            <Field
+                                                                name="paymentMethodName"
+                                                                as="textarea"
+                                                                className="form-control"
+                                                            />
+                                                            <ErrorMessage name="paymentMethodName" component="div" className="text-danger" />
+                                                        </FormGroup>
+                                                    </Col>
+                                                </Row>
+                                            </Form>
+                                        )}
+                                    </Formik>
+                                </CardBody>
+                            </Card>
+                        </Col>
+                    </Row>
+                </Container>
+            </div>
+        </React.Fragment>
+    );
+};
+
+export default AddPaymentMethod;

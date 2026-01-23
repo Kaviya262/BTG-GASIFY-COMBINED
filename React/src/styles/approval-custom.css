@@ -1,0 +1,5 @@
+/* Grey out cancelled rows */
+.cancelled-row {
+  background-color: #e0e0e0 !important;
+  color: #888 !important;
+}

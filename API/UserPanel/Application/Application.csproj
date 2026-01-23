@@ -1,0 +1,44 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <Optimize>False</Optimize>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <Optimize>True</Optimize>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Order\DeleteOrderItem\**" />
+    <Compile Remove="PackingAndDO\GetPackingAndDO\**" />
+    <Compile Remove="Quotation\CopyQuotationItem\**" />
+    <EmbeddedResource Remove="Order\DeleteOrderItem\**" />
+    <EmbeddedResource Remove="PackingAndDO\GetPackingAndDO\**" />
+    <EmbeddedResource Remove="Quotation\CopyQuotationItem\**" />
+    <None Remove="Order\DeleteOrderItem\**" />
+    <None Remove="PackingAndDO\GetPackingAndDO\**" />
+    <None Remove="Quotation\CopyQuotationItem\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MySql.Data" Version="9.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Invoices\CreateInvoicesItem\" />
+    <Folder Include="Invoices\GetAllInvoicesItems\" />
+    <Folder Include="Invoices\GetInvoicesItem\" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,65 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\USER\\Downloads\\BTG-GASIGY-COMBINED\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\USER\\Downloads\\BTG-GASIGY-COMBINED\\React\\src\\common\\pyapiconfig.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:React\\src\\common\\pyapiconfig.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\USER\\Downloads\\BTG-GASIGY-COMBINED\\React\\.env||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:React\\.env||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\DOWNLOADS\\BTG-GASIGY-COMBINED\\React\\build\\static\\js\\main.e9da4251.js.map||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 195,
+          "SelectedChildIndex": 1,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": ".env",
+              "DocumentMoniker": "C:\\Users\\USER\\Downloads\\BTG-GASIGY-COMBINED\\React\\.env",
+              "RelativeDocumentMoniker": "React\\.env",
+              "ToolTip": "C:\\Users\\USER\\Downloads\\BTG-GASIGY-COMBINED\\React\\.env",
+              "RelativeToolTip": "React\\.env",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAAtAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2026-01-14T05:17:14.536Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "pyapiconfig.js",
+              "DocumentMoniker": "C:\\Users\\USER\\Downloads\\BTG-GASIGY-COMBINED\\React\\src\\common\\pyapiconfig.js",
+              "RelativeDocumentMoniker": "React\\src\\common\\pyapiconfig.js",
+              "ToolTip": "C:\\Users\\USER\\Downloads\\BTG-GASIGY-COMBINED\\React\\src\\common\\pyapiconfig.js",
+              "RelativeToolTip": "React\\src\\common\\pyapiconfig.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAABRAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2026-01-14T05:09:01.696Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "main.e9da4251.js.map",
+              "DocumentMoniker": "D:\\DOWNLOADS\\BTG-GASIGY-COMBINED\\React\\build\\static\\js\\main.e9da4251.js.map",
+              "ToolTip": "D:\\DOWNLOADS\\BTG-GASIGY-COMBINED\\React\\build\\static\\js\\main.e9da4251.js.map",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2026-01-14T05:08:04.381Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

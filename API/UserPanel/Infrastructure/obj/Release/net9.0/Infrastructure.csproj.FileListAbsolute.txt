@@ -1,0 +1,223 @@
+D:\BTG-API-Project\API\BTG API\UP\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.deps.json
+D:\BTG-API-Project\API\BTG API\UP\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.dll
+D:\BTG-API-Project\API\BTG API\UP\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.pdb
+D:\BTG-API-Project\API\BTG API\UP\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\BTG-API-Project\API\BTG API\UP\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfoInputs.cache
+D:\BTG-API-Project\API\BTG API\UP\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfo.cs
+D:\BTG-API-Project\API\BTG API\UP\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.CoreCompileInputs.cache
+D:\BTG-API-Project\API\BTG API\UP\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.dll
+D:\BTG-API-Project\API\BTG API\UP\UserPanel\Infrastructure\obj\Release\net9.0\refint\Infrastructure.dll
+D:\BTG-API-Project\API\BTG API\UP\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.pdb
+D:\BTG-API-Project\API\BTG API\UP\UserPanel\Infrastructure\obj\Release\net9.0\ref\Infrastructure.dll
+D:\BTG-API-Project\API\BTG API\UP\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.AssemblyReference.cache
+D:\BTG Project\27-02-2025\UserPanel 2\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.AssemblyReference.cache
+D:\BTG Project\27-02-2025\UserPanel 2\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\BTG Project\27-02-2025\UserPanel 2\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfoInputs.cache
+D:\BTG Project\27-02-2025\UserPanel 2\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfo.cs
+D:\BTG Project\27-02-2025\UserPanel 2\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.CoreCompileInputs.cache
+D:\BTG Project\27-02-2025\UserPanel 2\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.deps.json
+D:\BTG Project\27-02-2025\UserPanel 2\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.dll
+D:\BTG Project\27-02-2025\UserPanel 2\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.pdb
+D:\BTG Project\27-02-2025\UserPanel 2\UserPanel\Infrastructure\bin\Release\net9.0\Application.dll
+D:\BTG Project\27-02-2025\UserPanel 2\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.dll
+D:\BTG Project\27-02-2025\UserPanel 2\UserPanel\Infrastructure\bin\Release\net9.0\Core.dll
+D:\BTG Project\27-02-2025\UserPanel 2\UserPanel\Infrastructure\bin\Release\net9.0\Application.pdb
+D:\BTG Project\27-02-2025\UserPanel 2\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.pdb
+D:\BTG Project\27-02-2025\UserPanel 2\UserPanel\Infrastructure\bin\Release\net9.0\Core.pdb
+D:\BTG Project\27-02-2025\UserPanel 2\UserPanel\Infrastructure\obj\Release\net9.0\Infrastr.15EFFBFE.Up2Date
+D:\BTG Project\27-02-2025\UserPanel 2\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.dll
+D:\BTG Project\27-02-2025\UserPanel 2\UserPanel\Infrastructure\obj\Release\net9.0\refint\Infrastructure.dll
+D:\BTG Project\27-02-2025\UserPanel 2\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.pdb
+D:\BTG Project\27-02-2025\UserPanel 2\UserPanel\Infrastructure\obj\Release\net9.0\ref\Infrastructure.dll
+D:\BTG Project\05-03-2025\UP-List\UP-List\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.deps.json
+D:\BTG Project\05-03-2025\UP-List\UP-List\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.dll
+D:\BTG Project\05-03-2025\UP-List\UP-List\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.pdb
+D:\BTG Project\05-03-2025\UP-List\UP-List\UserPanel\Infrastructure\bin\Release\net9.0\Application.dll
+D:\BTG Project\05-03-2025\UP-List\UP-List\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.dll
+D:\BTG Project\05-03-2025\UP-List\UP-List\UserPanel\Infrastructure\bin\Release\net9.0\Core.dll
+D:\BTG Project\05-03-2025\UP-List\UP-List\UserPanel\Infrastructure\bin\Release\net9.0\Application.pdb
+D:\BTG Project\05-03-2025\UP-List\UP-List\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.pdb
+D:\BTG Project\05-03-2025\UP-List\UP-List\UserPanel\Infrastructure\bin\Release\net9.0\Core.pdb
+D:\BTG Project\05-03-2025\UP-List\UP-List\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.AssemblyReference.cache
+D:\BTG Project\05-03-2025\UP-List\UP-List\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\BTG Project\05-03-2025\UP-List\UP-List\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfoInputs.cache
+D:\BTG Project\05-03-2025\UP-List\UP-List\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfo.cs
+D:\BTG Project\05-03-2025\UP-List\UP-List\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.CoreCompileInputs.cache
+D:\BTG Project\05-03-2025\UP-List\UP-List\UserPanel\Infrastructure\obj\Release\net9.0\Infrastr.15EFFBFE.Up2Date
+D:\BTG Project\05-03-2025\UP-List\UP-List\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.dll
+D:\BTG Project\05-03-2025\UP-List\UP-List\UserPanel\Infrastructure\obj\Release\net9.0\refint\Infrastructure.dll
+D:\BTG Project\05-03-2025\UP-List\UP-List\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.pdb
+D:\BTG Project\05-03-2025\UP-List\UP-List\UserPanel\Infrastructure\obj\Release\net9.0\ref\Infrastructure.dll
+D:\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.deps.json
+D:\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.dll
+D:\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.pdb
+D:\UserPanel\Infrastructure\bin\Release\net9.0\Application.dll
+D:\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.dll
+D:\UserPanel\Infrastructure\bin\Release\net9.0\Core.dll
+D:\UserPanel\Infrastructure\bin\Release\net9.0\Application.pdb
+D:\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.pdb
+D:\UserPanel\Infrastructure\bin\Release\net9.0\Core.pdb
+D:\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.AssemblyReference.cache
+D:\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfoInputs.cache
+D:\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfo.cs
+D:\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.CoreCompileInputs.cache
+D:\UserPanel\Infrastructure\obj\Release\net9.0\Infrastr.15EFFBFE.Up2Date
+D:\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.dll
+D:\UserPanel\Infrastructure\obj\Release\net9.0\refint\Infrastructure.dll
+D:\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.pdb
+D:\UserPanel\Infrastructure\obj\Release\net9.0\ref\Infrastructure.dll
+D:\userpanel\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.deps.json
+D:\userpanel\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.dll
+D:\userpanel\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.pdb
+D:\userpanel\UserPanel\Infrastructure\bin\Release\net9.0\Application.dll
+D:\userpanel\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.dll
+D:\userpanel\UserPanel\Infrastructure\bin\Release\net9.0\Core.dll
+D:\userpanel\UserPanel\Infrastructure\bin\Release\net9.0\Application.pdb
+D:\userpanel\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.pdb
+D:\userpanel\UserPanel\Infrastructure\bin\Release\net9.0\Core.pdb
+D:\userpanel\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.AssemblyReference.cache
+D:\userpanel\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\userpanel\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfoInputs.cache
+D:\userpanel\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfo.cs
+D:\userpanel\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.CoreCompileInputs.cache
+D:\userpanel\UserPanel\Infrastructure\obj\Release\net9.0\Infrastr.15EFFBFE.Up2Date
+D:\userpanel\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.dll
+D:\userpanel\UserPanel\Infrastructure\obj\Release\net9.0\refint\Infrastructure.dll
+D:\userpanel\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.pdb
+D:\userpanel\UserPanel\Infrastructure\obj\Release\net9.0\ref\Infrastructure.dll
+C:\Users\Administrator\Downloads\UserPanel 4\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.deps.json
+C:\Users\Administrator\Downloads\UserPanel 4\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.dll
+C:\Users\Administrator\Downloads\UserPanel 4\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.pdb
+C:\Users\Administrator\Downloads\UserPanel 4\UserPanel\Infrastructure\bin\Release\net9.0\Application.dll
+C:\Users\Administrator\Downloads\UserPanel 4\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.dll
+C:\Users\Administrator\Downloads\UserPanel 4\UserPanel\Infrastructure\bin\Release\net9.0\Core.dll
+C:\Users\Administrator\Downloads\UserPanel 4\UserPanel\Infrastructure\bin\Release\net9.0\Application.pdb
+C:\Users\Administrator\Downloads\UserPanel 4\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.pdb
+C:\Users\Administrator\Downloads\UserPanel 4\UserPanel\Infrastructure\bin\Release\net9.0\Core.pdb
+C:\Users\Administrator\Downloads\UserPanel 4\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.AssemblyReference.cache
+C:\Users\Administrator\Downloads\UserPanel 4\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Administrator\Downloads\UserPanel 4\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfoInputs.cache
+C:\Users\Administrator\Downloads\UserPanel 4\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfo.cs
+C:\Users\Administrator\Downloads\UserPanel 4\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.CoreCompileInputs.cache
+C:\Users\Administrator\Downloads\UserPanel 4\UserPanel\Infrastructure\obj\Release\net9.0\Infrastr.15EFFBFE.Up2Date
+C:\Users\Administrator\Downloads\UserPanel 4\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.dll
+C:\Users\Administrator\Downloads\UserPanel 4\UserPanel\Infrastructure\obj\Release\net9.0\refint\Infrastructure.dll
+C:\Users\Administrator\Downloads\UserPanel 4\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.pdb
+C:\Users\Administrator\Downloads\UserPanel 4\UserPanel\Infrastructure\obj\Release\net9.0\ref\Infrastructure.dll
+D:\BTG Project\Working Code\Git\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.deps.json
+D:\BTG Project\Working Code\Git\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.dll
+D:\BTG Project\Working Code\Git\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.pdb
+D:\BTG Project\Working Code\Git\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Application.dll
+D:\BTG Project\Working Code\Git\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.dll
+D:\BTG Project\Working Code\Git\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Core.dll
+D:\BTG Project\Working Code\Git\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Application.pdb
+D:\BTG Project\Working Code\Git\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.pdb
+D:\BTG Project\Working Code\Git\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Core.pdb
+D:\BTG Project\Working Code\Git\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.AssemblyReference.cache
+D:\BTG Project\Working Code\Git\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\BTG Project\Working Code\Git\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfoInputs.cache
+D:\BTG Project\Working Code\Git\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfo.cs
+D:\BTG Project\Working Code\Git\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.CoreCompileInputs.cache
+D:\BTG Project\Working Code\Git\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastr.15EFFBFE.Up2Date
+D:\BTG Project\Working Code\Git\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.dll
+D:\BTG Project\Working Code\Git\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\refint\Infrastructure.dll
+D:\BTG Project\Working Code\Git\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.pdb
+D:\BTG Project\Working Code\Git\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\ref\Infrastructure.dll
+D:\BTG\Development\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.deps.json
+D:\BTG\Development\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.dll
+D:\BTG\Development\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.pdb
+D:\BTG\Development\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Application.dll
+D:\BTG\Development\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.dll
+D:\BTG\Development\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Core.dll
+D:\BTG\Development\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Application.pdb
+D:\BTG\Development\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.pdb
+D:\BTG\Development\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Core.pdb
+D:\BTG\Development\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.AssemblyReference.cache
+D:\BTG\Development\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\BTG\Development\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfoInputs.cache
+D:\BTG\Development\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfo.cs
+D:\BTG\Development\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.CoreCompileInputs.cache
+D:\BTG\Development\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastr.15EFFBFE.Up2Date
+D:\BTG\Development\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.dll
+D:\BTG\Development\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\refint\Infrastructure.dll
+D:\BTG\Development\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.pdb
+D:\BTG\Development\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\ref\Infrastructure.dll
+D:\BTG\Development\BTG-DEV\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.deps.json
+D:\BTG\Development\BTG-DEV\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.dll
+D:\BTG\Development\BTG-DEV\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.pdb
+D:\BTG\Development\BTG-DEV\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Application.dll
+D:\BTG\Development\BTG-DEV\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.dll
+D:\BTG\Development\BTG-DEV\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Core.dll
+D:\BTG\Development\BTG-DEV\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Application.pdb
+D:\BTG\Development\BTG-DEV\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.pdb
+D:\BTG\Development\BTG-DEV\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Core.pdb
+D:\BTG\Development\BTG-DEV\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.AssemblyReference.cache
+D:\BTG\Development\BTG-DEV\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\BTG\Development\BTG-DEV\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfoInputs.cache
+D:\BTG\Development\BTG-DEV\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfo.cs
+D:\BTG\Development\BTG-DEV\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.CoreCompileInputs.cache
+D:\BTG\Development\BTG-DEV\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastr.15EFFBFE.Up2Date
+D:\BTG\Development\BTG-DEV\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.dll
+D:\BTG\Development\BTG-DEV\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\refint\Infrastructure.dll
+D:\BTG\Development\BTG-DEV\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.pdb
+D:\BTG\Development\BTG-DEV\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\ref\Infrastructure.dll
+D:\BTG\Git-Live-Latest\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.deps.json
+D:\BTG\Git-Live-Latest\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.dll
+D:\BTG\Git-Live-Latest\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.pdb
+D:\BTG\Git-Live-Latest\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Application.dll
+D:\BTG\Git-Live-Latest\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.dll
+D:\BTG\Git-Live-Latest\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Core.dll
+D:\BTG\Git-Live-Latest\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Application.pdb
+D:\BTG\Git-Live-Latest\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.pdb
+D:\BTG\Git-Live-Latest\gasify\API\UserPanel\Infrastructure\bin\Release\net9.0\Core.pdb
+D:\BTG\Git-Live-Latest\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.AssemblyReference.cache
+D:\BTG\Git-Live-Latest\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\BTG\Git-Live-Latest\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfoInputs.cache
+D:\BTG\Git-Live-Latest\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfo.cs
+D:\BTG\Git-Live-Latest\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.CoreCompileInputs.cache
+D:\BTG\Git-Live-Latest\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastr.15EFFBFE.Up2Date
+D:\BTG\Git-Live-Latest\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.dll
+D:\BTG\Git-Live-Latest\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\refint\Infrastructure.dll
+D:\BTG\Git-Live-Latest\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.pdb
+D:\BTG\Git-Live-Latest\gasify\API\UserPanel\Infrastructure\obj\Release\net9.0\ref\Infrastructure.dll
+D:\DOWNLOADS\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.deps.json
+D:\DOWNLOADS\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.dll
+D:\DOWNLOADS\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.pdb
+D:\DOWNLOADS\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\bin\Release\net9.0\Application.dll
+D:\DOWNLOADS\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.dll
+D:\DOWNLOADS\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\bin\Release\net9.0\Core.dll
+D:\DOWNLOADS\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\bin\Release\net9.0\Application.pdb
+D:\DOWNLOADS\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.pdb
+D:\DOWNLOADS\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\bin\Release\net9.0\Core.pdb
+D:\DOWNLOADS\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.AssemblyReference.cache
+D:\DOWNLOADS\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\DOWNLOADS\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfoInputs.cache
+D:\DOWNLOADS\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfo.cs
+D:\DOWNLOADS\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.CoreCompileInputs.cache
+D:\DOWNLOADS\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastr.15EFFBFE.Up2Date
+D:\DOWNLOADS\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.dll
+D:\DOWNLOADS\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\refint\Infrastructure.dll
+D:\DOWNLOADS\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.pdb
+D:\DOWNLOADS\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\ref\Infrastructure.dll
+C:\Users\USER\Downloads\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.deps.json
+C:\Users\USER\Downloads\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.dll
+C:\Users\USER\Downloads\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\bin\Release\net9.0\Infrastructure.pdb
+C:\Users\USER\Downloads\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\bin\Release\net9.0\Application.dll
+C:\Users\USER\Downloads\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.dll
+C:\Users\USER\Downloads\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\bin\Release\net9.0\Core.dll
+C:\Users\USER\Downloads\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\bin\Release\net9.0\Application.pdb
+C:\Users\USER\Downloads\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\bin\Release\net9.0\BackEnd.pdb
+C:\Users\USER\Downloads\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\bin\Release\net9.0\Core.pdb
+C:\Users\USER\Downloads\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.AssemblyReference.cache
+C:\Users\USER\Downloads\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\USER\Downloads\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfoInputs.cache
+C:\Users\USER\Downloads\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.AssemblyInfo.cs
+C:\Users\USER\Downloads\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.csproj.CoreCompileInputs.cache
+C:\Users\USER\Downloads\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.sourcelink.json
+C:\Users\USER\Downloads\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastr.15EFFBFE.Up2Date
+C:\Users\USER\Downloads\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.dll
+C:\Users\USER\Downloads\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\refint\Infrastructure.dll
+C:\Users\USER\Downloads\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.pdb
+C:\Users\USER\Downloads\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\ref\Infrastructure.dll
+D:\DOWNLOADS\BTG-GASIGY-COMBINED\API\UserPanel\Infrastructure\obj\Release\net9.0\Infrastructure.sourcelink.json

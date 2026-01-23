@@ -1,0 +1,8 @@
+.auto-complete-select-group span ul { flex: 0 1 100% !important; margin: 0 !important ; padding: 0 10px !important;}
+.auto-complete-select-group span button {background: transparent; position: relative;}
+.auto-complete-select-group span { border-color: hsl(0, 0%, 80%);}
+.auto-complete-select-group label { width: 100%;}
+.auto-complete-select-group span { width: 100%}
+.auto-complete-select-group span button svg{ position: absolute; z-index: 10; color: hsl(0, 0%, 80%);}
+
+.p-autocomplete-panel ul { margin: 0; padding: 0; width :100%; }

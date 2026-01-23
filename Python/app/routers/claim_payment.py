@@ -1,0 +1,375 @@
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+import mysql.connector
+import os
+from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
+
+router = APIRouter(
+    prefix="/api/claim",
+    tags=["Claim Payment Discussion"]
+)
+
+class HodDiscussionRequest(BaseModel):
+    claim_id: int
+    comment: str
+    hod_name: str
+
+class ApplicantReplyRequest(BaseModel):
+    claim_id: int
+    reply: str
+    applicant_name: str
+
+def get_db_connection_sync():
+    return mysql.connector.connect(
+        host=os.getenv('DB_HOST'),
+        user=os.getenv('DB_USER'),
+        password=os.getenv('DB_PASSWORD'),
+        database=os.getenv('DB_NAME_FINANCE', 'btggasify_finance_live'),
+        port=int(os.getenv('DB_PORT', 3306))
+    )
+
+@router.post("/save_hod_discussion")
+def save_hod_discussion(req: HodDiscussionRequest):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection_sync()
+        cursor = conn.cursor()
+        
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Fetch existing comment
+        cursor.execute("SELECT applicant_hod_comment, hod_discussed_count FROM tbl_claimAndpayment_header WHERE Claim_ID = %s", (req.claim_id,))
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Claim not found")
+        
+        existing_comment = row[0] or ""
+        current_count = row[1] or 0
+        new_count = current_count + 1
+        
+        if new_count == 3:
+            # 3rd time logic
+            forced_message = "Please cancel the transaction"
+            comment_entry = f"[{req.hod_name} at {timestamp}]: {forced_message}"
+            new_comment = existing_comment + "\n" + comment_entry if existing_comment else comment_entry
+            
+            # Reset approvals and set Status to 'Saved'
+            update_query = """
+                UPDATE tbl_claimAndpayment_header 
+                SET claim_hod_isdiscussed = 1, 
+                    hod_discussed_count = %s, 
+                    applicant_hod_comment = %s, 
+                    IsSubmitted = 0,
+                    claim_hod_isapproved = 0,
+                    claim_gm_isapproved = 0,
+                    claim_director_isapproved = 0,
+                    is_delete_required = 1
+                WHERE Claim_ID = %s
+            """
+            cursor.execute(update_query, (new_count, new_comment, req.claim_id))
+        else:
+            # Normal logic
+            comment_entry = f"[{req.hod_name} at {timestamp}]: {req.comment}"
+            new_comment = existing_comment + "\n" + comment_entry if existing_comment else comment_entry
+            
+            update_query = """
+                UPDATE tbl_claimAndpayment_header 
+                SET claim_hod_isdiscussed = 1, 
+                    hod_discussed_count = %s, 
+                    applicant_hod_comment = %s, 
+                    IsSubmitted = 0
+                WHERE Claim_ID = %s
+            """
+            cursor.execute(update_query, (new_count, new_comment, req.claim_id))
+
+        conn.commit()
+        
+        return {"status": True, "message": "Discussion sent to applicant", "data": new_comment, "is_delete_required": new_count == 3}
+    except Exception as e:
+        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+@router.post("/save_applicant_reply")
+def save_applicant_reply(req: ApplicantReplyRequest):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection_sync()
+        cursor = conn.cursor()
+        
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        reply_entry = f"[{req.applicant_name} at {timestamp}]: {req.reply}"
+        
+        # Fetch existing comment
+        cursor.execute("SELECT applicant_hod_comment FROM tbl_claimAndpayment_header WHERE Claim_ID = %s", (req.claim_id,))
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Claim not found")
+            
+        existing_comment = row[0] or ""
+        new_comment = existing_comment + "\n" + reply_entry if existing_comment else reply_entry
+        
+        # Update: IsSubmitted=1 (Sent back to HOD), Status="Posted", claim_hod_isdiscussed=0
+        update_query = """
+            UPDATE tbl_claimAndpayment_header 
+            SET applicant_hod_comment = %s, 
+                IsSubmitted = 1,
+                claim_hod_isdiscussed = 0
+            WHERE Claim_ID = %s
+        """
+        
+        cursor.execute(update_query, (new_comment, req.claim_id))
+        conn.commit()
+        
+        return {"status": True, "message": "Reply sent to HOD", "data": new_comment}
+    except Exception as e:
+        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+@router.get("/get_history/{claim_id}")
+def get_history(claim_id: int):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection_sync()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT applicant_hod_comment FROM tbl_claimAndpayment_header WHERE Claim_ID = %s", (claim_id,))
+        row = cursor.fetchone()
+        
+        if not row:
+            return {"status": False, "message": "Claim not found"}
+            
+        return {"status": True, "data": row[0] or ""}
+    except Exception as e:
+        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+# --- HOD <-> GM Discussion ---
+
+class DiscussionRequest(BaseModel):
+    claim_id: int
+    comment: str
+    user_name: str
+    sender_role: str = "" # "HOD", "GM", "Director"
+
+@router.post("/save_hod_gm_discussion")
+def save_hod_gm_discussion(req: DiscussionRequest):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection_sync()
+        cursor = conn.cursor()
+        
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        cursor.execute("SELECT hod_gm_comment, gm_discussed_count FROM tbl_claimAndpayment_header WHERE Claim_ID = %s", (req.claim_id,))
+        row = cursor.fetchone()
+        
+        # Close cursor to ensure clean slate
+        cursor.close()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Claim not found")
+        
+        existing_comment = row[0] or ""
+        current_gm_title = row[1] or 0
+        
+        is_third_count = False
+        if req.sender_role == "GM" and (current_gm_title + 1) == 3:
+             is_third_count = True
+
+        if is_third_count:
+             comment_entry = f"[{req.user_name} at {timestamp}]: Please cancel the transaction"
+        else:
+             comment_entry = f"[{req.user_name} at {timestamp}]: {req.comment}"
+
+        new_comment = existing_comment + "\n" + comment_entry if existing_comment else comment_entry
+        
+        # Re-open cursor for Update
+        cursor = conn.cursor()
+        
+        update_parts = ["hod_gm_comment = %s"]
+        params = [new_comment]
+        
+        if req.sender_role == "GM":
+            if is_third_count:
+                # 3rd time logic
+                update_parts.append("claim_gm_isdiscussed = 1")
+                update_parts.append("gm_discussed_count = %s")
+                params.append(current_gm_title + 1)
+                
+                # Reset everything
+                update_parts.append("claim_hod_isapproved = 0")
+                update_parts.append("claim_gm_isapproved = 0")
+                update_parts.append("claim_director_isapproved = 0")
+                update_parts.append("IsSubmitted = 0")
+                update_parts.append("is_delete_required = 1")
+                
+            else:
+                update_parts.append("claim_gm_isdiscussed = 1")
+                update_parts.append("gm_discussed_count = %s")
+                params.append(current_gm_title + 1)
+                update_parts.append("claim_hod_isapproved = 0")
+
+        elif req.sender_role == "HOD":
+            update_parts.append("claim_gm_isdiscussed = 0")
+            update_parts.append("claim_hod_isapproved = 1")
+            
+        update_query = f"UPDATE tbl_claimAndpayment_header SET {', '.join(update_parts)} WHERE Claim_ID = %s"
+        params.append(req.claim_id)
+        
+        cursor.execute(update_query, tuple(params))
+        conn.commit()
+        
+        return {"status": True, "message": "Discussion saved", "data": new_comment, "is_delete_required": is_third_count}
+    except Exception as e:
+        print(f"Error in save_hod_gm_discussion: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+    finally:
+        try:
+            if cursor: cursor.close()
+            if conn: conn.close()
+        except:
+            pass
+
+@router.get("/get_hod_gm_history/{claim_id}")
+def get_hod_gm_history(claim_id: int):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection_sync()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT hod_gm_comment FROM tbl_claimAndpayment_header WHERE Claim_ID = %s", (claim_id,))
+        row = cursor.fetchone()
+        cursor.fetchall() # clear any remaining
+        
+        if not row:
+            return {"status": False, "message": "Claim not found"}
+        
+        return {"status": True, "data": row[0] or ""}
+    except Exception as e:
+        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+# --- GM <-> Director Discussion ---
+
+@router.post("/save_gm_director_discussion")
+def save_gm_director_discussion(req: DiscussionRequest):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection_sync()
+        cursor = conn.cursor()
+        
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        cursor.execute("SELECT gm_director_comment, director_discussed_count FROM tbl_claimAndpayment_header WHERE Claim_ID = %s", (req.claim_id,))
+        row = cursor.fetchone()
+        
+        cursor.close()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Claim not found")
+        
+        existing_comment = row[0] or ""
+        current_dir_count = row[1] or 0
+        
+        is_third_count = False
+        if req.sender_role == "Director" and (current_dir_count + 1) == 3:
+             is_third_count = True
+        
+        if is_third_count:
+             comment_entry = f"[{req.user_name} at {timestamp}]: Please cancel the transaction"
+        else:
+             comment_entry = f"[{req.user_name} at {timestamp}]: {req.comment}"
+
+        new_comment = existing_comment + "\n" + comment_entry if existing_comment else comment_entry
+        
+        cursor = conn.cursor()
+        
+        update_parts = ["gm_director_comment = %s"]
+        params = [new_comment]
+        
+        if req.sender_role == "Director":
+            if is_third_count:
+                 # 3rd time logic - reset all approvals
+                update_parts.append("claim_director_isdiscussed = 1")
+                update_parts.append("director_discussed_count = %s")
+                params.append(current_dir_count + 1)
+                update_parts.append("claim_gm_isapproved = 0")
+                update_parts.append("claim_hod_isapproved = 0")
+                update_parts.append("claim_director_isapproved = 0")
+                update_parts.append("IsSubmitted = 0")
+                update_parts.append("is_delete_required = 1")
+            else:
+                update_parts.append("claim_director_isdiscussed = 1")
+                update_parts.append("director_discussed_count = %s")
+                params.append(current_dir_count + 1)
+                update_parts.append("claim_gm_isapproved = 0")
+                
+        elif req.sender_role == "GM":
+            update_parts.append("claim_director_isdiscussed = 0")
+            update_parts.append("claim_gm_isapproved = 1")
+            
+        update_query = f"UPDATE tbl_claimAndpayment_header SET {', '.join(update_parts)} WHERE Claim_ID = %s"
+        params.append(req.claim_id)
+        
+        cursor.execute(update_query, tuple(params))
+        conn.commit()
+        
+        return {"status": True, "message": "Discussion saved", "data": new_comment, "is_delete_required": is_third_count}
+    except Exception as e:
+        print(f"Error in save_gm_director_discussion: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+    finally:
+        try:
+            if cursor: cursor.close()
+            if conn: conn.close()
+        except:
+            pass
+
+@router.get("/get_gm_director_history/{claim_id}")
+def get_gm_director_history(claim_id: int):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection_sync()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT gm_director_comment FROM tbl_claimAndpayment_header WHERE Claim_ID = %s", (claim_id,))
+        row = cursor.fetchone()
+        cursor.fetchall() # clear
+        
+        if not row:
+            return {"status": False, "message": "Claim not found"}
+        
+        return {"status": True, "data": row[0] or ""}
+    except Exception as e:
+        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+

@@ -1,0 +1,2610 @@
+[
+  {
+    "ContainingType": "UserPanel.Controllers.AuthenticateController",
+    "Method": "Login",
+    "RelativePath": "api/Authenticate/login",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "UserPanel.Auth.LoginModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.AuthenticateController",
+    "Method": "RefreshToken",
+    "RelativePath": "api/Authenticate/refresh-token",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "tokenModel",
+        "Type": "UserPanel.Auth.TokenModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.AuthenticateController",
+    "Method": "Register",
+    "RelativePath": "api/Authenticate/register",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "UserPanel.Auth.RegisterModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.AuthenticateController",
+    "Method": "RegisterAdmin",
+    "RelativePath": "api/Authenticate/register-admin",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "UserPanel.Auth.RegisterModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.AuthenticateController",
+    "Method": "RevokeAll",
+    "RelativePath": "api/Authenticate/revoke-all",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.AuthenticateController",
+    "Method": "Revoke",
+    "RelativePath": "api/Authenticate/revoke/{username}",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "username",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Country.CountryController",
+    "Method": "UpdateCountry",
+    "RelativePath": "api/Country/{countryId}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.Master.CountryItem.UpdateCountryItem.UpdateCountryItemCommand",
+        "IsRequired": true
+      },
+      {
+        "Name": "countryId",
+        "Type": "",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Country.CountryController",
+    "Method": "GetCountryById",
+    "RelativePath": "api/Country/{Id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "Id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Country.CountryController",
+    "Method": "CreateCountry",
+    "RelativePath": "api/Country/create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.Master.CountryItem.CreateCountryItem.CreateCountryItemCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Country.CountryController",
+    "Method": "GetAllCountries",
+    "RelativePath": "api/Country/get-all",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "conCode",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "conName",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.IEnumerable\u00601[[System.Object, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Country.CountryController",
+    "Method": "GetCountryByCode",
+    "RelativePath": "api/Country/get-by-code/{countryCode}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "countryCode",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.IEnumerable\u00601[[System.Object, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Country.CountryController",
+    "Method": "GetCountryByName",
+    "RelativePath": "api/Country/name/{countryName}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "countryName",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.IEnumerable\u00601[[System.Object, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Currency.CurrencyController",
+    "Method": "GetAllCurrency",
+    "RelativePath": "api/Currency",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "curCode",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "curName",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.IEnumerable\u00601[[System.Object, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Currency.CurrencyController",
+    "Method": "UpdateCurrency",
+    "RelativePath": "api/Currency/{currencyId}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.Master.CurrencyItem.UpdateCurrencyItem.UpdateCurrencyItemCommand",
+        "IsRequired": true
+      },
+      {
+        "Name": "currencyId",
+        "Type": "",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Currency.CurrencyController",
+    "Method": "GetCurrencyByCode",
+    "RelativePath": "api/Currency/code/{currencyCode}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "currencyCode",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Currency.CurrencyController",
+    "Method": "CreateCurrency",
+    "RelativePath": "api/Currency/create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.Master.CurrencyItem.CreateCurrencyItem.CreateCurrencyItemCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Currency.CurrencyController",
+    "Method": "GetCurrencyById",
+    "RelativePath": "api/Currency/id/{Id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "Id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Currency.CurrencyController",
+    "Method": "GetCurrencyByName",
+    "RelativePath": "api/Currency/name/{currencyName}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "currencyName",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Department.DepartmentController",
+    "Method": "CreateDepartment",
+    "RelativePath": "api/Department",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.Master.DepartmentItem.CreateDepartmentItem.CreateDepartmentItemCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Department.DepartmentController",
+    "Method": "UpdateDepartment",
+    "RelativePath": "api/Department/{Id}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.Master.DepartmentItem.UpdateDepartmentItem.UpdateDepartmentItemCommand",
+        "IsRequired": true
+      },
+      {
+        "Name": "Id",
+        "Type": "",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Department.DepartmentController",
+    "Method": "GetDepartmentByCode",
+    "RelativePath": "api/Department/code/{DepartmentCode}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "DepartmentCode",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Department.DepartmentController",
+    "Method": "GetAllDepartment",
+    "RelativePath": "api/Department/get-all",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "DeptCode",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "DeptName",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.IEnumerable\u00601[[System.Object, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Department.DepartmentController",
+    "Method": "GetDepartmentById",
+    "RelativePath": "api/Department/id/{Id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "DepartId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "Id",
+        "Type": "",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Department.DepartmentController",
+    "Method": "GetDepartmentByName",
+    "RelativePath": "api/Department/name/{DepartmentName}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "DepartmentName",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Invoices.InvoicesController",
+    "Method": "Create",
+    "RelativePath": "api/Invoices/Create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "UserPanel.Application.Invoices.CreateInvoicesItem.CreateInvoicesItemCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Invoices.InvoicesController",
+    "Method": "GetAll",
+    "RelativePath": "api/Invoices/GetALL",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "customerid",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "FromDate",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "ToDate",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Invoices.InvoicesController",
+    "Method": "GetById",
+    "RelativePath": "api/Invoices/GetById",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "invoicesid",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Invoices.InvoicesController",
+    "Method": "GetInvoicesSiNo",
+    "RelativePath": "api/Invoices/GetInvoicesSiNo",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Invoices.InvoicesController",
+    "Method": "Update",
+    "RelativePath": "api/Invoices/Update",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.Invoices.UpdateInvoicesitem.UpdateInvoicesItemCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterCustomerController",
+    "Method": "Create",
+    "RelativePath": "api/MasterCustomer/Create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.Master.Customer.CreateCustomer.CreateCustomerCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterCustomerController",
+    "Method": "GetByID",
+    "RelativePath": "api/MasterCustomer/GetByID",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "customerID",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterCustomerController",
+    "Method": "GetListALL",
+    "RelativePath": "api/MasterCustomer/GetListALL",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "customerName",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "fromDate",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "toDate",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterCustomerController",
+    "Method": "ToogleActiveStatus",
+    "RelativePath": "api/MasterCustomer/ToogleActiveStatus",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.Master.Customer.ToogleActiveStatus.ToogleActiveStatusCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterCustomerController",
+    "Method": "Update",
+    "RelativePath": "api/MasterCustomer/Update",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.Master.Customer.UpdateCustomer.UpdateCustomerCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterCylinderController",
+    "Method": "Create",
+    "RelativePath": "api/MasterCylinder/Create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.OrderMngMaster.Master.Cylinder.CreateCylinder.CreateCylinderCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterCylinderController",
+    "Method": "GetAllCylinderListing",
+    "RelativePath": "api/MasterCylinder/GetAllCylinderListing",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "cylinderName",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "fromDate",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "toDate",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterCylinderController",
+    "Method": "GetByID",
+    "RelativePath": "api/MasterCylinder/GetByID",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "cylinderID",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterCylinderController",
+    "Method": "ToogleActiveStatus",
+    "RelativePath": "api/MasterCylinder/ToogleActiveStatus",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.OrderMngMaster.Master.Cylinder.ToogleCylinderActiveStatus.ToogleCylinderActiveStatusCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterCylinderController",
+    "Method": "Update",
+    "RelativePath": "api/MasterCylinder/Update",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.OrderMngMaster.Master.Cylinder.UpdateCylinder.UpdateCylinderCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterGasController",
+    "Method": "Create",
+    "RelativePath": "api/MasterGas/Create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.OrderMngMaster.Master.Gas.CreateGas.CreateGasCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterGasController",
+    "Method": "GetAllGasListing",
+    "RelativePath": "api/MasterGas/GetAllGasListing",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "gasName",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "fromDate",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "toDate",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterGasController",
+    "Method": "GetAllGasTypes",
+    "RelativePath": "api/MasterGas/GetAllGasTypes",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterGasController",
+    "Method": "GetByID",
+    "RelativePath": "api/MasterGas/GetByID",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "gasID",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterGasController",
+    "Method": "ToogleActiveStatus",
+    "RelativePath": "api/MasterGas/ToogleActiveStatus",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.OrderMngMaster.Master.Gas.ToogleGasActiveStatus.ToogleGasActiveStatusCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterGasController",
+    "Method": "Update",
+    "RelativePath": "api/MasterGas/Update",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.OrderMngMaster.Master.Gas.UpdateGas.UpdateGasCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterPalletController",
+    "Method": "Create",
+    "RelativePath": "api/MasterPallet/Create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.OrderMngMaster.Master.Pallet.CreatePallet.CreatePalletCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterPalletController",
+    "Method": "GetAllCylinderListing",
+    "RelativePath": "api/MasterPallet/GetAllPalletListing",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "gasName",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "containerTypeName",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterPalletController",
+    "Method": "GetByID",
+    "RelativePath": "api/MasterPallet/GetByID",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "palletID",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterPalletController",
+    "Method": "ToogleActiveStatus",
+    "RelativePath": "api/MasterPallet/ToogleActiveStatus",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.OrderMngMaster.Master.Pallet.TooglePaletActiveStatus.TooglePalletActiveStatusCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterPalletController",
+    "Method": "Update",
+    "RelativePath": "api/MasterPallet/Update",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.OrderMngMaster.Master.Pallet.UpdatePallet.UpdatePalletCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterUsersController",
+    "Method": "CreateUser",
+    "RelativePath": "api/MasterUsers/create-update",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "createUser",
+        "Type": "UserPanel.Application.OrderMngMaster.Master.Users.CreateUserCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterUsersController",
+    "Method": "GetUserById",
+    "RelativePath": "api/MasterUsers/getbyId",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "userID",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterUsersController",
+    "Method": "GetAllUsers",
+    "RelativePath": "api/MasterUsers/getlist",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "ProdId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "FromDate",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "ToDate",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "UserName",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.MasterUsersController",
+    "Method": "UpdateStatus",
+    "RelativePath": "api/MasterUsers/update-status",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "userStatus",
+        "Type": "UserStatusQuery",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Order.OrderController",
+    "Method": "Create",
+    "RelativePath": "api/Order/Create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "UserPanel.Application.Order.CreateOrderItem.CreateOrderItemCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Order.OrderController",
+    "Method": "GetAll",
+    "RelativePath": "api/Order/GetALL",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "customerid",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "FromDate",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "ToDate",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Order.OrderController",
+    "Method": "GetById",
+    "RelativePath": "api/Order/GetById",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "orderid",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Order.OrderController",
+    "Method": "GetOrderSeqNo",
+    "RelativePath": "api/Order/GetOrderSeqNo",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Order.OrderController",
+    "Method": "Update",
+    "RelativePath": "api/Order/Update",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.Order.UpdateOrderItem.UpdateOrderItemCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetCurrency",
+    "RelativePath": "api/OrderMngMaster/GetCurrency",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchText",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetCurrencyConversion",
+    "RelativePath": "api/OrderMngMaster/GetCurrencyConversion",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "currencyid",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetCustomer",
+    "RelativePath": "api/OrderMngMaster/GetCustomer",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchText",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetCustomerAddress",
+    "RelativePath": "api/OrderMngMaster/GetCustomerAddress",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "ContactId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetCustomerContact",
+    "RelativePath": "api/OrderMngMaster/GetCustomerContact",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "customerid",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetCustomerGasCode",
+    "RelativePath": "api/OrderMngMaster/GetCustomerGasCode",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "customerid",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "GasCodeId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetCustomerGasCodeDetail",
+    "RelativePath": "api/OrderMngMaster/GetCustomerGasCodeDetail",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "customerid",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetCustomerPackingId",
+    "RelativePath": "api/OrderMngMaster/GetCustomerPackingId",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "customerid",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetCustomerSQ",
+    "RelativePath": "api/OrderMngMaster/GetCustomerSQ",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "customerID",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetCylinderDetails",
+    "RelativePath": "api/OrderMngMaster/GetCylinderDetails",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "searchtext",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "GasCodeId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "ProductionId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetDeliveryAgDODetails",
+    "RelativePath": "api/OrderMngMaster/GetDeliveryAgDODetails",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "packingid",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetDeliveryAgGasDetails",
+    "RelativePath": "api/OrderMngMaster/GetDeliveryAgGasDetails",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "GascodeId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetGasCode",
+    "RelativePath": "api/OrderMngMaster/GetGasCode",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchText",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetGasCodeAgGasTypes",
+    "RelativePath": "api/OrderMngMaster/GetGasCodeAgGasTypes",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "GasTypeId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetGasCodeDetails",
+    "RelativePath": "api/OrderMngMaster/GetGasCodeDetails",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "GasCodeId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetGasTypes",
+    "RelativePath": "api/OrderMngMaster/GetGasTypes",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetPackersName",
+    "RelativePath": "api/OrderMngMaster/GetPackersName",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetPackingCustomerId",
+    "RelativePath": "api/OrderMngMaster/GetPackingCustomerId",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetPackingDetails",
+    "RelativePath": "api/OrderMngMaster/GetPackingDetails",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "packingid",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetPackingSO",
+    "RelativePath": "api/OrderMngMaster/GetPackingSO",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "customerid",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetPackingSODetail",
+    "RelativePath": "api/OrderMngMaster/GetPackingSODetail",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "soid",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetPaymentMethod",
+    "RelativePath": "api/OrderMngMaster/GetPaymentMethod",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetPaymentTerm",
+    "RelativePath": "api/OrderMngMaster/GetPaymentTerm",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetProductionNo",
+    "RelativePath": "api/OrderMngMaster/GetProductionNo",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "searchtext",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetQuotationType",
+    "RelativePath": "api/OrderMngMaster/GetQuotationType",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetReturnOrderCustomerPackingIdAsync",
+    "RelativePath": "api/OrderMngMaster/GetReturnOrderCustomerPackingIdAsync",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "CustomerID",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetReturnOrderCylinderDetails",
+    "RelativePath": "api/OrderMngMaster/GetReturnOrderCylinderDetails",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "searchtext",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "GasCodeId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "ReturnId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetReturnOrderGasCode",
+    "RelativePath": "api/OrderMngMaster/GetReturnOrderGasCode",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchText",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "CustomerId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetsaleordercustomerId",
+    "RelativePath": "api/OrderMngMaster/GetsaleordercustomerId",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetSalesPerson",
+    "RelativePath": "api/OrderMngMaster/GetSalesPerson",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchText",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetSoHistory",
+    "RelativePath": "api/OrderMngMaster/GetSoHistory",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "sqid",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "soid",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "GasCodeId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetSOType",
+    "RelativePath": "api/OrderMngMaster/GetSOType",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetSQCustomer",
+    "RelativePath": "api/OrderMngMaster/GetSQCustomer",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetSQGasCode",
+    "RelativePath": "api/OrderMngMaster/GetSQGasCode",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "sqid",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetSQNumber",
+    "RelativePath": "api/OrderMngMaster/GetSQNumber",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchText",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.OrderMngMasterController",
+    "Method": "GetUOM",
+    "RelativePath": "api/OrderMngMaster/GetUOM",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "SearchText",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.PackingAndDO.PackingAndDOController",
+    "Method": "Create",
+    "RelativePath": "api/PackingAndDO/Create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.PackingAndDO.CreatePackingAndDO.CreatePackingAndDOCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.PackingAndDO.PackingAndDOController",
+    "Method": "DownloadDO",
+    "RelativePath": "api/PackingAndDO/DownloadDO",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "PackId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.PackingAndDO.PackingAndDOController",
+    "Method": "GetAll",
+    "RelativePath": "api/PackingAndDO/GetALL",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "packerid",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "FromDate",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "ToDate",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.PackingAndDO.PackingAndDOController",
+    "Method": "GetById",
+    "RelativePath": "api/PackingAndDO/GetById",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.PackingAndDO.PackingAndDOController",
+    "Method": "GetPackingPackNo",
+    "RelativePath": "api/PackingAndDO/GetPackingPackNo",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.PackingAndDO.PackingAndDOController",
+    "Method": "Update",
+    "RelativePath": "api/PackingAndDO/Update",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.PackingAndDO.UpdatePackingAndDO.UpdatePackingAndDOCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.PackingAndDO.PackingAndDOController",
+    "Method": "UploadACK",
+    "RelativePath": "api/PackingAndDO/UploadACK",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "file",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "PackingNo",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "PackId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "UserId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.PackingAndDO.PackingAndDOController",
+    "Method": "UploadDO",
+    "RelativePath": "api/PackingAndDO/UploadDO",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "file",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "PackingNo",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "PackId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.PaymentMethod.PaymentMethodController",
+    "Method": "CreatePaymentMethod",
+    "RelativePath": "api/PaymentMethod",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.Master.PaymentMethodItem.CreatePaymentMethodItem.CreatePaymentMethodItemCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.PaymentMethod.PaymentMethodController",
+    "Method": "UpdatePaymentMethod",
+    "RelativePath": "api/PaymentMethod/{PayMethodId}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.Master.PaymentMethodItem.UpdatePaymentMethodItem.UpdatePaymentMethodItemCommand",
+        "IsRequired": true
+      },
+      {
+        "Name": "PayMethodId",
+        "Type": "",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.PaymentMethod.PaymentMethodController",
+    "Method": "GetPaymentMethodByCode",
+    "RelativePath": "api/PaymentMethod/code/{PaymentMethodCODE}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "PaymentMethodCODE",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.PaymentMethod.PaymentMethodController",
+    "Method": "GetAllPaymentMethod",
+    "RelativePath": "api/PaymentMethod/get-all",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "paymethodcode",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.IEnumerable\u00601[[System.Object, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.PaymentMethod.PaymentMethodController",
+    "Method": "GetPaymentMethodById",
+    "RelativePath": "api/PaymentMethod/id/{PaymethodId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "PaymethodId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.PaymentTerm.PaymentTermController",
+    "Method": "UpdatePaymentTerm",
+    "RelativePath": "api/PaymentTerm/{UpdateId}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.Master.PaymentTerms.UpdatePaymentTermItem.UpdatePaymentTermItemCommand",
+        "IsRequired": true
+      },
+      {
+        "Name": "UpdateId",
+        "Type": "",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.PaymentTerm.PaymentTermController",
+    "Method": "GetPaymentTermByCode",
+    "RelativePath": "api/PaymentTerm/code/{PaymentTermCode}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "PaymentTermCode",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.PaymentTerm.PaymentTermController",
+    "Method": "CreatePaymentTerm",
+    "RelativePath": "api/PaymentTerm/create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.Master.PaymentTerms.CreatePaymentTermItem.CreatePaymentTermItemCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.PaymentTerm.PaymentTermController",
+    "Method": "GetAllPaymentTerm",
+    "RelativePath": "api/PaymentTerm/get-all",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "payTermCode",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.IEnumerable\u00601[[System.Object, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.PaymentTerm.PaymentTermController",
+    "Method": "GetPaymentTermById",
+    "RelativePath": "api/PaymentTerm/id/{PaymentTermId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "PaymentTermId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Production.ProductionOrderController",
+    "Method": "Create",
+    "RelativePath": "api/ProductionOrder/Create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "UserPanel.Application.ProductionOrder.CreateProductionOrder.CreateProductionOrderCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Production.ProductionOrderController",
+    "Method": "GetAll",
+    "RelativePath": "api/ProductionOrder/GetALL",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "ProdId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "FromDate",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "ToDate",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Production.ProductionOrderController",
+    "Method": "GetById",
+    "RelativePath": "api/ProductionOrder/GetById",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Production.ProductionOrderController",
+    "Method": "GetProductionOrderSeqNo",
+    "RelativePath": "api/ProductionOrder/GetProductionOrderSeqNo",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Production.ProductionOrderController",
+    "Method": "Update",
+    "RelativePath": "api/ProductionOrder/Update",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "UserPanel.Application.ProductionOrder.UpdateProductionOrder.UpdateProductionOrderCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.QuotationController",
+    "Method": "Copy",
+    "RelativePath": "api/Quotation/Copy",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.QuotationController",
+    "Method": "Create",
+    "RelativePath": "api/Quotation/Create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "UserPanel.Application.Quotation.CreateQuotationItem.CreateQuotationItemCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.QuotationController",
+    "Method": "GetAll",
+    "RelativePath": "api/Quotation/GetALL",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "SQID",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "FromDate",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "ToDate",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.QuotationController",
+    "Method": "GetById",
+    "RelativePath": "api/Quotation/GetById",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "Categories",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.QuotationController",
+    "Method": "GetQuotationSeqNo",
+    "RelativePath": "api/Quotation/GetQuotationSeqNo",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.Quotation.QuotationController",
+    "Method": "Update",
+    "RelativePath": "api/Quotation/Update",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "UserPanel.Application.Quotation.UpdateQuotationItem.UpdateQuotationItemCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.ReturnOrder.ReturnOrderController",
+    "Method": "Create",
+    "RelativePath": "api/ReturnOrder/Create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "UserPanel.Application.ReturnOrder.CreateReturnOrderItem.CreateReturnOrderItemCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.ReturnOrder.ReturnOrderController",
+    "Method": "GetAll",
+    "RelativePath": "api/ReturnOrder/GetALL",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "GasCode",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "Customer",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "FromDate",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "ToDate",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.ReturnOrder.ReturnOrderController",
+    "Method": "GetById",
+    "RelativePath": "api/ReturnOrder/GetById",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.ReturnOrder.ReturnOrderController",
+    "Method": "GetProductionOrderSeqNo",
+    "RelativePath": "api/ReturnOrder/GetReturnOrderSeqNo",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "BranchId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.OrderManagement.ReturnOrder.ReturnOrderController",
+    "Method": "Update",
+    "RelativePath": "api/ReturnOrder/Update",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "UserPanel.Application.ReturnOrder.UpdateReturnOrderItem.UpdateReturnOrderItemCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Units.UnitsController",
+    "Method": "UpdateUnits",
+    "RelativePath": "api/Units/{UpdateId}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.Master.Units.UpdateUnitsItem.UpdateUnitsItemCommand",
+        "IsRequired": true
+      },
+      {
+        "Name": "UpdateId",
+        "Type": "",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Units.UnitsController",
+    "Method": "CreateUnits",
+    "RelativePath": "api/Units/create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "command",
+        "Type": "Application.Master.Units.CreateUnitsItem.CreateUnitsItemCommand",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Units.UnitsController",
+    "Method": "GetAllUnits",
+    "RelativePath": "api/Units/get-all",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "unitsCode",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.IEnumerable\u00601[[System.Object, System.Private.CoreLib, Version=9.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Units.UnitsController",
+    "Method": "GetUnitsByCode",
+    "RelativePath": "api/Units/get-by-code/{UnitsCode}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "UnitsCode",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.Master.Units.UnitsController",
+    "Method": "GetUnitsById",
+    "RelativePath": "api/Units/id/{UnitsId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "UnitsId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "UserPanel.Controllers.WeatherForecastController",
+    "Method": "Get",
+    "RelativePath": "WeatherForecast",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.IEnumerable\u00601[[UserPanel.WeatherForecast, UserPanel, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ],
+    "EndpointName": "GetWeatherForecast"
+  }
+]
