@@ -12,10 +12,11 @@ import { Column } from "primereact/column";
 import { FilterMatchMode } from "primereact/api";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-import { getBankBookList } from "common/data/mastersapi";
 import { toast } from "react-toastify";
 import { GetBankList } from "common/data/mastersapi";
-import { useHistory, useLocation } from 'react-router-dom';
+import { useHistory } from 'react-router-dom';
+import axios from "axios";
+import { PYTHON_API_URL } from "common/pyapiconfig";
 
 const Breadcrumbs = ({ title, breadcrumbItem }) => (
     <div className="page-title-box d-sm-flex align-items-center justify-content-between">
@@ -79,43 +80,32 @@ const BankBook = () => {
 
     const fetchBankBook = async () => {
         try {
-
             setLoading(true);
             setBankBook([]);
 
-            const orgId = 1;
-            const branchId = 1;
-
-            const response = await getBankBookList({
-                orgid: orgId,
-                branchid: branchId,
-                fromDate: fromDate || null,
-                toDate: toDate || null,
-                bankid: bankid == undefined || bankid == null ? 0 : bankid
+            const response = await axios.get(`${PYTHON_API_URL}/AR/get-report`, {
+                params: {
+                    from_date: fromDate || null,
+                    to_date: toDate || null,
+                    bank_id: bankid == undefined || bankid == null ? 0 : bankid
+                }
             });
 
+            const resultData = response.data?.data || [];
 
             const uniqueCurrency = [
-                ...new Set(response.map((x) => x.Currency))
+                ...new Set(resultData.map((x) => x.Currency))
             ].map((c) => ({ label: c, value: c }));
 
             setCurrencyList(uniqueCurrency);
 
-            console.log(uniqueCurrency);
-
             // --- AUTO SELECT CURRENCY LOGIC START ---
             if (bankid) {
-                // 1. Find the selected bank object to get the full name (e.g. "Cash in Bank - BCA IDR")
                 const selectedBank = btgBankOptions.find(opt => opt.value === bankid);
-                
                 if (selectedBank) {
                     const bankName = selectedBank.label;
-
-                    // 2. Try to find if one of the currencies returned by the API is in the bank name
                     let targetCurrency = uniqueCurrency.find(c => bankName.includes(c.value));
 
-                    // 3. Fallback: If API returned no data (uniqueCurrency empty), try to match common currencies
-                    // directly from the bank string so the filter is still set correctly.
                     if (!targetCurrency) {
                         const commonCurrencies = ["IDR", "SGD", "USD", "EUR", "AUD", "JPY", "CNY"];
                         const match = commonCurrencies.find(c => bankName.includes(c));
@@ -123,40 +113,42 @@ const BankBook = () => {
                             targetCurrency = { label: match, value: match };
                         }
                     }
-
-                    // 4. Update state
                     if (targetCurrency) {
                         setCurrency(targetCurrency);
                     }
                 }
+            } else {
+                // FIX: Reset currency if no bank is selected so "All" logic applies
+                setCurrency(null);
             }
             // --- AUTO SELECT CURRENCY LOGIC END ---
 
-            const transformed = response.map((item) => ({
-                date: item.Date ? (item.Date) : null,
-                voucherNo: item["Voucher No"] || "-",
+            const transformed = resultData.map((item) => ({
+                date: item.Date ? new Date(item.Date) : null,
+                voucherNo: item.VoucherNo || "-",
                 transactionType: item.TransactionType || "-",
-                glcode: item.glcode || "",
+                glcode: "", 
                 account: item.Account || "-",
                 party: item.Party || "-",
                 description: item.Description || "-",
-                currency: item.Currency || "",
-                actamount: item.actamount,
-                creditIn: parseFloat(item["Credit(In)"]?.replace(/,/g, "") || 0),
-                debitOut: parseFloat(item["Debit(Out)"]?.replace(/,/g, "") || 0),
-                balance: parseFloat(item["Balance"]?.replace(/,/g, "") || 0),
+                currency: item.Currency || "IDR",
+                actamount: item.NetAmount, 
+                creditIn: parseFloat(item.CreditIn || 0),
+                debitOut: parseFloat(item.DebitOut || 0),
+                balance: parseFloat(item.Balance || 0),
             }));
 
             setBankBook(transformed);
         } catch (error) {
-            console.error(error); // Log error for debugging
+            console.error(error);
             toast.error("Error fetching bank book data.");
         } finally {
             setLoading(false);
         }
     };
+
     const Bankmaster = async () => {
-        const data = await GetBankList(1, 1); // Mock your API call
+        const data = await GetBankList(1, 1);
         const options = data.map(item => ({
             value: item.value,
             label: item.BankName
@@ -164,10 +156,10 @@ const BankBook = () => {
         setbtgBankOptions(options);
     }
     
-    // Filter logic: This will automatically re-run when `currency` state is updated by the logic above
+    // --- FIX: Logic to show ALL records if currency is null ---
     const filtered = currency
         ? bankBook.filter(item => item.currency === currency.value)
-        : []; // If you want to show ALL records when no currency is found, change [] to bankBook
+        : bankBook; // Changed from [] to bankBook
 
     const exportToExcel = () => {
         const exportData = filtered.map((ex) => ({
@@ -234,7 +226,7 @@ const BankBook = () => {
         setCurrency(null);
         setFromDate(firstDayOfMonth);
         setToDate(today);
-        setbankid(0);
+        setbankid(null); // Ensure this resets to null, not 0
         setFilters({
             description: { value: null, matchMode: FilterMatchMode.CONTAINS },
             voucherNo: { value: null, matchMode: FilterMatchMode.CONTAINS },
@@ -244,16 +236,23 @@ const BankBook = () => {
             date: { value: null, matchMode: FilterMatchMode.DATE_IS },
         });
         setGlobalFilter("");
-        fetchBankBook();
+        // fetchBankBook will be called by useEffect when bankid changes or we can call it manually
+        // Since setbankid is async, best to rely on useEffect or call a refresh function that reads current state carefully. 
+        // For simplicity here, we can trigger a manual fetch with default params.
+        setTimeout(() => fetchBankBook(), 100); 
     };
 
     useEffect(() => {
         fetchBankBook();
         Bankmaster();
-
     }, []);
+
     const addBankBook = () => {
         history.push("/AddBankBook");
+    };
+
+    const dateBodyTemplate = (rowData) => {
+        return formatPrintDate(rowData.date);
     };
 
     return (
@@ -264,36 +263,19 @@ const BankBook = () => {
                 {/* Filter Section */}
                 <Row className="pt-2 pb-3 align-items-end">
                     <Col md="3">
-
                         <Select
                             name="depositBankId"
                             id="depositBankId"
-
                             options={btgBankOptions}
-                            value={
-                                btgBankOptions.find((o) => o.value === bankid) ||
-                                null
-                            }
-                            onChange={(option) => {
-                                setbankid(option?.value || 0);
-
+                            isClearable={true} // Allow clearing the bank selection
+                            value={btgBankOptions.find((o) => o.value === bankid) || null}
+                            onChange={(option) => { 
+                                setbankid(option?.value || null); 
                             }}
                             placeholder="Select BTG Bank"
                         />
                     </Col>
                     
-                    {/* COMMENTED OUT CURRENCY DROPDOWN AS REQUESTED */}
-                    {/* <Col md="3" className="d-flex align-items-center">
-                        <Select
-                            options={currencyList}
-                            placeholder="Filter Currency"
-                            value={currency}
-                            onChange={setCurrency}
-                            isClearable
-                            styles={{ container: (base) => ({ ...base, width: "100%" }) }}
-                        /> 
-                    </Col> */}
-
                     <Col md="3">
                         <input
                             type="date"
@@ -319,9 +301,6 @@ const BankBook = () => {
                         <button type="button" className="btn btn-primary me-2" onClick={fetchBankBook}>
                             Search
                         </button>
-                        {/*<button type="button" className="btn btn-success me-2" onClick={addBankBook}>
-                            <i className="bx bx-plus me-2"></i> New
-                        </button>*/}
                         <button type="button" className="btn btn-danger me-2" onClick={handleCancelFilters}>
                             Cancel
                         </button>
@@ -353,7 +332,6 @@ const BankBook = () => {
                                     loading={loading}
                                     paginator
                                     rows={20}
-
                                     filters={filters}
                                     onFilter={(e) => setFilters(e.filters)}
                                     globalFilterFields={["glcode", "currency", "actamount", "date", "creditIn", "debitOut", "balance", "description", "voucherNo", "account", "party", "transactionType"]}
@@ -363,10 +341,9 @@ const BankBook = () => {
                                     filterDisplay="menu"
                                     filter
                                 >
-                                    {/* <Column header="S.No." body={(_, { rowIndex }) => rowIndex + 1} style={{ width: '60px' }} /> */}
-                                    <Column field="date" header="Date" style={{ width: '120px' }} />
+                                    <Column field="date" header="Date" body={dateBodyTemplate} style={{ width: '120px' }} />
+                                    
                                     <Column field="voucherNo" header="Voucher No" filter filterPlaceholder="Search Voucher" />
-                                    <Column field="glcode" header="GL Code" filter filterPlaceholder="Search GL" />
 
                                     <Column field="transactionType" header="Transaction Type" filter filterPlaceholder="Search Type" />
                                     <Column field="account" header="Account" filter filterPlaceholder="Search Account" />
@@ -374,11 +351,7 @@ const BankBook = () => {
                                     <Column field="description" header="Description" filter filterPlaceholder="Search Description" />
 
                                     <Column field="currency" header="Currency" filter filterPlaceholder="Search Currency" />
-                                    <Column field="actamount" className="text-end" header="Currency Amount" body={(d) => d.actamount?.toLocaleString('en-US', {
-                                        style: 'decimal',
-                                        minimumFractionDigits: 2
-                                    })}
-                                        filter filterPlaceholder="Search Amount" />
+                                    
                                     <Column field="creditIn" header="Credit (In)" body={(d) => d.creditIn.toLocaleString('en-US', {
                                         style: 'decimal',
                                         minimumFractionDigits: 2

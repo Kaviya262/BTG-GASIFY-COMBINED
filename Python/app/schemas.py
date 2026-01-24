@@ -33,9 +33,6 @@ class CreateARCommand(BaseModel):
     userIp: str
     header: List[ArReceiptInput]
 
-class VerifyCustomerUpdate(BaseModel):
-    customer_id: int
-
 class InvoiceAllocation(BaseModel):
     invoice_id: int
     invoice_no: str
@@ -46,14 +43,17 @@ class VerifyCustomerUpdate(BaseModel):
     customer_id: int
     bank_charges: float
     tax_deduction: float
+    exchange_rate: float = 1.0 # --- ADDED ---
     allocations: List[InvoiceAllocation]
+    reply_message: Optional[str] = None # --- ADDED FOR REPLY ---
 
-# ADD THIS NEW SCHEMA
 class SaveDraftRequest(BaseModel):
     customer_id: int
     bank_charges: float
     tax_deduction: float
+    exchange_rate: float = 1.0 # --- ADDED ---
     allocations: List[InvoiceAllocation]
+    reply_message: Optional[str] = None # --- ADDED FOR REPLY ---
 
 class UpdateReferenceRequest(BaseModel):
     id: int

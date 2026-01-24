@@ -9,12 +9,10 @@ import * as Yup from "yup";
 import Breadcrumbs from "../../../components/Common/Breadcrumb";
 import { GetCustomerFilter, fetchSalesInvoiceDOList, getPackingDetails, GetUoM, GetCurrency, fetchGasListDSI, GetCascodedetail, GetCurrencyconversion } from "../../../common/data/mastersapi";
 
-// --- UPDATED IMPORTS: Added GetAvailableDOs ---
 import { GetInvoiceDetails, CreatenewInvoice, GetInvoiceSNo, UpdateInvoice, GetAvailableDOs } from "../../../common/data/invoiceapi";
 import useAccess from "../../../common/access/useAccess";
 import { createAR } from "../../FinanceModule/service/financeapi";
 
-// --- IMPORTS FOR DO SELECTION TABLE ---
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 
@@ -29,12 +27,14 @@ const AddManualInvoice = () => {
   const showAccord = activeItem => {
     setActiveAccord(prevState => ({
       ...prevState,
-      [activeItem]: !prevState[activeItem], // Dynamically update the specific key
+      [activeItem]: !prevState[activeItem],
     }));
   };
   const history = useHistory();
   const { id } = useParams();
   const currentDate = new Date();
+
+  // --- REMOVED: isFirstWeek logic is no longer needed ---
 
   const [branchId] = useState(1);
   const [submitType, setSubmitType] = useState(1);
@@ -76,7 +76,6 @@ const AddManualInvoice = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currencySelect, setcurrencySelect] = useState(null);
 
-  // Add this function in your component
   const handleDeleteRow = (rowIndex) => {
     setmanualinvoiceDetails(prev =>
       prev.filter((_, index) => index !== rowIndex)
@@ -96,7 +95,7 @@ const AddManualInvoice = () => {
       Volume: 1,
       Pressure: 1,
       Qty: 1,
-      pickedQty: 1, // Ensure pickedQty is initialized
+      pickedQty: 1,
       Uom: "",
       UomId: 0,
       CurrencyId: currencySelect,
@@ -115,7 +114,8 @@ const AddManualInvoice = () => {
       soQty: 0,
       so_Issued_Qty: 0,
       balance_Qty: 0,
-      ConvertedCurrencyId: currencySelect
+      ConvertedCurrencyId: currencySelect,
+      isImportedDO: false 
     },
   ]);
 
@@ -140,17 +140,15 @@ const AddManualInvoice = () => {
     };
     getCustomerList();
 
-    console.log("Invoice ID from URL:", id); // DEBUG
     if (id) {
-      console.log("Loading invoice details for ID:", id); // DEBUG
       getInvoiceDetails(id);
-    } else {
-      console.log("No ID found, create mode"); // DEBUG
-      // getInvoicesno();
     }
-  }, [branchId, id]); // Added 'id' to dependency array
+  }, [branchId, id]);
 
   const handleAddItem = async () => {
+    const lastRow = manualinvoiceDetails[manualinvoiceDetails.length - 1];
+    const previousPO = lastRow ? lastRow.poNumber : "";
+
     const newRow = {
       sqid: 0,
       packingid: 0,
@@ -174,7 +172,7 @@ const AddManualInvoice = () => {
       Exchangerate: "",
       driverName: "",
       truckName: "",
-      poNumber: "",
+      poNumber: previousPO, 
       doNumber: "",
       requestDeliveryDate: currentDate,
       deliveryAddress: "",
@@ -183,22 +181,17 @@ const AddManualInvoice = () => {
       so_Issued_Qty: 0,
       balance_Qty: 0,
       ConvertedCurrencyId: currencySelect || null,
+      isImportedDO: false 
     };
 
     const updatedDetails = [...manualinvoiceDetails, newRow];
     setmanualinvoiceDetails(updatedDetails);
 
     if (currencySelect) {
-      // calculate price for new row only if currency is selected
       await GetCurrencyval(updatedDetails.length - 1, currencySelect);
     }
   };
 
-
-  useEffect(() => {
-    console.log(deliveryOrdersList);
-    console.log("doDetail", doDetail);
-  }, [deliveryOrdersList]);
 
   useEffect(() => {
     setDoDetail([]);
@@ -213,25 +206,22 @@ const AddManualInvoice = () => {
       ...prev,
       customerId: option ? option.value : "",
     }));
-    setIscustomerchange(prev => prev + 1); // Trigger reset
+    setIscustomerchange(prev => prev + 1);
 
-    // Clear the grid when customer changes to avoid mixing DOs
     setmanualinvoiceDetails([{
       sqid: 0, packingid: 0, id: 0, salesInvoicesId: 0, packingDetailId: 0, deliveryNumber: "", GasCodeId: 0, gasCode: "",
       Volume: 1, Pressure: 1, Qty: 1, pickedQty: 1, Uom: "", UomId: 0, CurrencyId: currencySelect, UnitPrice: 0, TotalPrice: 0,
       ConvertedPrice: "", price: "", Exchangerate: 0, driverName: "", truckName: "", poNumber: "", doNumber: "",
       requestDeliveryDate: currentDate, deliveryAddress: "", deliveryInstruction: "", soQty: 0, so_Issued_Qty: 0, balance_Qty: 0,
-      ConvertedCurrencyId: currencySelect
+      ConvertedCurrencyId: currencySelect, isImportedDO: false
     }]);
   };
 
   const handleDOSelectChange = options => {
-    console.log(options);
     setPackingDetails([]);
     if (options.length === 0) {
       setPackingDetails([]);
     }
-    ;
     const updatedOptions = options.map((item, index) => ({
       ...item,
       doid: item.id || 0,
@@ -266,7 +256,6 @@ const AddManualInvoice = () => {
     }
   };
 
-  // --- UPDATED: Client-Side Filtering (Like AR Book) ---
   const fetchAvailableDOs = async () => {
     setDoLoading(true);
     try {
@@ -277,7 +266,6 @@ const AddManualInvoice = () => {
       const response = await GetAvailableDOs(payload);
       const allData = response.data || response || [];
 
-      // Filter: Show records starting with "DO" OR "27"
       const filteredData = allData.filter(item => {
         const ref = item.do_number || "";
         return ref.startsWith("DO") || ref.startsWith("27");
@@ -300,18 +288,14 @@ const AddManualInvoice = () => {
     try {
       let newItems = [];
 
-      // Loop through selected DOs and fetch details for each
       for (const doHeader of selectedDOs) {
         const doId = doHeader.do_id;
         const doNumber = doHeader.do_number;
 
-        // Reuse existing GetInvoiceDetails to get line items
         const detailsData = await GetInvoiceDetails(doId);
 
         if (detailsData && detailsData.Items) {
-          // Map items to grid format
           const mappedItems = await Promise.all(detailsData.Items.map(async (item) => {
-            // Find Gas Info locally 
             const gasInfo = gasCodeList.find(g => g.GasCodeId === item.gascodeid);
             let description = "";
             let volume = "";
@@ -353,13 +337,15 @@ const AddManualInvoice = () => {
               doNumber: doNumber,
 
               requestDeliveryDate: currentDate,
+              
+              // --- FLAG AS IMPORTED DO ---
+              isImportedDO: true 
             };
           }));
           newItems = [...newItems, ...mappedItems];
         }
       }
 
-      // Remove blank row if it exists and append new items
       setmanualinvoiceDetails(prev => {
         const cleanPrev = prev.filter(r => r.GasCodeId !== 0);
         return [...cleanPrev, ...newItems];
@@ -387,37 +373,7 @@ const AddManualInvoice = () => {
     }));
   };
 
-  const validationSchema = Yup.object().shape({
-    salesInvoiceNbr: Yup.string().required("Invoice number is required"),
-    salesInvoiceDate: Yup.date().required("Invoice date is required"),
-    customerId: Yup.string().required("Customer is required"),
-    ConvertedCurrencyId: Yup.string().required("Currency is required"),
-    manualinvoiceDetails: Yup.array()
-      .of(
-        Yup.object().shape({
-          GasCodeId: Yup.string().required("Gas is required"),
-          pickedQty: Yup.number()
-            .max(5, "Qty Number must be at most 5 characters")
-            .typeError("Qty must be a number")
-            .required("Qty is required")
-            .positive("Qty must be positive"),
-          poNumber: Yup.string()
-            .max(20, "PO Number must be at most 20 characters")
-            .matches(/^[a-zA-Z0-9 ]*$/, "Only alphanumeric characters allowed")
-            .required("PO Number is required"),
-          UomId: Yup.string().required("UOM is required"),
-          UnitPrice: Yup.number()
-            .typeError("Unit Price must be a number")
-            .required("Unit Price is required")
-            .positive("Unit Price must be positive"),
-        })
-      )
-      .min(1, "At least one gas detail is required"),
-  });
-
-
   const validateForm = () => {
-    // Validate invoiceHeader
     if (!invoiceHeader || !invoiceHeader.salesInvoiceNbr || !invoiceHeader.customerId || !invoiceHeader.salesInvoiceDate || invoiceHeader.totalAmount <= 0 || invoiceHeader.totalQty <= 0) {
       setErrorMsg(["Invoice header details are incomplete or invalid."]);
       return false;
@@ -432,19 +388,27 @@ const AddManualInvoice = () => {
     return true;
   };
 
+  const formatDateForAPI = (date) => {
+    if (!date) return "";
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const handleSubmit = async (submitTypeParam) => {
     const submitValue = Number(submitTypeParam ?? submitType);
     if (!validateForm()) return;
 
-    // Calculate totals from manualinvoiceDetails
-    const totalQty = manualinvoiceDetails.reduce((acc, item) => acc + (Number(item.pickedQty) || 0), 0); // Changed Qty to pickedQty
+    const totalQty = manualinvoiceDetails.reduce((acc, item) => acc + (Number(item.pickedQty) || 0), 0);
     const totalAmount = manualinvoiceDetails.reduce((acc, item) => acc + (Number(item.TotalPrice) || 0), 0);
     const calculatedPrice = manualinvoiceDetails.reduce((acc, item) => acc + (Number(item.ConvertedPrice) || 0), 0);
 
     const headerdetails = {
       id: invoiceHeader.id || 0,
       customerId: invoiceHeader.customerId || "",
-      salesInvoiceDate: invoiceHeader.salesInvoiceDate || currentDate,
+      salesInvoiceDate: formatDateForAPI(invoiceHeader.salesInvoiceDate || currentDate),
       salesInvoiceNbr: invoiceHeader.salesInvoiceNbr || "",
       orgId: invoiceHeader.orgId || 1,
       branchId: invoiceHeader.branchId || 1,
@@ -505,7 +469,8 @@ const AddManualInvoice = () => {
       details: updatedDetails,
       doDetail: doDetailPayload
     };
-    console.log(finalPayload);
+    
+    console.log("Submitting Payload:", finalPayload);
 
     setIsSubmitting(true);
     try {
@@ -528,8 +493,7 @@ const AddManualInvoice = () => {
         setSuccessStatus(true);
 
         if (Number(submitType) === 1) {
-          let Arresponse;
-          Arresponse = await createAR({
+           await createAR({
             "orgId": 1,
             "branchId": 1,
             "userId": 1,
@@ -557,21 +521,12 @@ const AddManualInvoice = () => {
 
   const getInvoiceDetails = async id => {
     try {
-      console.log("Fetching invoice details for ID:", id); // DEBUG
+      console.log("Fetching invoice details for ID:", id); 
       const data = await GetInvoiceDetails(id);
-      console.log("Invoice data received:", data); // DEBUG
-
-      // Handle two possible response structures:
-      // 1. Old structure: { Header: {...}, Details: [...] }
-      // 2. New structure: { InvoiceId, InvoiceNbr, Items: [...] }
-
+      
       const isNewStructure = data?.Items && !data?.Header;
 
       if (isNewStructure) {
-        // NEW STRUCTURE: Flat response with Items array
-        console.log("Using new API structure"); // DEBUG
-
-        // Set header from flat response
         SetInvoiceHeader(prev => ({
           ...prev,
           id: data.InvoiceId || id,
@@ -581,9 +536,7 @@ const AddManualInvoice = () => {
           totalAmount: data.TotalAmount || 0,
           calculatedPrice: data.CalculatedPrice || 0,
         }));
-        console.log("Invoice header set from flat structure"); // DEBUG
 
-        // Set details from Items array
         if (Array.isArray(data.Items) && data.Items.length > 0) {
           const mappedDetails = data.Items.map(item => ({
             sqid: 0,
@@ -618,26 +571,20 @@ const AddManualInvoice = () => {
             so_Issued_Qty: item.so_Issued_Qty || 0,
             balance_Qty: item.balance_Qty || 0,
             ConvertedCurrencyId: item.convertedCurrencyId || item.Currencyid || 0,
+            isImportedDO: !!item.ref_do_id 
           }));
           setmanualinvoiceDetails(mappedDetails);
           setcurrencySelect(mappedDetails[0]?.ConvertedCurrencyId || null);
-          console.log("Invoice details set, row count:", mappedDetails.length); // DEBUG
         }
       } else {
-        // OLD STRUCTURE: Header/Details structure
-        console.log("Using old API structure"); // DEBUG
-
-        // set header
         if (data?.Header) {
           SetInvoiceHeader(prev => ({
             ...prev,
             ...data.Header,
-            id: data.Header.id || id, // Ensure ID is set
+            id: data.Header.id || id,
           }));
-          console.log("Invoice header set:", data.Header); // DEBUG
         }
 
-        // set details
         if (Array.isArray(data?.Details)) {
           const mappedDetails = data.Details.map(item => ({
             sqid: item.sqid || 0,
@@ -672,23 +619,19 @@ const AddManualInvoice = () => {
             so_Issued_Qty: item.so_Issued_Qty || 0,
             balance_Qty: item.balance_Qty || 0,
             ConvertedCurrencyId: item.convertedCurrencyId,
+            isImportedDO: !!item.ref_do_id
           }));
           setmanualinvoiceDetails(mappedDetails);
           setcurrencySelect(mappedDetails[0]?.ConvertedCurrencyId || null);
-          console.log("Invoice details set, row count:", mappedDetails.length); // DEBUG
         }
 
-        // set DO details
         if (Array.isArray(data?.DoDetail)) {
           setDoDetail(data.DoDetail);
-
           const updatedOptions = data.DoDetail.map(item => ({
             ...item,
             value: item.packingId,
             label: item.packno,
           }));
-
-          // load packing for each DO
           handleDOSelectChange(updatedOptions);
         }
       }
@@ -730,7 +673,6 @@ const AddManualInvoice = () => {
     }
     else {
       setSubmitType(submitype);
-      // handleSubmit(submitype);
       setIsModalOpen(true);
     }
   };
@@ -745,43 +687,34 @@ const AddManualInvoice = () => {
 
   const handlePOChange = (index, ponumber) => {
     const updatedDetails = [...manualinvoiceDetails];
-    // Ensure the row exists
-    if (!updatedDetails[index]) {
-      return;
-    }
+    if (!updatedDetails[index]) return;
     updatedDetails[index].poNumber = ponumber;
     setmanualinvoiceDetails(updatedDetails);
   };
 
   const handleDOChange = (index, donumber) => {
     const updatedDetails = [...manualinvoiceDetails];
-    // Ensure the row exists
-    if (!updatedDetails[index]) {
-      return;
-    }
+    if (!updatedDetails[index]) return;
     updatedDetails[index].doNumber = donumber;
     setmanualinvoiceDetails(updatedDetails);
   };
 
   const handleCurrencyChange = async (index, value) => {
     if (index === null) {
-      // global currency change (top dropdown)
       const updatedDetails = manualinvoiceDetails.map(item => ({
         ...item,
         ConvertedCurrencyId: value,
         CurrencyId: value,
       }));
       setmanualinvoiceDetails(updatedDetails);
-      setcurrencySelect(value); // can be null
+      setcurrencySelect(value);
 
       if (value) {
-        // only call GetCurrencyval if value is not null
         for (let i = 0; i < updatedDetails.length; i++) {
           await GetCurrencyval(i, value);
         }
       }
     } else {
-      // per row currency change
       const updatedDetails = [...manualinvoiceDetails];
       updatedDetails[index].ConvertedCurrencyId = value;
       updatedDetails[index].CurrencyId = value;
@@ -812,16 +745,10 @@ const AddManualInvoice = () => {
 
   const currencyvalfn = async index => {
     const updatedDetails = [...manualinvoiceDetails];
+    if (!updatedDetails[index]) return;
 
-    if (!updatedDetails[index]) {
-      console.warn(`Row at index ${index} is undefined`);
-      return;
-    }
-
-    //  Keep user-selected currencyId, don't overwrite with BaseCurrencyId
     updatedDetails[index].CurrencyId = updatedDetails[index].CurrencyId || currencySelect;
     updatedDetails[index].ConvertedCurrencyId = updatedDetails[index].ConvertedCurrencyId || currencySelect;
-
     updatedDetails[index].Exchangerate = currencyval.Exchangerate;
 
     const price = currencyval.Exchangerate || 1;
@@ -832,11 +759,10 @@ const AddManualInvoice = () => {
     total_price = parseFloat(total_price.toFixed(2));
     updatedDetails[index].TotalPrice = total_price;
 
-    let esti_price = parseFloat(price) * total_price; // simpler: exchange rate × total
+    let esti_price = parseFloat(price) * total_price;
     esti_price = parseFloat(esti_price.toFixed(2));
 
     updatedDetails[index].ConvertedPrice = esti_price;
-
     setmanualinvoiceDetails(updatedDetails);
   };
 
@@ -850,10 +776,7 @@ const AddManualInvoice = () => {
 
   const handleQtyUpdate = async (index, value) => {
     const updatedDetails = [...manualinvoiceDetails];
-    if (!updatedDetails[index]) {
-      return;
-    }
-    // updatedDetails[index].Qty = qty;
+    if (!updatedDetails[index]) return;
     updatedDetails[index] = {
       ...updatedDetails[index],
       pickedQty: value
@@ -889,7 +812,6 @@ const AddManualInvoice = () => {
     if (selectedGas) {
       try {
         const gascodedetails = await GetCascodedetail(selectedGas.GasCodeId);
-
         updatedDetails[index] = {
           ...updatedDetails[index],
           GasCodeId: selectedGas.GasCodeId,
@@ -912,12 +834,6 @@ const AddManualInvoice = () => {
         console.error("Error fetching gas code details:", error);
       }
     }
-  };
-
-  const formatCurrency = value => {
-    if (!value) return "";
-    const number = Number(value);
-    return number.toLocaleString("en-US"); // Use "en-US" for US format (1,234,567.89)
   };
 
   useEffect(() => {
@@ -977,7 +893,6 @@ const AddManualInvoice = () => {
                             )}
                           </Col>
 
-                          {/* --- MODIFIED SECTION: Buttons Layout --- */}
                           <Col md="12" className="mb-3">
                             <div className="d-flex justify-content-end align-items-center gap-2">
                               {access.canSave && (
@@ -987,7 +902,7 @@ const AddManualInvoice = () => {
                               )}
 
                               {access.canPost && (
-                                <Button color="success" onClick={(e) => { openpopup(e, 1) }}  // pass 1 for Post
+                                <Button color="success" onClick={(e) => { openpopup(e, 1) }} 
                                   disabled={isSubmitting} >
                                   <i className="bx bxs-save me-2"></i>Post
                                 </Button>
@@ -1007,7 +922,6 @@ const AddManualInvoice = () => {
                               </Button>
                             </div>
                           </Col>
-                          {/* --- END MODIFIED SECTION --- */}
 
                           <Col md="2">
                             <FormGroup>
@@ -1037,6 +951,7 @@ const AddManualInvoice = () => {
                             <FormGroup>
                               <Label>Date</Label>
                               <Flatpickr className="form-control d-block" placeholder="dd-mm-yyyy"
+                                value={invoiceHeader.salesInvoiceDate}
                                 options={{
                                   altInput: true,
                                   altFormat: "d-M-Y",
@@ -1081,7 +996,6 @@ const AddManualInvoice = () => {
                             </FormGroup>
                           </Col>
 
-                          {/* Currency Select */}
                           <Col md="4">
                             <FormGroup>
                               <Label className="required-label">Currency</Label>
@@ -1133,225 +1047,178 @@ const AddManualInvoice = () => {
                                   <div className="accordion-body">
                                     <div className="table-responsive tab-wid table-height">
                                       <Table className="table mb-0">
-                                        <thead
-                                          style={{ backgroundColor: "#3e90e2" }}
-                                        >
-                                          <tr>
-                                            <th className="text-center" style={{ width: "2%" }} >
-                                              <span style={{ cursor: "pointer", alignItems: "center", }} onClick={handleAddItem} >
-                                                <i className="mdi mdi-plus" />
-                                              </span>
-                                            </th>
-                                            <th className="text-center required-label" style={{ width: "14%" }}> Gas Name </th>
-                                            {/* <th className="text-center" style={{ width: "10%" }} > Gas Details </th> */}
-                                            <th className="text-center required-label" style={{ width: "8%" }} > Qty </th>
-                                            <th className="text-center required-label" style={{ width: "8%" }} > PO No. </th>
-                                            <th className="text-center " style={{ width: "8%" }} > DO No. </th>
-                                            <th className="text-center required-label" style={{ width: "10%" }} > UOM </th>
-                                            {/* <th className="text-center required-label" style={{ width: "9%" }} > Currency </th> */}
-                                            <th className="text-center required-label" style={{ width: "12%" }} > Unit Price </th>
-                                            <th className="text-center" style={{ width: "11%" }} > Total Price{" "} </th>
-                                            <th className="text-center" style={{ width: "14%" }} > Price (IDR) </th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {manualinvoiceDetails.map((item, index) => {
-                                            const tooltipId = `gas-code-${index}`;
-                                            const tooltipId2 = `delivery-${index}`;
-                                            return (
-                                              <tr key={item.GasCodeId || index}>
-                                                <td>
-                                                  {access.canDelete && (
-                                                    <span color="danger" className="btn-sm" onClick={() => handleDeleteRow(index)} title="Delete" >
-                                                      <i className="mdi mdi-trash-can-outline label-icon align-middle" title="Delete" />
-                                                    </span>
-                                                  )}
-                                                </td>
-                                                <td>
-                                                  <Select
-                                                    name="GasCodeId"
-                                                    id={`GasCodeId-${index}`} // Unique ID for each row
-                                                    options={gasCodeList
-                                                      .filter(code =>
-                                                        !manualinvoiceDetails.some((item, i) => i !== index && item.GasCodeId === code.GasCodeId)
-                                                      )
-                                                      .map(code => ({
-                                                        value: code.GasCodeId,
-                                                        label: code.GasName,
-                                                      }))}
-                                                    value={
-                                                      gasCodeList.find(
-                                                        option =>
-                                                          option.GasCodeId ===
-                                                          manualinvoiceDetails[index]?.GasCodeId
-                                                      ) || null
-                                                    }
-                                                    onChange={option =>
-                                                      handleGasCodeChange(index, option ? option.value : null)
-                                                    }
-                                                    classNamePrefix="select"
-                                                    isDisabled={isDisabled}
-                                                    isLoading={isLoading}
-                                                    isClearable={isClearable}
-                                                    isSearchable={isSearchable}
-                                                  />
-                                                  <ErrorMessage
-                                                    name={`manualinvoiceDetails.${index}.GasCodeId`}
-                                                    component="div"
-                                                    className="text-danger"
-                                                  />
-                                                </td>
-                                                <td>
-                                                  <Input name={`manualinvoiceDetails.${index}.pickedQty`} type="text" inputMode="numeric" className="text-end" maxLength={5}
-                                                    onChange={e => handleQtyUpdate(index, e.target.value)}
-                                                    value={manualinvoiceDetails[index]?.pickedQty || ""}
-                                                    id={`Qty-${index}`}
-                                                    onKeyDown={e => {
-                                                      // Allow only digits, backspace, delete, tab, arrow keys
-                                                      if (
-                                                        !/[0-9]/.test(e.key) &&
-                                                        e.key !== "Backspace" &&
-                                                        e.key !== "Delete" &&
-                                                        e.key !== "ArrowLeft" &&
-                                                        e.key !== "ArrowRight" &&
-                                                        e.key !== "Tab"
-                                                      ) {
-                                                        e.preventDefault();
-                                                      }
-                                                    }}
-                                                  />
-                                                  <ErrorMessage
-                                                    name={`manualinvoiceDetails.${index}.pickedQty`}
-                                                    component="div"
-                                                    className="text-danger"
-                                                  />
-                                                </td>
-                                                {/* Editable PO Number */}
-                                                <td>
-                                                  <Input type="text" name={`manualinvoiceDetails.${index}.poNumber`} className="text-end" maxLength={40}
-                                                    onChange={e => handlePOChange(index, e.target.value)}
-                                                    value={manualinvoiceDetails[index]?.poNumber}
-                                                    id={`poNumber-${index}`}
-                                                  />
-                                                  <ErrorMessage
-                                                    name={`manualinvoiceDetails.${index}.poNumber`}
-                                                    component="div"
-                                                    className="text-danger"
-                                                  />
-                                                </td>
-                                                {/* Editable DO Number */}
-                                                <td>
-                                                  <Input type="text" className="text-end" maxLength={20}
-                                                    onChange={e => handleDOChange(index, e.target.value)}
-                                                    value={manualinvoiceDetails[index]?.doNumber}
-                                                    id={`doNumber-${index}`}
-                                                  />
-                                                </td>
-                                                {/* Select UOM  */}
-                                                <td>
-                                                  <Input type="select"
-                                                    onChange={e => handleUOMChange(index, e.target.value)}
-                                                    id={`Uom-${index}`}
-                                                    value={manualinvoiceDetails[index]?.UomId || ""}
-                                                  >
-                                                    <option key="0" value="">Select</option>
-                                                    {UOMList.map(uom => (
-                                                      <option key={uom.UoMId} value={uom.UoMId}> {uom.UoM} </option>
-                                                    ))}
-                                                  </Input>
-                                                  <ErrorMessage
-                                                    name={`manualinvoiceDetails.${index}.UomId`}
-                                                    component="div"
-                                                    className="text-danger"
-                                                  />
+  <thead style={{ backgroundColor: "#3e90e2" }}>
+    <tr>
+      <th className="text-center" style={{ width: "2%" }}>
+        <span style={{ cursor: "pointer", alignItems: "center" }} onClick={handleAddItem}>
+          <i className="mdi mdi-plus" />
+        </span>
+      </th>
+      <th className="text-center required-label" style={{ width: "14%" }}> Gas Name </th>
+      
+      {/* MOVED: PO No. and DO No. came before Qty */}
+      <th className="text-center required-label" style={{ width: "8%" }}> PO No. </th>
+      <th className="text-center " style={{ width: "8%" }}> DO No. </th>
 
-                                                </td>
-                                                <td>
-                                                  <Input type="text" name={`manualinvoiceDetails.${index}.UnitPrice`} inputMode="decimal" className="text-end" maxLength={15}
-                                                    value={manualinvoiceDetails[index]?.UnitPrice || ""}
-                                                    onChange={e => {
-                                                      const raw = e.target.value.replace(/[^0-9.]/g, "");
-                                                      // Prevent multiple decimal points
-                                                      if ((raw.match(/\./g) || []).length > 1) {
-                                                        return;
-                                                      }
-                                                      if (raw.length <= 15) {
-                                                        handleUnitPriceChange(index, raw);
-                                                      }
-                                                    }}
-                                                    onKeyDown={e => {
-                                                      if (
-                                                        e.key === "e" || e.key === "-" ||
-                                                        (e.key.length === 1 && !/[0-9.]/.test(e.key))
-                                                      ) {
-                                                        e.preventDefault();
-                                                      }
-                                                    }}
-                                                  />
-                                                  <ErrorMessage
-                                                    name={`manualinvoiceDetails.${index}.UnitPrice`}
-                                                    component="div"
-                                                    className="text-danger"
-                                                  />
-                                                </td>
-                                                <td>
+      {/* MOVED: Qty is now here, Prior to UOM */}
+      <th className="text-center required-label" style={{ width: "8%" }}> Qty </th>
 
-                                                  <Input type="text" disabled name="TotalPrice" className="text-end" value={new Intl.NumberFormat("en-US",
-                                                    {
-                                                      style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2,
-                                                    }
-                                                  ).format(
-                                                    manualinvoiceDetails[index]?.TotalPrice || 0
-                                                  )}
-                                                    id={`TotalPrice-${index}`}
-                                                  />
-                                                </td>
-                                                <td>
-                                                  <Input type="text" disabled name="ConvertedPrice"
-                                                    value={new Intl.NumberFormat("en-US",
-                                                      {
-                                                        style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2,
-                                                      }
-                                                    ).format(
-                                                      manualinvoiceDetails[index]?.ConvertedPrice || 0
-                                                    )} // Ensure value is defined
-                                                    id={`ConvertedPrice-${index}`} className="text-end"
-                                                  />
-                                                </td>
-                                              </tr>
-                                            );
-                                          })}
-                                        </tbody>
-                                        <tfoot>
-                                          <tr className="fw-bold">
-                                            <td colSpan="7" className="text-end">Total</td>
-                                            <td className="text-end">
-                                              {new Intl.NumberFormat("en-US", {
-                                                style: "decimal",
-                                                minimumFractionDigits: 2,
-                                                maximumFractionDigits: 2,
-                                              }).format(
-                                                manualinvoiceDetails.reduce(
-                                                  (sum, item) => sum + (parseFloat(item.TotalPrice) || 0),
-                                                  0
-                                                )
-                                              )}
-                                            </td>
-                                            <td className="text-end">
-                                              {new Intl.NumberFormat("en-US", {
-                                                style: "decimal",
-                                                minimumFractionDigits: 2,
-                                                maximumFractionDigits: 2,
-                                              }).format(
-                                                manualinvoiceDetails.reduce(
-                                                  (sum, item) => sum + (parseFloat(item.ConvertedPrice) || 0),
-                                                  0
-                                                )
-                                              )}
-                                            </td>
-                                          </tr>
-                                        </tfoot>
-                                      </Table>
+      <th className="text-center required-label" style={{ width: "10%" }}> UOM </th>
+      <th className="text-center required-label" style={{ width: "12%" }}> Unit Price </th>
+      <th className="text-center" style={{ width: "11%" }}> Total Price{" "} </th>
+      <th className="text-center" style={{ width: "14%" }}> Price (IDR) </th>
+    </tr>
+  </thead>
+  <tbody>
+    {manualinvoiceDetails.map((item, index) => {
+      // --- ALL ROWS ARE NOW EDITABLE ---
+      // We removed the 'isRowFrozen' logic entirely.
+
+      return (
+        <tr key={item.GasCodeId || index}>
+          <td>
+            {/* Always allow delete if user has permission */}
+            {access.canDelete && (
+              <span color="danger" className="btn-sm" onClick={() => handleDeleteRow(index)} title="Delete">
+                <i className="mdi mdi-trash-can-outline label-icon align-middle" title="Delete" />
+              </span>
+            )}
+          </td>
+          
+          {/* Gas Code Column */}
+          <td>
+            <Select
+              name="GasCodeId"
+              id={`GasCodeId-${index}`}
+              options={gasCodeList
+                .filter(code => !manualinvoiceDetails.some((item, i) => i !== index && item.GasCodeId === code.GasCodeId))
+                .map(code => ({ value: code.GasCodeId, label: code.GasName }))}
+              value={gasCodeList.find(option => option.GasCodeId === manualinvoiceDetails[index]?.GasCodeId) || null}
+              onChange={option => handleGasCodeChange(index, option ? option.value : null)}
+              classNamePrefix="select"
+              isDisabled={isDisabled} 
+              isLoading={isLoading}
+              isClearable={isClearable}
+              isSearchable={isSearchable}
+            />
+            <ErrorMessage name={`manualinvoiceDetails.${index}.GasCodeId`} component="div" className="text-danger" />
+          </td>
+
+          {/* PO Number Column */}
+          <td>
+            <Input type="text" name={`manualinvoiceDetails.${index}.poNumber`} className="text-end" maxLength={40}
+              onChange={e => handlePOChange(index, e.target.value)}
+              value={manualinvoiceDetails[index]?.poNumber}
+              id={`poNumber-${index}`}
+              // Removed disabled prop
+            />
+            <ErrorMessage name={`manualinvoiceDetails.${index}.poNumber`} component="div" className="text-danger" />
+          </td>
+
+          {/* DO Number Column */}
+          <td>
+            <Input type="text" className="text-end" maxLength={20}
+              onChange={e => handleDOChange(index, e.target.value)}
+              value={manualinvoiceDetails[index]?.doNumber}
+              id={`doNumber-${index}`}
+              // Removed disabled prop
+            />
+          </td>
+
+          {/* Qty Column */}
+          <td>
+            <Input name={`manualinvoiceDetails.${index}.pickedQty`} type="text" inputMode="numeric" className="text-end" maxLength={5}
+              onChange={e => handleQtyUpdate(index, e.target.value)}
+              value={manualinvoiceDetails[index]?.pickedQty || ""}
+              id={`Qty-${index}`}
+              // Removed disabled prop
+              onKeyDown={e => {
+                if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Tab") {
+                  e.preventDefault();
+                }
+              }}
+            />
+            <ErrorMessage name={`manualinvoiceDetails.${index}.pickedQty`} component="div" className="text-danger" />
+          </td>
+
+          {/* UOM Column */}
+          <td>
+            <Input type="select"
+              onChange={e => handleUOMChange(index, e.target.value)}
+              id={`Uom-${index}`}
+              value={manualinvoiceDetails[index]?.UomId || ""}
+              // Removed disabled prop
+            >
+              <option key="0" value="">Select</option>
+              {UOMList.map(uom => (
+                <option key={uom.UoMId} value={uom.UoMId}> {uom.UoM} </option>
+              ))}
+            </Input>
+            <ErrorMessage name={`manualinvoiceDetails.${index}.UomId`} component="div" className="text-danger" />
+          </td>
+
+          {/* Unit Price Column */}
+          <td>
+            <Input type="text" name={`manualinvoiceDetails.${index}.UnitPrice`} inputMode="decimal" className="text-end" maxLength={15}
+              value={manualinvoiceDetails[index]?.UnitPrice || ""}
+              // Removed disabled prop
+              onChange={e => {
+                const raw = e.target.value.replace(/[^0-9.]/g, "");
+                if ((raw.match(/\./g) || []).length > 1) return;
+                if (raw.length <= 15) handleUnitPriceChange(index, raw);
+              }}
+              onKeyDown={e => {
+                if (e.key === "e" || e.key === "-" || (e.key.length === 1 && !/[0-9.]/.test(e.key))) {
+                  e.preventDefault();
+                }
+              }}
+            />
+            <ErrorMessage name={`manualinvoiceDetails.${index}.UnitPrice`} component="div" className="text-danger" />
+          </td>
+
+          {/* Total Price Column */}
+          <td>
+            <Input type="text" disabled name="TotalPrice" className="text-end" value={new Intl.NumberFormat("en-US",
+              { style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2, }
+            ).format(manualinvoiceDetails[index]?.TotalPrice || 0)}
+              id={`TotalPrice-${index}`}
+            />
+          </td>
+
+          {/* Converted Price Column */}
+          <td>
+            <Input type="text" disabled name="ConvertedPrice"
+              value={new Intl.NumberFormat("en-US",
+                { style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2, }
+              ).format(manualinvoiceDetails[index]?.ConvertedPrice || 0)}
+              id={`ConvertedPrice-${index}`} className="text-end"
+            />
+          </td>
+        </tr>
+      );
+    })}
+  </tbody>
+  {/* Footer remains unchanged as colSpan covers the rearranged columns */}
+  <tfoot>
+    <tr className="fw-bold">
+      <td colSpan="7" className="text-end">Total</td>
+      <td className="text-end">
+        {new Intl.NumberFormat("en-US", {
+          style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2,
+        }).format(
+          manualinvoiceDetails.reduce((sum, item) => sum + (parseFloat(item.TotalPrice) || 0), 0)
+        )}
+      </td>
+      <td className="text-end">
+        {new Intl.NumberFormat("en-US", {
+          style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2,
+        }).format(
+          manualinvoiceDetails.reduce((sum, item) => sum + (parseFloat(item.ConvertedPrice) || 0), 0)
+        )}
+      </td>
+    </tr>
+  </tfoot>
+</Table>
                                     </div>
                                   </div>
                                 </Collapse>

@@ -35,8 +35,6 @@ const ARBookDOReport = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   const [currencyRates, setCurrencyRates] = useState({});
-
-  // REMOVED "All" from initial state
   const [currencyOptions, setCurrencyOptions] = useState([]);
   const [selectedCurrency, setSelectedCurrency] = useState(null);
 
@@ -93,10 +91,7 @@ const ARBookDOReport = () => {
         rawData.sort((a, b) => parseDate(a.ledger_date) - parseDate(b.ledger_date));
 
         const uniqueCurrencies = [...new Set(rawData.map(item => item.currencycode || item.CurrencyCode))];
-
-        // REMOVED "All" option generation
         const newCurrencyOptions = uniqueCurrencies.filter(c => c).map(c => ({ label: c, value: c }));
-
         setCurrencyOptions(newCurrencyOptions);
 
         const processedData = rawData.map(row => {
@@ -105,8 +100,8 @@ const ARBookDOReport = () => {
 
           return {
             ...row,
-            // Use the new transaction_id from SP, fallback to random if missing (prevent crash)
-            uniqueId: row.transaction_id || Math.random(),
+            // Maps 'transaction_id' from SP (which is ar_id) to uniqueId for selection
+            uniqueId: row.transaction_id || row.ar_id, 
             convertedInvoiceAmount: (parseFloat(row.invoice_amount) || 0) * rate,
             convertedReceiptAmount: (parseFloat(row.receipt_amount) || 0) * rate,
             convertedDebitNote: (parseFloat(row.debit_note_amount) || 0) * rate,
@@ -124,7 +119,7 @@ const ARBookDOReport = () => {
     }
   };
 
-  // --- CONVERT TO INVOICE HANDLER ---
+  // --- CONVERT TO INVOICE HANDLER (UPDATED) ---
   const handleConvertSubmit = async () => {
     if (!newInvoiceNo.trim()) {
       toast.error("Please enter an Invoice Number");
@@ -134,42 +129,50 @@ const ARBookDOReport = () => {
 
     setIsSaving(true);
 
-    // Extract IDs from selected rows
-    const idsToUpdate = selectedRows.map(row => row.uniqueId);
+    // Extract valid IDs
+    const idsToUpdate = selectedRows
+      .map(row => row.uniqueId)
+      .filter(id => id !== undefined && id !== null);
+
+    if (idsToUpdate.length === 0) {
+      toast.error("Selected rows have invalid IDs.");
+      setIsSaving(false);
+      return;
+    }
 
     try {
-      // Single Bulk Update API Call
       const response = await axios.put(`${PYTHON_API_URL}/AR/bulk-update-reference`, {
         ids: idsToUpdate,
         new_reference: newInvoiceNo
       });
 
       if (response.data.status === "success") {
-        toast.success(`Converted ${selectedRows.length} DO(s) to Invoice ${newInvoiceNo}`);
+        toast.success(`Success! Converted ${selectedRows.length} record(s) to ${newInvoiceNo}`);
         setIsConvertModalOpen(false);
         setNewInvoiceNo("");
+        
+        // Refresh data to remove converted rows from this view
         fetchARBook();
       } else {
-        toast.error("Failed to convert records");
+        toast.error("Failed to convert records.");
       }
 
     } catch (err) {
       console.error(err);
-      toast.error("An error occurred while converting");
+      toast.error("An error occurred while converting.");
     } finally {
       setIsSaving(false);
     }
   };
 
   const finalProcessedData = useMemo(() => {
-    // REMOVED "All" check logic, now checks if selectedCurrency exists
     let filtered = selectedCurrency
       ? arBook.filter((x) => (x.CurrencyCode || x.currencycode) === selectedCurrency.value)
       : arBook;
 
-    // --- UPDATED FILTER LOGIC: Starts with "DO" OR Starts with "27" ---
+    // --- FILTER LOGIC: Only show "DO" or "27" ---
     filtered = filtered.filter(item => {
-      const ref = item.invoice_no || "";
+      const ref = item.invoice_no ? String(item.invoice_no).trim().toUpperCase() : "";
       return ref.startsWith("DO") || ref.startsWith("27");
     });
 
@@ -301,6 +304,8 @@ const ARBookDOReport = () => {
           <ModalBody>
             <div className="alert alert-info">
               You have selected <strong>{selectedRows.length}</strong> DO(s) to convert.
+              <br />
+              <small>This will update both the Finance Book and Sales Header.</small>
             </div>
             <div className="mb-3">
               <Label className="fw-bold">New Invoice Number:</Label>

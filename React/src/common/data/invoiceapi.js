@@ -100,7 +100,6 @@ export const GetALLInvoices = async (customerid, FromDate, ToDate, branchId, IsA
     }
 };
 
-// *** ADDED THIS FUNCTION FOR REPORTS ***
 export const GetSalesDetails = async (filterData) => {
     try {
         const response = await axios.post(`${PYTHON_API_URL}/GetSalesDetails`, filterData);
@@ -111,6 +110,23 @@ export const GetSalesDetails = async (filterData) => {
         return [];
     } catch (error) {
         console.error("Error fetching sales details:", error);
+        return [];
+    }
+};
+
+// *** NEW ADDITION: GetItemFilter ***
+export const GetItemFilter = async () => {
+    try {
+        // This calls the Python endpoint: @router.get("/GetItemFilter")
+        const response = await axios.get(`${PYTHON_API_URL}/GetItemFilter`);
+        if (response.status === 200) {
+            // The backend returns [{value: 1, label: 'GasName'}, ...] directly
+            return response.data;
+        } else {
+            return [];
+        }
+    } catch (error) {
+        console.error("Error fetching item filter:", error);
         return [];
     }
 };
@@ -182,15 +198,16 @@ export const GetInvoiceSNo = async (branchId, type) => {
 
 export const CreatenewInvoice = async (orderData) => {
     try {
-        const response = await post(`/Invoices/Create`, orderData);
-        if (response) {
-            return response;
+        const response = await axios.post(`${PYTHON_API_URL}/CreateInvoice`, orderData);
+
+        if (response.status === 200 && response.data.status === "success") {
+            return { status: true, data: response.data.InvoiceId, message: response.data.message };
         } else {
-            throw new Error(response?.message || "Failed");
+            throw new Error(response.data.detail || "Failed to create invoice");
         }
     } catch (error) {
-        console.error("Error :", error);
-        return [];
+        console.error("Error calling Python CreateInvoice:", error);
+        return { status: false, message: error.response?.data?.detail || error.message };
     }
 };
 
@@ -223,7 +240,7 @@ export const GetDownloaddo = async (PackId) => {
 };
 
 
-const BASE_URL = process.env.REACT_APP_API_URL;
+const BASE_URL = "https://uat.spairyx.com/financeapi/api/";
 
 export const downloadExcel = async (PackId, PackNo) => {
     try {
@@ -235,7 +252,6 @@ export const downloadExcel = async (PackId, PackNo) => {
         );
 
         if (response.status) {
-            // Extract file name from content-disposition header
             const contentDisposition = response.headers["content-disposition"];
             const now = new Date();
             const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -256,12 +272,10 @@ export const downloadExcel = async (PackId, PackNo) => {
                 }
             }
 
-            // Create blob and trigger file download
             const blob = new Blob([response.data], {
                 type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             });
 
-            // Download file using file-saver
             saveAs(blob, fileName);
             return response;
         } else {
@@ -341,8 +355,6 @@ export const printExportExcel = async (packerid, FromDate, ToDate, branchId, Gas
     }
 };
 
-
-
 export const downloadPackingExportExcel = async (packerid, FromDate, ToDate, branchId, GasCodeId, customerid, esttime) => {
     try {
         const response = await axios.get(
@@ -373,19 +385,15 @@ export const downloadPackingExportExcel = async (packerid, FromDate, ToDate, bra
                 }
             }
 
-            // Create blob and trigger file download
             const blob = new Blob([response.data], {
                 type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             });
 
-            // Download file using file-saver
             saveAs(blob, fileName);
             return response;
         } else {
             return response;
         }
-
-        console.log("File downloaded successfully!");
     } catch (err) {
         console.error("Error downloading file:", err.message);
     }
@@ -404,7 +412,7 @@ export const GetALLPackingDelivery = async (packerid, FromDate, ToDate, branchId
         return [];
     }
 };
-//#region  packingstage
+
 export const packingstage = async (packingId, stageId, branchId = 1) => {
     try {
         const requestBody = {
@@ -424,9 +432,7 @@ export const packingstage = async (packingId, stageId, branchId = 1) => {
     }
 };
 
-//#endregion
 export const GetBarcodeDetails = async (PackingId, barcode, selectedDONOId) => {
-
     try {
         const response = await get(`/OrderMngMaster/GetBarcodeDetails?Barcode=${barcode}&PackingId=${PackingId}&doid=${selectedDONOId}`);
         if (response?.status) {
@@ -441,7 +447,6 @@ export const GetBarcodeDetails = async (PackingId, barcode, selectedDONOId) => {
 };
 
 export const SaveBarcodeScan = async (PackingId, rackid) => {
-
     try {
         const response = await get(`/Barcode/SaveBarcodeScan?PackingId=${PackingId}&rackid=${rackid}`);
         if (response?.status) {
@@ -457,7 +462,6 @@ export const SaveBarcodeScan = async (PackingId, rackid) => {
 
 
 export const GetRackDetails = async (branchId = 1) => {
-
     try {
         const response = await get(`/ordermngmaster/GetRackDetails?branchid=${branchId}`);
         if (response?.status) {
@@ -472,7 +476,6 @@ export const GetRackDetails = async (branchId = 1) => {
 };
 
 export const GetCustomerFilter = async (branchId = 1, searchtext) => {
-
     try {
         const response = await get(`/ordermngmaster/GetCustomerFilter?branchid=${branchId}&searchtext=${searchtext}`);
         if (response?.status) {
@@ -485,8 +488,8 @@ export const GetCustomerFilter = async (branchId = 1, searchtext) => {
         return [];
     }
 };
-export const GetPackerautoList = async (branchId = 1, searchtext) => {
 
+export const GetPackerautoList = async (branchId = 1, searchtext) => {
     try {
         const response = await get(`/ordermngmaster/GetPackerList?branchid=${branchId}&searchtext=${searchtext}`);
         if (response?.status) {
@@ -528,10 +531,6 @@ export const GetPackerList = async (branchId) => {
     }
 };
 
-
-
-
-
 export const Getgascodeagainstcustomer = async (customerid, branchId) => {
     try {
         const response = await get(`/ordermngmaster/Getgascodeagainstcustomer?CustomerId=${customerid}&branchid=${branchId}`);
@@ -548,7 +547,6 @@ export const Getgascodeagainstcustomer = async (customerid, branchId) => {
         return [];
     }
 };
-
 
 export const GetSOagainstGas = async (GasCodeId, branchId) => {
     try {
@@ -606,7 +604,6 @@ export const GetPackingSODetail = async (soid, branchId) => {
     }
 };
 
-
 export const GetStagedata = async (branchId) => {
     try {
         const response = await get(`/OrderMngMaster/GetStagedata?branchid=${branchId}`);
@@ -620,6 +617,7 @@ export const GetStagedata = async (branchId) => {
         return [];
     }
 };
+
 export const CreateAutoInvoice = async (orderData) => {
     try {
         const response = await post(`/PackingAndDO/GenerateInvoice`, orderData);
@@ -661,8 +659,6 @@ export const PackingConfirmed = async (Data) => {
         return [];
     }
 };
-
-
 
 export const CreatePacking = async (PorderData) => {
     try {
@@ -721,7 +717,6 @@ export const GetInvoiceData = async (pdlid) => {
     }
 };
 
-
 export const UpdatePacking = async (PorderData) => {
     try {
         const response = await put('/PackingAndDO/Update', PorderData);
@@ -772,8 +767,6 @@ export const searchReturnOrders = async (filters) => {
     }
 };
 
-//#region GetBarcodeDetailsByPacking
-// API Call Function
 export const GetBarcodePackingList = async ({ packingId, barcode, donoId }) => {
     try {
         console.log("Calling API with:", { packingId, barcode, donoId });
@@ -801,7 +794,6 @@ const buildQuery = (params) =>
         .join("&");
 
 
-//#endregion
 export const printExportExcelPacking = async (branchId) => {
     try {
         const response = await axios.get(

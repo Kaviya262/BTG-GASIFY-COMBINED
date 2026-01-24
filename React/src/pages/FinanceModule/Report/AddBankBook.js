@@ -5,11 +5,10 @@ import {
     Col,
     Container,
     Row,
-    FormGroup,
     Label,
     Input,
     Button,
-    Table, // Table is used in the Preview Modal
+    Table,
     Modal,
     ModalHeader,
     ModalBody,
@@ -42,6 +41,7 @@ const AddBankBook = () => {
     const [customerList, setCustomerList] = useState([]);
     const [entryList, setEntryList] = useState([]);
     const [salesList, setSalesList] = useState([]);
+    const [customerDefaults, setCustomerDefaults] = useState({}); 
 
     // --- BATCH ENTRY STATES ---
     const [selectedBank, setSelectedBank] = useState(null);
@@ -52,7 +52,7 @@ const AddBankBook = () => {
     // --- PREVIEW MODAL STATES ---
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [selectedEntry, setSelectedEntry] = useState(null);
-    const [invoiceList, setInvoiceList] = useState([]); // Stores fetched invoices
+    const [invoiceList, setInvoiceList] = useState([]);
     const [loadingInvoices, setLoadingInvoices] = useState(false);
 
     // --- INITIAL LOAD ---
@@ -65,6 +65,7 @@ const AddBankBook = () => {
             setCustomerList(Array.isArray(customers) ? customers.map(c => ({ value: c.CustomerID, label: c.CustomerName })) : []);
             
             loadSalesPersons();
+            loadCustomerDefaults();
         };
         loadInitialData();
     }, []);
@@ -95,6 +96,15 @@ const AddBankBook = () => {
         } catch (err) { console.error(err); }
     };
 
+    const loadCustomerDefaults = async () => {
+        try {
+            const response = await axios.get(`${PYTHON_API_URL}/AR/get-customer-defaults`);
+            if (response.data?.status === "success") {
+                setCustomerDefaults(response.data.data); 
+            }
+        } catch (err) { console.error("Failed to load customer defaults", err); }
+    };
+
     const loadEntryList = async () => {
         setLoading(true);
         try {
@@ -106,7 +116,6 @@ const AddBankBook = () => {
                     customerName: customerList.find(c => c.value === item.customer_id)?.label || item.customer_id,
                     displayDate: item.date ? format(new Date(item.date), "dd-MMM-yyyy") : "-",
                     verificationStatus: item.verification_status,
-                    // Ensure customerId is available for preview
                     customerId: item.customer_id 
                 }));
                 setEntryList(mapped);
@@ -117,7 +126,7 @@ const AddBankBook = () => {
 
     // --- HANDLERS ---
     const handleAddRow = () => {
-        setRows([...rows, {
+        setRows(prevRows => [...prevRows, {
             id: Date.now(), 
             rowId: 0, 
             type: "Receipt",
@@ -140,15 +149,38 @@ const AddBankBook = () => {
     const handleRowChange = (index, field, value) => {
         const newRows = [...rows];
         newRows[index][field] = value;
+
+        if (field === 'customerId') {
+            const defaultSP = customerDefaults[value];
+            if (defaultSP) {
+                newRows[index]['salesPersonId'] = defaultSP;
+            } else {
+                newRows[index]['salesPersonId'] = ""; 
+            }
+        }
+
         setRows(newRows);
     };
 
     const openNewModal = () => {
         setEditMode(false);
-        setRows([]); 
         setSelectedBank(null);
         setTotals({ receipt: 0, payment: 0 });
-        handleAddRow(); 
+        
+        const initialRow = {
+            id: Date.now(), 
+            rowId: 0, 
+            type: "Receipt",
+            date: new Date(),
+            customerId: "",
+            referenceNo: "",
+            amount: "",
+            bankCharges: "",
+            salesPersonId: "",
+            sendNotification: false
+        };
+        
+        setRows([initialRow]); 
         setIsModalOpen(true);
     };
 
@@ -238,12 +270,11 @@ const AddBankBook = () => {
         }
     };
 
-    // --- PREVIEW HANDLER ---
     const handlePreview = async (rowData) => {
         setSelectedEntry(rowData);
         setIsPreviewOpen(true);
         setLoadingInvoices(true);
-        setInvoiceList([]); // Clear previous data
+        setInvoiceList([]); 
 
         if (rowData.customerId) {
             try {
@@ -261,7 +292,6 @@ const AddBankBook = () => {
         setLoadingInvoices(false);
     };
 
-    // --- GENERATE VERIFICATION ---
     const handleGenerateVerification = async () => {
         if (!selectedEntry) return;
         try {
@@ -274,7 +304,6 @@ const AddBankBook = () => {
         }
     };
 
-    // --- TEMPLATES ---
     const statusBodyTemplate = (rowData) => (
         <div className="d-flex justify-content-center">
             <span className={`circle-badge ${rowData.is_posted ? 'bg-posted' : 'bg-saved'}`}>
@@ -288,79 +317,70 @@ const AddBankBook = () => {
         const isCompleted = rowData.verificationStatus === 'Completed';
         const isPending = rowData.verificationStatus === 'Pending';
         
-        if (isPending) return <div className="d-flex justify-content-center"><div className="verif-badge bg-pend">Pending</div></div>;
-        if (isCompleted) return <div className="d-flex justify-content-center"><div className="verif-badge bg-comp">Completed</div></div>;
+        if (isPending) {
+            return (
+                <div className="d-flex justify-content-center">
+                    <span className="circle-badge bg-danger" title="Verification Pending">P</span>
+                </div>
+            );
+        }
+        if (isCompleted) {
+            return (
+                <div className="d-flex justify-content-center">
+                    <span className="circle-badge bg-success" title="Verification Completed">C</span>
+                </div>
+            );
+        }
         return null;
     };
 
-    // --- ACTION COLUMN TEMPLATE ---
     const actionBodyTemplate = (rowData) => {
         const isPosted = rowData.is_posted;
         const isCompleted = rowData.verificationStatus === 'Completed';
         const isEditable = !isPosted;
-        // Preview allowed for both Saved and Posted entries
         const isPreviewable = true; 
         const isActionable = isCompleted; 
 
         return (
-            <div className="d-flex justify-content-center gap-2 align-items-center table-actions">
-                {/* EDIT */}
-                <span 
-                    className="action-link edit" 
+            <div className="d-flex justify-content-center gap-3 align-items-center table-actions">
+                {/* Edit */}
+                <button 
+                    className={`btn-icon ${isEditable ? 'text-primary' : 'text-muted'}`}
                     onClick={() => { if(isEditable) openEditModal(rowData); }}
-                    style={{ 
-                        cursor: isEditable ? 'pointer' : 'not-allowed', 
-                        opacity: isEditable ? 1 : 0.5,
-                        pointerEvents: isEditable ? 'auto' : 'none'
-                    }}
+                    disabled={!isEditable}
+                    title="Edit"
                 >
-                    Edit
-                </span>
+                    <i className="bx bx-pencil font-size-18"></i>
+                </button>
                 
-                <span className="divider">|</span>
-
-                {/* PREVIEW BUTTON - Added Here */}
-                <span 
-                    className="action-link preview" 
+                {/* Preview */}
+                <button 
+                    className={`btn-icon ${isPreviewable ? 'text-info' : 'text-muted'}`}
                     onClick={() => { if(isPreviewable) handlePreview(rowData); }}
-                    style={{ 
-                        cursor: isPreviewable ? 'pointer' : 'not-allowed', 
-                        opacity: isPreviewable ? 1 : 0.5,
-                        pointerEvents: isPreviewable ? 'auto' : 'none'
-                    }}
+                    disabled={!isPreviewable}
+                    title="Preview Invoice"
                 >
-                    Preview
-                </span>
+                    <i className="bx bx-show font-size-18"></i>
+                </button>
 
-                <span className="divider">|</span>
-                
-                {/* QUERY */}
-                <span 
-                    className="action-link query"
-                    style={{ 
-                        cursor: isActionable ? 'pointer' : 'not-allowed', 
-                        opacity: isActionable ? 1 : 0.5,
-                        pointerEvents: isActionable ? 'auto' : 'none'
-                    }}
+                {/* Query */}
+                <button 
+                    className={`btn-icon ${isActionable ? 'text-warning' : 'text-muted'}`}
+                    disabled={!isActionable}
+                    title="Query"
                 >
-                    Query
-                </span>
+                    <i className="bx bx-question-mark font-size-18"></i>
+                </button>
                 
-                <span className="divider">|</span>
-                
-                {/* SUBMIT */}
-                <span 
-                    className="action-link submit" 
+                {/* Submit */}
+                <button 
+                    className={`btn-icon ${isActionable ? 'text-success' : 'text-muted'}`}
                     onClick={() => { if(isActionable) handleSubmitRow(rowData.receipt_id); }}
-                    style={{ 
-                        cursor: isActionable ? 'pointer' : 'not-allowed', 
-                        opacity: isActionable ? 1 : 0.5,
-                        color: isActionable ? '#27ae60' : '#a0a0a0',
-                        pointerEvents: isActionable ? 'auto' : 'none'
-                    }}
+                    disabled={!isActionable}
+                    title="Submit to Finance"
                 >
-                    Submit
-                </span>
+                    <i className="bx bx-check-circle font-size-18"></i>
+                </button>
             </div>
         );
     };
@@ -387,16 +407,14 @@ const AddBankBook = () => {
                     <CardBody>
                         <DataTable value={entryList} paginator rows={10} loading={loading} globalFilter={globalFilter} className="p-datatable-modern" responsiveLayout="scroll">
                             <Column field="displayDate" header="Date" sortable filter style={{ width: '10%' }} />
-                            <Column field="coaCode" header="COA" sortable filter style={{ width: '10%' }} />
-                            <Column field="customerName" header="Customer" sortable filter style={{ width: '20%' }} />
+                            {/* REMOVED COA COLUMN HERE */}
+                            <Column field="customerName" header="Party" sortable filter style={{ width: '25%' }} />
                             <Column field="reference_no" header="Reference" sortable filter style={{ width: '10%' }} />
                             <Column field="bank_amount" header="Amount" textAlign="right" body={(d) => parseFloat(d.bank_amount || 0).toLocaleString()} style={{ width: '10%' }} />
                             <Column field="bank_charges" header="Bank Charges" textAlign="right" body={(d) => parseFloat(d.bank_charges || 0).toLocaleString()} style={{ width: '10%' }} />
-                            <Column header="Status" body={statusBodyTemplate} style={{ width: '8%' }} />
-                            <Column header="Verification Status" body={verificationBodyTemplate} style={{ width: '12%' }} />
-                            
-                            {/* --- ACTION COLUMN (Visible) --- */}
-                            <Column header="Action" body={actionBodyTemplate} style={{ width: '22%', textAlign: 'center' }} />
+                            <Column header="Status" body={statusBodyTemplate} style={{ width: '8%' }} className="text-center"/>
+                            <Column header="Verify" body={verificationBodyTemplate} style={{ width: '8%' }} className="text-center" headerStyle={{ textAlign: 'center' }}/>
+                            <Column header="Action" body={actionBodyTemplate} style={{ width: '16%' }} className="text-center" headerStyle={{ textAlign: 'center' }}/>
                         </DataTable>
                     </CardBody>
                 </Card>
@@ -512,7 +530,7 @@ const AddBankBook = () => {
                     </div>
                     
                     <div className="mt-2">
-                        <Button color="primary" size="sm" onClick={handleAddRow} style={{ fontSize: '12px', padding: '5px 12px' }}>
+                        <Button color="primary" size="sm" onClick={handleAddRow} style={{ fontSize: '12px', padding: '5px 12px', color: 'white' }}>
                             <i className="bx bx-plus me-1"></i> Add Entry
                         </Button>
                     </div>
@@ -546,30 +564,30 @@ const AddBankBook = () => {
                             ) : (
                                 <div style={{maxHeight: '300px', overflowY: 'auto'}}>
                                     <Table bordered className="mb-0 text-center align-middle table-hover">
-                                        <thead className="table-light sticky-top">
-                                            <tr>
-                                                <th>Invoice No.</th>
-                                                <th>Date</th>
-                                                <th>Balance Due</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {invoiceList.length > 0 ? (
-                                                invoiceList.map((inv, idx) => (
-                                                    <tr key={idx}>
-                                                        <td>{inv.invoice_no}</td>
-                                                        <td>{inv.invoice_date}</td>
-                                                        <td className="text-end fw-bold">
-                                                            {parseFloat(inv.balance_due).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            ) : (
+                                            <thead className="table-light sticky-top">
                                                 <tr>
-                                                    <td colSpan="3" className="text-muted py-3">No outstanding invoices found.</td>
+                                                    <th>Invoice No.</th>
+                                                    <th>Date</th>
+                                                    <th>Balance Due</th>
                                                 </tr>
-                                            )}
-                                        </tbody>
+                                            </thead>
+                                            <tbody>
+                                                {invoiceList.length > 0 ? (
+                                                    invoiceList.map((inv, idx) => (
+                                                        <tr key={idx}>
+                                                            <td>{inv.invoice_no}</td>
+                                                            <td>{inv.invoice_date}</td>
+                                                            <td className="text-end fw-bold">
+                                                                {parseFloat(inv.balance_due).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                ) : (
+                                                    <tr>
+                                                        <td colSpan="3" className="text-muted py-3">No outstanding invoices found.</td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
                                     </Table>
                                 </div>
                             )}
@@ -604,6 +622,8 @@ const AddBankBook = () => {
                 .circle-badge { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 11px; }
                 .bg-saved { background-color: #f46a6a; }
                 .bg-posted { background-color: #34c38f; }
+                .bg-danger { background-color: #f46a6a !important; }
+                .bg-success { background-color: #34c38f !important; }
                 .action-link { cursor: pointer; font-weight: 700; font-size: 12px; }
                 .edit { color: #495057; }
                 .query { color: #8e44ad; }
@@ -618,6 +638,11 @@ const AddBankBook = () => {
                 .btn-save { background: white; border: 1px solid #556ee6; color: #556ee6; }
                 .btn-save:hover { background: #556ee6; color: white; }
                 .btn-post { background: #34c38f; color: white; }
+                
+                /* Icon Button Styling */
+                .btn-icon { background: none; border: none; cursor: pointer; padding: 2px; transition: transform 0.2s; }
+                .btn-icon:hover { transform: scale(1.15); }
+                .btn-icon:disabled { opacity: 0.4; cursor: not-allowed; }
             `}</style>
         </div>
     );

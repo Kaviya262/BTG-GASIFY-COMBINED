@@ -24,24 +24,36 @@ class SidebarContent extends Component {
         // 1. Load existing data
         let menuData = JSON.parse(localStorage.getItem("userMenu"));
 
-        // Safety check if localstorage is empty
         if (!menuData) {
             menuData = { menus: [] };
         }
 
         // ---------------------------------------------------------
-        // 2. INJECT BANK BOOK ENTRIES INTO FINANCE
+        // 2. INJECT ENTRIES INTO FINANCE
         // ---------------------------------------------------------
         const financeModule = menuData.menus.find(m => m.moduleName === "Finance");
 
         if (financeModule) {
-            const alreadyExists = financeModule.screen.find(s => s.screenName === "Bank Book Entries");
-            if (!alreadyExists) {
+            // A. Bank Book Entries
+            const bankBookExists = financeModule.screen.find(s => s.screenName === "Bank Book Entries");
+            if (!bankBookExists) {
                 financeModule.screen.push({
                     screenId: 99902,
                     screenName: "Bank Book Entries",
                     url: "/bank-book-entries",
                     icon: "bx bx-book",
+                    module: []
+                });
+            }
+
+            // B. Cash Book Entry (NEW ADDITION)
+            const cashBookExists = financeModule.screen.find(s => s.screenName === "Cash Book Entry");
+            if (!cashBookExists) {
+                financeModule.screen.push({
+                    screenId: 99908,
+                    screenName: "Cash Book Entry",
+                    url: "/cash-book-entry", 
+                    icon: "bx bx-money",
                     module: []
                 });
             }
@@ -53,7 +65,7 @@ class SidebarContent extends Component {
         const reportsModule = menuData.menus.find(m => m.moduleName === "Reports");
 
         if (reportsModule) {
-            // A. AR Book DO (Your existing logic)
+            // A. AR Book DO
             const arBookDoExists = reportsModule.screen.find(s => s.screenName === "AR Book DO");
             if (!arBookDoExists) {
                 const arBookIndex = reportsModule.screen.findIndex(s => s.screenName === "AR Book");
@@ -72,7 +84,7 @@ class SidebarContent extends Component {
                 }
             }
 
-            // B. Inject Sales Item Wise & Sales Customer Wise (NEW TASK)
+            // B. Inject Sales Item Wise & Sales Customer Wise
             const newReports = [
                 {
                     screenId: 99905,
@@ -98,7 +110,7 @@ class SidebarContent extends Component {
         }
 
         // ---------------------------------------------------------
-        // 4. Your existing Test Menu Logic (Mktg Verify)
+        // 4. Mktg Verify Logic
         // ---------------------------------------------------------
         const testMenu = {
             moduleId: 9999,
@@ -131,7 +143,6 @@ class SidebarContent extends Component {
                 "TrialBalance",
                 "Profit & Loss",
                 "Balance Sheet",
-                // Keep the new reports we just added in Reports module
                 "Sales Item Wise",
                 "Sales Customer Wise"
             ];
@@ -157,14 +168,17 @@ class SidebarContent extends Component {
         }
 
         // ---------------------------------------------------------
-        // 6. REMOVE 'TAX REPORT' FROM FINANCE
+        // 6. REMOVE 'TAX REPORT' AND 'SALES' FROM FINANCE
         // ---------------------------------------------------------
         if (financeMod) {
-            financeMod.screen = financeMod.screen.filter(item => item.screenName !== "Tax Report");
+            financeMod.screen = financeMod.screen.filter(item => 
+                item.screenName !== "Tax Report" && 
+                item.screenName !== "Sales"
+            );
         }
 
         // ---------------------------------------------------------
-        // 7. SORT FINANCE AND REPORTS ALPHABETICALLY (ASCENDING)
+        // 7. SORT FINANCE AND REPORTS ALPHABETICALLY
         // ---------------------------------------------------------
         if (financeMod && financeMod.screen) {
             financeMod.screen.sort((a, b) => a.screenName.localeCompare(b.screenName));
@@ -246,8 +260,6 @@ class SidebarContent extends Component {
                     }
                 }
             }
-            this.scrollElement(item);
-            return false;
         }
         this.scrollElement(item);
         return false;

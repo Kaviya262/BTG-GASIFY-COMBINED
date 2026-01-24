@@ -313,6 +313,7 @@ import SalesCustomerWise from "../pages/FinanceModule/Reports/SalesCustomerWise"
 
 import Pendingpo from '../pages/FinanceModule/Reports/Pendingpo';
 import AddBankBook from "../pages/FinanceModule/Report/AddBankBook";
+import AddCashBook from "../pages/FinanceModule/Report/AddCashBook";
 import BankReconciliation from "../pages/FinanceModule/Reports/BankReconciliation";
 
 const authProtectedRoutes = [
@@ -328,6 +329,7 @@ const authProtectedRoutes = [
     { path: "/OverDraft/edit/:id", component: OverDraft },
     { path: "/BankBook", component: BankBook },
     { path: "/AddBankBook", component: AddBankBook },
+    { path: "/cash-book-entry", component: AddCashBook },
     { path: "/verify-customer", component: VerifyCustomer },
     { path: "/bank-book-entries", component: AddBankBook },
 

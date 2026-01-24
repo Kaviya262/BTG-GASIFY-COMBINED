@@ -82,23 +82,52 @@ async def get_receipt_by_id(db: AsyncSession, receipt_id: int):
 # ----------------------------------------------------------
 # 4. UPDATE CUSTOMER + VERIFY
 # ----------------------------------------------------------
-async def update_customer_and_verify(db: AsyncSession, receipt_id: int, new_customer_id: int):
+async def update_customer_and_verify(
+    db: AsyncSession, 
+    receipt_id: int, 
+    data: schemas.VerifyCustomerUpdate
+):
+    # 1. Fetch the Receipt
     stmt = select(ARReceipt).where(
         ARReceipt.receipt_id == receipt_id,
         ARReceipt.pending_verification == True
     )
-
     result = await db.execute(stmt)
     record = result.scalar_one_or_none()
 
     if not record:
         return None 
 
-    if not record.customer_id or record.customer_id == 0:
-        record.customer_id = new_customer_id
+    # 2. Update Receipt Details
+    if data.customer_id and data.customer_id != 0:
+        record.customer_id = data.customer_id
+    
+    record.bank_charges = data.bank_charges
+    # Assuming 'tax_rate' column is used for tax deduction or exchange rate storage
+    # If specific columns don't exist, you might need to map them to available ones
+    record.tax_rate = data.tax_deduction 
+    record.exchange_rate = data.exchange_rate # Ensure this column exists in DB model
+    
+    # Handle Reply Message (Append to description or remarks if column exists)
+    if data.reply_message:
+        current_desc = record.reference_no or ""
+        record.reference_no = f"{current_desc} | Reply: {data.reply_message}"
 
     record.pending_verification = False
     record.modified_on = datetime.now()
+
+    # 3. PROCESS ALLOCATIONS (Update Invoice Balances)
+    for alloc in data.allocations:
+        if alloc.amount_allocated > 0:
+            update_invoice_sql = text("""
+                UPDATE btg_userpanel_uat.tbl_salesinvoices_header
+                SET PaidAmount = IFNULL(PaidAmount, 0) + :amount
+                WHERE id = :inv_id
+            """)
+            await db.execute(update_invoice_sql, {
+                "amount": alloc.amount_allocated,
+                "inv_id": alloc.invoice_id
+            })
 
     await db.commit()
     await db.refresh(record)
@@ -281,21 +310,20 @@ async def save_verification_draft(
         record.customer_id = data.customer_id
     
     record.bank_charges = data.bank_charges
-    # storing tax_deduction in 'tax_rate' column if no other column exists, 
-    # OR you need to ensure you have a column for it. 
-    # record.tax_rate = data.tax_deduction 
-
-    # 2. Handle Allocations (If we want to save them as drafts)
-    # Without a draft table, we can't easily save "partial" checkboxes safely.
-    # For now, we will just save the Receipt level details.
+    record.tax_rate = data.tax_deduction
+    record.exchange_rate = data.exchange_rate
     
+    # Handle Reply (Optional save)
+    if data.reply_message:
+        # Logic to save draft reply if needed, or just update reference
+        pass 
+
     record.modified_on = datetime.now()
     # vital: pending_verification remains True
     
     await db.commit()
     await db.refresh(record)
     return record
-
 # ----------------------------------------------------------
 # UPDATE REFERENCE NUMBER (For AR Book Editing)
 # ----------------------------------------------------------
@@ -320,22 +348,70 @@ async def update_invoice_reference(db: AsyncSession, invoice_id: int, new_refere
 
 async def bulk_update_ar_reference(db: AsyncSession, ar_ids: List[int], new_reference: str):
     try:
-        # 1. Update Accounts Receivable Table (This reflects in the Report)
-        query_ar = text("""
-            UPDATE tbl_accounts_receivable 
+        print(f"--- STARTING BULK UPDATE (Preserving DO Numbers) ---")
+        print(f"IDs to update: {ar_ids}")
+        print(f"New Reference: {new_reference}")
+
+        # 1. Validation
+        if not ar_ids:
+            print("Error: No IDs provided.")
+            return 0 
+
+        # ------------------------------------------------------------------
+        # STEP 2: PRESERVE DO NUMBERS (Crucial for Reports)
+        # ------------------------------------------------------------------
+        # Before we rename the Header to "INV-XXX", we must copy the CURRENT 
+        # reference (e.g., "DO-123") into the 'DOnumber' column of the items table.
+        # This ensures the original DO number is not lost.
+        # ------------------------------------------------------------------
+        preserve_do_query = text("""
+            UPDATE btg_userpanel_uat.tbl_salesinvoices_details d
+            INNER JOIN btg_finance_uat.tbl_accounts_receivable ar 
+                ON d.salesinvoicesheaderid = ar.invoice_id
+            SET d.DOnumber = ar.invoice_no
+            WHERE ar.ar_id IN :ids
+        """)
+
+        print("Executing DO Number Preservation...")
+        # This copies 'DO-123' from Finance Table -> 'DOnumber' column in Details Table
+        await db.execute(preserve_do_query, {"ids": tuple(ar_ids)})
+        
+        # ------------------------------------------------------------------
+        # STEP 3: UPDATE FINANCE TABLE (Renaming to Invoice)
+        # ------------------------------------------------------------------
+        # Now it is safe to overwrite the finance record with the new Invoice No.
+        query_finance = text("""
+            UPDATE btg_finance_uat.tbl_accounts_receivable 
             SET invoice_no = :ref 
             WHERE ar_id IN :ids
         """)
         
-        # 2. Optional: Update Header Table too (To keep them in sync if they are linked)
-        # Note: This assumes 'ar_id' in AR table corresponds to 'id' in Header, 
-        # or there is a link. If not, only run the first query.
+        print("Executing Finance Update...")
+        result_finance = await db.execute(query_finance, {"ref": new_reference, "ids": tuple(ar_ids)})
+
+        # ------------------------------------------------------------------
+        # STEP 4: UPDATE SALES HEADER (Renaming to Invoice)
+        # ------------------------------------------------------------------
+        # Sync the change to the Sales Header so the Popup View matches.
+        query_sales = text("""
+            UPDATE btg_userpanel_uat.tbl_salesinvoices_header
+            SET salesinvoicenbr = :ref
+            WHERE id IN (
+                SELECT invoice_id 
+                FROM btg_finance_uat.tbl_accounts_receivable 
+                WHERE ar_id IN :ids
+            )
+        """)
+
+        print("Executing Sales Header Update...")
+        await db.execute(query_sales, {"ref": new_reference, "ids": tuple(ar_ids)})
         
-        await db.execute(query_ar, {"ref": new_reference, "ids": tuple(ar_ids)})
         await db.commit()
+        print("Transaction Committed.")
         
-        return True
+        return result_finance.rowcount
+
     except Exception as e:
-        print(f"Error bulk updating reference: {e}")
+        print(f"CRITICAL DB ERROR in bulk_update: {str(e)}")
         await db.rollback()
-        return False
+        return -1
