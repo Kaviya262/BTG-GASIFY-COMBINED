@@ -281,11 +281,11 @@ const Addclaimpayment = () => {
                 GetSupplierTaxList(orgId, branchId), GetSupplierVATList(orgId, branchId)
 
             ]);
-            setCategorySuggestions(catRes);
-            setDepartmentSuggestions(deptRes);
-            setApplicantSuggestions(applicantdtl);
-            setCurrencySuggestions(cuurencydtl);
-            setSupplierSuggestions(supplierdtl);
+            setCategorySuggestions(Array.isArray(catRes) ? catRes : []);
+            setDepartmentSuggestions(Array.isArray(deptRes) ? deptRes : []);
+            setApplicantSuggestions(Array.isArray(applicantdtl) ? applicantdtl : []);
+            setCurrencySuggestions(Array.isArray(cuurencydtl) ? cuurencydtl : []);
+            setSupplierSuggestions(Array.isArray(supplierdtl) ? supplierdtl : []);
 
 
 
@@ -320,6 +320,10 @@ const Addclaimpayment = () => {
 
         fetchDropdownData();
     }, []);
+
+    useEffect(() => {
+        console.log("categorySuggestions loaded:", categorySuggestions);
+    }, [categorySuggestions]);
 
     useEffect(() => {
 
@@ -595,9 +599,11 @@ const Addclaimpayment = () => {
 
     const loadClaimType = async (categoryid) => {
         const res = await GetClaimTypeList(claim_id, branchId, orgId, categoryid == null || categoryid == undefined ? 0 : categoryid, "%");
-        //  if (res.status && Array.isArray(res.data)) {
-        setClaimTypeSuggestions(res);
-        //}
+        if (res.status && Array.isArray(res.data)) {
+            setClaimTypeSuggestions(res.data);
+        } else {
+            setClaimTypeSuggestions([]);
+        }
     };
 
     const loadDescriptionSuggestions = async (e, rowIndex, claimTypeId) => {
@@ -1055,13 +1061,13 @@ const Addclaimpayment = () => {
                                                                 <Select
                                                                     name="claimType"
                                                                     id="claimType"
-                                                                    options={categorySuggestions.map(category => ({
+                                                                    options={Array.isArray(categorySuggestions) ? categorySuggestions.map(category => ({
                                                                         value: category.categoryid,
                                                                         label: category.categoryname,
                                                                         categoryid: category.categoryid,
                                                                         categoryname: category.categoryname,
-                                                                    }))}
-                                                                    value={categorySuggestions.find((option) => option.categoryid === selectedCategory?.categoryid) || null}
+                                                                    })) : []}
+                                                                    value={Array.isArray(categorySuggestions) ? categorySuggestions.find((option) => option.categoryid === selectedCategory?.categoryid) || null : null}
                                                                     onChange={(option) => {
                                                                         console.log("Selected option:", option); // Debugging
 
@@ -1174,14 +1180,14 @@ const Addclaimpayment = () => {
                                                                         <Select
                                                                             name="supplierid"
                                                                             id="supplierid"
-                                                                            options={supplierSuggestions.map(category => ({
+                                                                            options={Array.isArray(supplierSuggestions) ? supplierSuggestions.map(category => ({
                                                                                 value: category.SupplierId,
                                                                                 label: category.SupplierName,
                                                                                 SupplierId: category.SupplierId,
                                                                                 SupplierName: category.SupplierName,
 
-                                                                            }))}
-                                                                            value={supplierSuggestions.find((option) => option.SupplierId === selectedSupplier?.SupplierId) || null}
+                                                                            })) : []}
+                                                                            value={Array.isArray(supplierSuggestions) ? supplierSuggestions.find((option) => option.SupplierId === selectedSupplier?.SupplierId) || null : null}
                                                                             onChange={(option) => {
                                                                                 setSelectedSupplier(option);
                                                                                 setFieldValue("supplier", option?.SupplierId)
@@ -1225,14 +1231,14 @@ const Addclaimpayment = () => {
                                                                         <Select
                                                                             name="departmentid"
                                                                             id="claimdepartmentidType"
-                                                                            options={departmentSuggestions.map(category => ({
+                                                                            options={Array.isArray(departmentSuggestions) ? departmentSuggestions.map(category => ({
                                                                                 value: category.departmentid,
                                                                                 label: category.departmentname,
                                                                                 departmentid: category.departmentid,
                                                                                 departmentname: category.departmentname,
 
-                                                                            }))}
-                                                                            value={departmentSuggestions.find((option) => option.departmentid === selectedDepartment?.departmentid) || null}
+                                                                            })) : []}
+                                                                            value={Array.isArray(departmentSuggestions) ? departmentSuggestions.find((option) => option.departmentid === selectedDepartment?.departmentid) || null : null}
                                                                             onChange={(option) => {
                                                                                 setSelectedDepartment(option);
                                                                                 setFieldValue("department", option.departmentid)
@@ -1270,14 +1276,14 @@ const Addclaimpayment = () => {
                                                                         <Select
                                                                             name="applicantid"
                                                                             id="applicantid"
-                                                                            options={applicantSuggestions.map(category => ({
+                                                                            options={Array.isArray(applicantSuggestions) ? applicantSuggestions.map(category => ({
                                                                                 value: category.userid,
                                                                                 label: category.username,
                                                                                 userid: category.userid,
                                                                                 username: category.username,
                                                                                 jobtitle: category.jobtitle
-                                                                            }))}
-                                                                            value={applicantSuggestions.find((option) => option.userid === selectedApplicant?.userid) || null}
+                                                                            })) : []}
+                                                                            value={Array.isArray(applicantSuggestions) ? applicantSuggestions.find((option) => option.userid === selectedApplicant?.userid) || null : null}
                                                                             onChange={(option) => {
                                                                                 const selected = option;
                                                                                 setSelectedApplicant(selected);
@@ -1389,14 +1395,14 @@ const Addclaimpayment = () => {
                                                                 <Select
                                                                     name="currencyid"
                                                                     id="currencyid"
-                                                                    options={currencySuggestions.map(category => ({
+                                                                    options={Array.isArray(currencySuggestions) ? currencySuggestions.map(category => ({
                                                                         value: category.currencyid,
                                                                         label: category.Currency,
                                                                         currencyid: category.currencyid,
                                                                         Currency: category.Currency,
                                                                         ExchangeRate: category.ExchangeRate
-                                                                    }))}
-                                                                    value={currencySuggestions.find((option) => option.currencyid === selectedCurrency?.currencyid) || null}
+                                                                    })) : []}
+                                                                    value={Array.isArray(currencySuggestions) ? currencySuggestions.find((option) => option.currencyid === selectedCurrency?.currencyid) || null : null}
                                                                     onChange={(option) => {
                                                                         const selected = option;
                                                                         setSelectedCurrency(selected);

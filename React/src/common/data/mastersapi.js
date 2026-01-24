@@ -2354,7 +2354,13 @@ export const togglePalletStatus = async (payload) => {
 export const GetClaimCategoryData = async (id, orgId, branchId, SearchText) => {
     try {
         const response = await get(`/CommonClaimAndPaymentData/get-category-type-details?id=${id}&BranchId=${branchId}&SearchText=${encodeURIComponent(SearchText)}&orgid=${orgId}`);
-        return transformData(response.data, "categoryid", "categoryname");
+        if (response?.status && Array.isArray(response.data)) {
+            return transformData(response.data, "categoryid", "categoryname");
+        } else if (Array.isArray(response.data)) {
+            return transformData(response.data, "categoryid", "categoryname");
+        } else {
+            return [];
+        }
     } catch (error) {
         console.error("Failed to fetch category data", error);
         return [];
@@ -2364,7 +2370,13 @@ export const GetClaimCategoryData = async (id, orgId, branchId, SearchText) => {
 export const GetClaimDepartmentData = async (id, orgId, branchId, SearchText) => {
     try {
         const response = await get(`/CommonClaimAndPaymentData/get-department-details?id=${id}&BranchId=${branchId}&SearchText=${encodeURIComponent(SearchText)}&orgid=${orgId}`);
-        return transformData(response.data, "departmentid", "departmentname");
+        if (response?.status && Array.isArray(response.data)) {
+            return transformData(response.data, "departmentid", "departmentname");
+        } else if (Array.isArray(response.data)) {
+            return transformData(response.data, "departmentid", "departmentname");
+        } else {
+            return [];
+        }
     } catch (error) {
         console.error("Failed to fetch department data", error);
         return [];
@@ -2410,14 +2422,14 @@ export const GetClaimAndPaymentSupplierList = async (id, branchId, orgId, claimT
             debugger;
             return transformData(res.data, "SupplierId", "SupplierName");
         } else {
-            throw new Error(res?.message || "Failed to fetch gas codes");
+            throw new Error(res?.message || "Failed to fetch supplier list");
         }
 
 
 
     } catch (error) {
         console.error('Failed to fetch supplier list', error);
-        return { status: false, message: error.message };
+        return [];
     }
 };
 
@@ -2432,13 +2444,13 @@ export const GetClaimAndPaymentApplicantDetails = async (id, branchId, orgId, se
             debugger;
             return transformData(res.data, "userid", "username");
         } else {
-            throw new Error(res?.message || "Failed to fetch gas codes");
+            throw new Error(res?.message || "Failed to fetch applicant details");
         }
 
 
     } catch (error) {
         console.error('Failed to fetch applicant details', error);
-        return { status: false, message: error.message };
+        return [];
     }
 };
 
@@ -2452,12 +2464,12 @@ export const GetClaimAndPaymentTransactionCurrency = async (id, branchId, orgId,
             debugger;
             return transformData(res.data, "currencyid", "Currency");
         } else {
-            throw new Error(res?.message || "Failed to fetch gas codes");
+            throw new Error(res?.message || "Failed to fetch currency");
         }
 
     } catch (error) {
         console.error('Failed to fetch transaction currency', error);
-        return { status: false, message: error.message };
+        return [];
     }
 };
 
