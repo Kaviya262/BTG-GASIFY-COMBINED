@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from sqlalchemy import text
-from ..database import engine 
+from ..database import engine, DB_NAME_USER, DB_NAME_FINANCE, DB_NAME_MASTER, DB_NAME_OLD 
 
 router = APIRouter()
 
@@ -125,8 +125,8 @@ async def create_invoice(payload: CreateInvoiceRequest):
     async with engine.begin() as conn: 
         try:
             # 1. Create Header
-            header_query = text("""
-                INSERT INTO btg_userpanel_uat.tbl_salesinvoices_header 
+            header_query = text(f"""
+                INSERT INTO {DB_NAME_USER}.tbl_salesinvoices_header 
                 (salesinvoicenbr, customerid, Salesinvoicesdate, TotalAmount, IsSubmitted, CalculatedPrice, createdby, OrgId, BranchId, IsManual, CreatedDate)
                 VALUES (:nbr, :cust, :date, 0, :submitted, 0, :user, :org, :branch, :manual, NOW())
             """)
@@ -149,9 +149,9 @@ async def create_invoice(payload: CreateInvoiceRequest):
             # 2. Process Details
             for item in payload.details:
                 # A. Get Rate
-                rate_query = text("""
+                rate_query = text(f"""
                     SELECT COALESCE(ExchangeRate, 1) 
-                    FROM btg_userpanel_uat.master_currency 
+                    FROM {DB_NAME_OLD}.master_currency 
                     WHERE CurrencyId = :cid
                 """)
                 cid = item.CurrencyId if item.CurrencyId else 1
@@ -167,8 +167,8 @@ async def create_invoice(payload: CreateInvoiceRequest):
 
                 # C. Insert Detail
                 # Insert DOnumber string directly
-                detail_query = text("""
-                    INSERT INTO btg_userpanel_uat.tbl_salesinvoices_details
+                detail_query = text(f"""
+                    INSERT INTO {DB_NAME_USER}.tbl_salesinvoices_details
                     (salesinvoicesheaderid, gascodeid, PickedQty, UnitPrice, TotalPrice, Price, Currencyid, ExchangeRate, uomid, DOnumber, PONumber, DriverName, TruckName, DeliveryAddress)
                     VALUES (:hid, :gas, :qty, :price, :total, :calc_price, :cur, :rate, :uom, :do, :po, :driver, :truck, :addr)
                 """)
@@ -190,8 +190,8 @@ async def create_invoice(payload: CreateInvoiceRequest):
                 })
 
             # 3. Update Header Totals
-            update_header = text("""
-                UPDATE btg_userpanel_uat.tbl_salesinvoices_header
+            update_header = text(f"""
+                UPDATE {DB_NAME_USER}.tbl_salesinvoices_header
                 SET TotalAmount = :total,
                     CalculatedPrice = :calc_price
                 WHERE id = :hid
@@ -212,17 +212,17 @@ async def create_invoice(payload: CreateInvoiceRequest):
 @router.post("/GetALLInvoices", response_model=List[InvoiceListItem])
 async def get_all_invoices(filter_data: InvoiceFilter):
     try:
-        sql = text("""
+        sql = text(f"""
         SELECT 
             h.id AS InvoiceId,
             h.salesinvoicenbr AS InvoiceNbr,
             DATE_FORMAT(h.Salesinvoicesdate, '%Y-%m-%d') AS Salesinvoicesdate,
             COALESCE(c.CustomerName, 'Unknown') AS CustomerName,
-            (SELECT d.PONumber FROM btg_userpanel_uat.tbl_salesinvoices_details d 
+            (SELECT d.PONumber FROM {DB_NAME_USER}.tbl_salesinvoices_details d 
              WHERE d.salesinvoicesheaderid = h.id LIMIT 1) AS PONumber, 
             (SELECT mc.CurrencyCode 
-             FROM btg_userpanel_uat.tbl_salesinvoices_details d 
-             JOIN btg_userpanel_uat.master_currency mc ON d.Currencyid = mc.CurrencyId
+             FROM {DB_NAME_USER}.tbl_salesinvoices_details d 
+             JOIN {DB_NAME_OLD}.master_currency mc ON d.Currencyid = mc.CurrencyId
              WHERE d.salesinvoicesheaderid = h.id LIMIT 1) AS CurrencyCode,
             h.TotalAmount,
             COALESCE(h.CalculatedPrice, h.TotalAmount) AS CalculatedPrice,
@@ -230,8 +230,8 @@ async def get_all_invoices(filter_data: InvoiceFilter):
                 WHEN h.IsSubmitted = 1 THEN 'Posted' 
                 ELSE 'Saved' 
             END AS Status
-        FROM btg_userpanel_uat.tbl_salesinvoices_header h
-        LEFT JOIN btg_userpanel_uat.master_customer c ON h.customerid = c.Id
+        FROM {DB_NAME_USER}.tbl_salesinvoices_header h
+        LEFT JOIN {DB_NAME_USER}.master_customer c ON h.customerid = c.Id
         WHERE h.Salesinvoicesdate BETWEEN :from_date AND :to_date
           AND (:customer_id = 0 OR h.customerid = :customer_id)
           AND h.isactive = 1 
@@ -261,7 +261,7 @@ async def get_invoice_details(invoiceid: str):
         async with engine.connect() as conn:
             # 1. Fetch ALL Headers matching this Invoice Number (or ID)
             # We removed "LIMIT 1" and fetch all matches to aggregate them.
-            header_query = text("""
+            header_query = text(f"""
                 SELECT 
                     h.id AS RealHeaderId, 
                     h.salesinvoicenbr AS InvoiceNbr,
@@ -271,8 +271,8 @@ async def get_invoice_details(invoiceid: str):
                     COALESCE(h.TotalAmount, 0) AS TotalAmount,
                     COALESCE(h.CalculatedPrice, h.TotalAmount, 0) AS CalculatedPrice,
                     CASE WHEN h.IsSubmitted = 1 THEN 'Posted' ELSE 'Saved' END AS Status
-                FROM btg_userpanel_uat.tbl_salesinvoices_header h
-                LEFT JOIN btg_userpanel_uat.master_customer c ON h.customerid = c.Id
+                FROM {DB_NAME_USER}.tbl_salesinvoices_header h
+                LEFT JOIN {DB_NAME_USER}.master_customer c ON h.customerid = c.Id
                 WHERE h.salesinvoicenbr = :input_val 
                    OR h.id = :input_val
             """)
@@ -306,7 +306,7 @@ async def get_invoice_details(invoiceid: str):
             # 4. Fetch Details for ALL identified Header IDs
             # We use the IN clause to get items from all 7 DOs
             if all_header_ids:
-                detail_query = text("""
+                detail_query = text(f"""
                     SELECT 
                         d.id AS Id,
                         COALESCE(d.gascodeid, 0) AS gascodeid,
@@ -318,8 +318,8 @@ async def get_invoice_details(invoiceid: str):
                         COALESCE(d.ExchangeRate, 1) AS ExchangeRate,
                         d.DOnumber AS DOnumber,
                         d.PONumber AS PONumber
-                    FROM btg_userpanel_uat.tbl_salesinvoices_details d
-                    LEFT JOIN btg_userpanel_uat.master_gascode g ON d.gascodeid = g.Id
+                    FROM {DB_NAME_USER}.tbl_salesinvoices_details d
+                    LEFT JOIN {DB_NAME_USER}.master_gascode g ON d.gascodeid = g.Id
                     WHERE d.salesinvoicesheaderid IN :hids
                 """)
                 
@@ -353,7 +353,7 @@ async def get_invoice_details(invoiceid: str):
 async def get_available_dos(filter_data: DOFilter):
     try:
         async with engine.connect() as conn:
-            query = text("""
+            query = text(f"""
                 SELECT 
                     h.id as do_id,
                     h.salesinvoicenbr as do_number,
@@ -361,9 +361,9 @@ async def get_available_dos(filter_data: DOFilter):
                     h.TotalQty as qty,
                     h.TotalAmount as total,
                     MAX(g.GasName) as GasName
-                FROM btg_userpanel_uat.tbl_salesinvoices_header h
-                LEFT JOIN btg_userpanel_uat.tbl_salesinvoices_details det ON h.id = det.salesinvoicesheaderid
-                LEFT JOIN btg_userpanel_uat.master_gascode g ON det.gascodeid = g.Id
+                FROM {DB_NAME_USER}.tbl_salesinvoices_header h
+                LEFT JOIN {DB_NAME_USER}.tbl_salesinvoices_details det ON h.id = det.salesinvoicesheaderid
+                LEFT JOIN {DB_NAME_USER}.master_gascode g ON det.gascodeid = g.Id
                 WHERE h.customerid = :cust_id
                   AND h.isactive = 1 
                 GROUP BY h.id, h.salesinvoicenbr, h.Salesinvoicesdate, h.TotalQty, h.TotalAmount
@@ -390,8 +390,8 @@ async def create_invoice_from_do(payload: ConvertDORequest):
                  raise HTTPException(status_code=400, detail="No DOs selected")
 
             # 1. Create Invoice Header
-            header_query = text("""
-                INSERT INTO btg_userpanel_uat.tbl_salesinvoices_header 
+            header_query = text(f"""
+                INSERT INTO {DB_NAME_USER}.tbl_salesinvoices_header 
                 (customerid, Salesinvoicesdate, TotalAmount, IsSubmitted, CalculatedPrice, createdby, invoice_type)
                 VALUES (:cust, CURDATE(), 0, 0, 0, :user, 'DSI')
             """)
@@ -407,14 +407,14 @@ async def create_invoice_from_do(payload: ConvertDORequest):
             # 2. Process selected DOs
             for do_id in payload.do_ids:
                 # --- FIX: Fetch the DO Number string to copy into details ---
-                do_header_query = text("SELECT salesinvoicenbr FROM btg_userpanel_uat.tbl_salesinvoices_header WHERE id = :doid")
+                do_header_query = text(f"SELECT salesinvoicenbr FROM {DB_NAME_USER}.tbl_salesinvoices_header WHERE id = :doid")
                 do_header_res = await conn.execute(do_header_query, {"doid": do_id})
                 do_number_str = do_header_res.scalar() or ""
 
                 # Fetch DO Items
-                do_details_query = text("""
+                do_details_query = text(f"""
                     SELECT gascodeid, PickedQty, UnitPrice, Currencyid, ExchangeRate 
-                    FROM btg_userpanel_uat.tbl_salesinvoices_details 
+                    FROM {DB_NAME_USER}.tbl_salesinvoices_details 
                     WHERE salesinvoicesheaderid = :doid
                 """)
                 do_res = await conn.execute(do_details_query, {"doid": do_id})
@@ -428,8 +428,8 @@ async def create_invoice_from_do(payload: ConvertDORequest):
                     total_calculated_price += line_calc_price
                     
                     # --- FIX: Insert into 'DOnumber' column (text), NOT 'ref_do_id' ---
-                    det_query = text("""
-                        INSERT INTO btg_userpanel_uat.tbl_salesinvoices_details
+                    det_query = text(f"""
+                        INSERT INTO {DB_NAME_USER}.tbl_salesinvoices_details
                         (salesinvoicesheaderid, gascodeid, PickedQty, UnitPrice, TotalPrice, Currencyid, ExchangeRate, DOnumber)
                         VALUES (:hid, :gas, :qty, :price, :total, :cur, :rate, :do_str)
                     """)
@@ -445,8 +445,8 @@ async def create_invoice_from_do(payload: ConvertDORequest):
                     })
 
             # 3. Update Header Totals
-            update_header = text("""
-                UPDATE btg_userpanel_uat.tbl_salesinvoices_header
+            update_header = text(f"""
+                UPDATE {DB_NAME_USER}.tbl_salesinvoices_header
                 SET TotalAmount = :total, CalculatedPrice = :calc_total
                 WHERE id = :hid
             """)
@@ -467,9 +467,9 @@ async def create_invoice_from_do(payload: ConvertDORequest):
 async def get_gas_items():
     try:
         async with engine.connect() as conn:
-            query = text("""
+            query = text(f"""
                 SELECT Id, GasName 
-                FROM btg_userpanel_uat.master_gascode 
+                FROM {DB_NAME_USER}.master_gascode 
                 WHERE IsActive = 1 
                 ORDER BY GasName ASC
             """)
@@ -486,7 +486,7 @@ async def get_gas_items():
 async def get_sales_details(filter_data: InvoiceFilter):
     try:
         # --- FIXED QUERY: Uses existing 'DOnumber' column, no invalid JOIN ---
-        sql = text("""
+        sql = text(f"""
         SELECT 
             d.id as DetailId,
             DATE_FORMAT(h.Salesinvoicesdate, '%Y-%m-%d') AS Salesinvoicesdate,
@@ -502,16 +502,15 @@ async def get_sales_details(filter_data: InvoiceFilter):
             d.UnitPrice,
             d.TotalPrice as OriginalTotal, 
             (d.TotalPrice * COALESCE(mc.ExchangeRate, 1)) as ConvertedTotal
-        FROM btg_userpanel_uat.tbl_salesinvoices_header h
-        JOIN btg_userpanel_uat.tbl_salesinvoices_details d ON h.id = d.salesinvoicesheaderid
+        FROM {DB_NAME_USER}.tbl_salesinvoices_header h
+        JOIN {DB_NAME_USER}.tbl_salesinvoices_details d ON h.id = d.salesinvoicesheaderid
         
-        LEFT JOIN btg_userpanel_uat.master_customer c ON h.customerid = c.Id
-        LEFT JOIN btg_userpanel_uat.master_gascode g ON d.gascodeid = g.Id
-        LEFT JOIN btg_userpanel_uat.master_currency mc ON d.Currencyid = mc.CurrencyId
+        LEFT JOIN {DB_NAME_USER}.master_customer c ON h.customerid = c.Id
+        LEFT JOIN {DB_NAME_USER}.master_gascode g ON d.gascodeid = g.Id
+        LEFT JOIN {DB_NAME_OLD}.master_currency mc ON d.Currencyid = mc.CurrencyId
         
         WHERE DATE(h.Salesinvoicesdate) BETWEEN :from_date AND :to_date 
           AND h.isactive = 1 
-          AND h.IsAR = 1
           AND (:cust_id = 0 OR h.customerid = :cust_id)
           AND (:item_id = 0 OR d.gascodeid = :item_id)
           AND (:sp_id = 0 OR c.SalesPersonId = :sp_id) 
@@ -536,7 +535,7 @@ async def get_sales_details(filter_data: InvoiceFilter):
 @router.get("/GetItemFilter")
 async def get_item_filter():
     try:
-        sql = text("SELECT Id as value, GasName as label FROM btg_userpanel_uat.master_gascode WHERE IsActive = 1 ORDER BY GasName")
+        sql = text(f"SELECT Id as value, GasName as label FROM {DB_NAME_USER}.master_gascode WHERE IsActive = 1 ORDER BY GasName")
         async with engine.connect() as conn:
             result = await conn.execute(sql)
             return [dict(row._mapping) for row in result.fetchall()]

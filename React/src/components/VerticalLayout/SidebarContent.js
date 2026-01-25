@@ -31,32 +31,52 @@ class SidebarContent extends Component {
         // ---------------------------------------------------------
         // 2. INJECT ENTRIES INTO FINANCE
         // ---------------------------------------------------------
-        const financeModule = menuData.menus.find(m => m.moduleName === "Finance");
+        if (!menuData.menus) menuData.menus = [];
+
+        let financeModule = menuData.menus.find(m => m.moduleName === "Finance");
+
+        // Force Create Finance Module if it's missing
+        if (!financeModule) {
+            financeModule = {
+                moduleId: 99990,
+                moduleName: "Finance",
+                icon: "bx bx-money",
+                screen: [],
+                menuOrder: 99
+            };
+            menuData.menus.push(financeModule);
+        }
 
         if (financeModule) {
-            // A. Bank Book Entries
-            const bankBookExists = financeModule.screen.find(s => s.screenName === "Bank Book Entries");
-            if (!bankBookExists) {
-                financeModule.screen.push({
-                    screenId: 99902,
-                    screenName: "Bank Book Entries",
-                    url: "/bank-book-entries",
-                    icon: "bx bx-book",
-                    module: []
-                });
-            }
+            const missingScreens = [
+                { screenId: 99902, screenName: "Bank Book Entries", url: "/bank-book-entries", icon: "bx bx-book" },
+                { screenId: 99908, screenName: "Cash Book Entry", url: "/cash-book-entry", icon: "bx bx-money" },
+                { screenId: 99910, screenName: "AR Book", url: "/ARBookReport", icon: "bx bx-file" },
+                { screenId: 99903, screenName: "AR Book DO", url: "/ar-book-do", icon: "bx bx-file" },
+                { screenId: 99911, screenName: "Asset Register", url: "/AssetRegister", icon: "bx bx-building" },
+                { screenId: 99912, screenName: "Bank Book", url: "/BankBook", icon: "bx bx-book-open" },
+                { screenId: 99913, screenName: "Cash Book", url: "/CashBook", icon: "bx bx-wallet" },
+                { screenId: 99914, screenName: "Other Revenues", url: "/ManageRevenues", icon: "bx bx-chart" },
+                { screenId: 99915, screenName: "Outstanding Pos", url: "/Pendingpo", icon: "bx bx-list-check" },
+                { screenId: 99916, screenName: "Over Draft", url: "/ManageOverDraft", icon: "bx bx-transfer" },
+                { screenId: 99917, screenName: "Petty Cash", url: "/pettyCash", icon: "bx bx-coin-stack" },
+                { screenId: 99918, screenName: "Receipt", url: "/InvoiceReceipt", icon: "bx bx-receipt" }
+            ];
 
-            // B. Cash Book Entry (NEW ADDITION)
-            const cashBookExists = financeModule.screen.find(s => s.screenName === "Cash Book Entry");
-            if (!cashBookExists) {
-                financeModule.screen.push({
-                    screenId: 99908,
-                    screenName: "Cash Book Entry",
-                    url: "/cash-book-entry", 
-                    icon: "bx bx-money",
-                    module: []
-                });
-            }
+            missingScreens.forEach(item => {
+                if (!financeModule.screen.find(s => s.screenName === item.screenName)) {
+                    financeModule.screen.push({
+                        screenId: item.screenId,
+                        screenName: item.screenName,
+                        url: item.url,
+                        icon: item.icon,
+                        module: []
+                    });
+                }
+            });
+
+            // Sort them alphabetically to look nice
+            financeModule.screen.sort((a, b) => a.screenName.localeCompare(b.screenName));
         }
 
         // ---------------------------------------------------------
@@ -171,8 +191,8 @@ class SidebarContent extends Component {
         // 6. REMOVE 'TAX REPORT' AND 'SALES' FROM FINANCE
         // ---------------------------------------------------------
         if (financeMod) {
-            financeMod.screen = financeMod.screen.filter(item => 
-                item.screenName !== "Tax Report" && 
+            financeMod.screen = financeMod.screen.filter(item =>
+                item.screenName !== "Tax Report" &&
                 item.screenName !== "Sales"
             );
         }
@@ -188,7 +208,94 @@ class SidebarContent extends Component {
             reportsMod.screen.sort((a, b) => a.screenName.localeCompare(b.screenName));
         }
 
-        // 8. Update State
+        // ---------------------------------------------------------
+        // 8. INJECT DIRECT SALES INVOICE (CREATE MODULE IF MISSING)
+        // ---------------------------------------------------------
+        let invoiceMenu = menuData.menus.find(m =>
+            m.moduleName === "Invoice" ||
+            m.moduleName === "Invoices" ||
+            m.moduleName === "Sales" ||
+            m.moduleName === "Order Management" ||
+            m.moduleName === "Invoicing"
+        );
+
+        if (!invoiceMenu) {
+            invoiceMenu = {
+                moduleId: 99995,
+                moduleName: "Invoices",
+                icon: "bx bx-file",
+                screen: [],
+                menuOrder: 5
+            };
+            menuData.menus.push(invoiceMenu);
+        }
+
+        const dsInvoiceScreen = {
+            screenId: 99920,
+            screenName: "Direct Sales Invoice",
+            url: "/manual-invoices",
+            icon: "bx bx-file-blank",
+            module: []
+        };
+
+        if (!invoiceMenu.screen.find(s => s.screenName === "Direct Sales Invoice")) {
+            invoiceMenu.screen.push(dsInvoiceScreen);
+            invoiceMenu.screen.sort((a, b) => a.screenName.localeCompare(b.screenName));
+        }
+
+        // ---------------------------------------------------------
+        // 9. INJECT REPORTS MENU (CREATE IF MISSING)
+        // ---------------------------------------------------------
+        let reportsMenu = menuData.menus.find(m => m.moduleName === "Reports" || m.moduleName === "Report");
+
+        if (!reportsMenu) {
+            reportsMenu = {
+                moduleId: 99996,
+                moduleName: "Reports",
+                icon: "bx bx-bar-chart-alt-2",
+                screen: [],
+                menuOrder: 10
+            };
+            menuData.menus.push(reportsMenu);
+        }
+
+        const salesReports = [
+            {
+                screenId: 99905,
+                screenName: "Sales Item Wise",
+                url: "/sales-item-wise",
+                icon: "bx bx-list-ul",
+                module: []
+            },
+            {
+                screenId: 99906,
+                screenName: "Sales Customer Wise",
+                url: "/sales-customer-wise",
+                icon: "bx bx-user",
+                module: []
+            }
+        ];
+
+        salesReports.forEach(report => {
+            if (!reportsMenu.screen.find(s => s.screenName === report.screenName)) {
+                reportsMenu.screen.push(report);
+            }
+        });
+
+        reportsMenu.screen.sort((a, b) => a.screenName.localeCompare(b.screenName));
+
+        // ---------------------------------------------------------
+        // 10. SORT MENUS BY menuOrder AND LOG FOR DEBUGGING
+        // ---------------------------------------------------------
+        menuData.menus.sort((a, b) => (a.menuOrder || 999) - (b.menuOrder || 999));
+
+        console.log("=== SIDEBAR MENU DEBUG ===");
+        console.log("Total Menus:", menuData.menus.length);
+        console.log("Invoices Menu:", invoiceMenu);
+        console.log("Reports Menu:", reportsMenu);
+        console.log("All Menus:", menuData.menus.map(m => ({ name: m.moduleName, order: m.menuOrder, screens: m.screen.length })));
+
+        // 11. Update State
         this.setState({ dynamicMenu: menuData || [] }, () => {
             this.initMenu();
         });

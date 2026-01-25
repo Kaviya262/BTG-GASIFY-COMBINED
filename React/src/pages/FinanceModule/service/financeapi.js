@@ -12,7 +12,7 @@ const transformData = (data, valueParam, labelParam) => {
     }));
 };
 import { toast } from 'react-toastify';
- 
+
 
 //#region GetFilteredCylinders
 export const getARByCustomer = async ({ customerId, orgId, branchId }) => {
@@ -28,10 +28,12 @@ export const getARByCustomer = async ({ customerId, orgId, branchId }) => {
 };
 
 
-export const getARBook = async ( customerId, orgId, branchId,fromdate,todate ) => {
+import { PYTHON_API_URL } from "../../../common/pyapiconfig";
+
+export const getARBook = async (customerId, orgId, branchId, fromdate, todate) => {
 
     try {
-        const response = await get(`/AR/getARBook?customer_id=${customerId}&orgid=${orgId}&branchid=${branchId}&from_date=${fromdate}&to_date=${todate}`
+        const response = await get(`${PYTHON_API_URL}/AR/getARBook?customer_id=${customerId}&orgid=${orgId}&branchid=${branchId}&from_date=${fromdate}&to_date=${todate}`
         );
         return response;
     } catch (error) {
@@ -39,7 +41,7 @@ export const getARBook = async ( customerId, orgId, branchId,fromdate,todate ) =
         return { status: false, data: [] };
     }
 };
- 
+
 export const createAR = async (payload) => {
     try {
         console.log("Sending payload:", payload);
@@ -59,70 +61,73 @@ export const createAR = async (payload) => {
         throw error;
     }
 };
- 
-  export const GetCustomerFilter = async (branchId = 1, searchtext) => {
-  
-      try {
-          const response = await get(`/ordermngmaster/GetCustomerFilter?branchid=${branchId}&searchtext=${searchtext}`);
-          if (response?.status) {
+
+export const GetCustomerFilter = async (branchId = 1, searchtext) => {
+
+    try {
+        const response = await get(`/ordermngmaster/GetCustomerFilter?branchid=${branchId}&searchtext=${searchtext}`);
+        if (response?.status) {
 
             return transformData(response.data, "CustomerID", "CustomerName");
 
 
-             
-          } else {
-              throw new Error(response?.message || "Failed");
-          }
-      } catch (error) {
-          console.error("Error :", error);
-          return [];
-      }
-  };
 
-  export const getBankReconciliation = async ({ orgid, branchid, fromDate, toDate }) => { debugger
-    const params = new URLSearchParams();   
+        } else {
+            throw new Error(response?.message || "Failed");
+        }
+    } catch (error) {
+        console.error("Error :", error);
+        return [];
+    }
+};
+
+export const getBankReconciliation = async ({ orgid, branchid, fromDate, toDate }) => {
+    debugger
+    const params = new URLSearchParams();
     params.append("orgid", orgid);
-    params.append("branchid", branchid); 
+    params.append("branchid", branchid);
     if (fromDate) params.append("fromDate", fromDate);
-    if (toDate) params.append("toDate", toDate);   
+    if (toDate) params.append("toDate", toDate);
 
     const response = await get(`/BankReconciliation/list?${params.toString()}`);
     return response;
 };
 
-export const getsalesreport = async ( orgid, customerid, fromDate, toDate,gasid ) => { debugger
-    const params = new URLSearchParams();   
+export const getsalesreport = async (orgid, customerid, fromDate, toDate, gasid) => {
+    debugger
+    const params = new URLSearchParams();
     params.append("orgid", orgid);
-    params.append("customerid", customerid); 
-    params.append("gasid", gasid); 
+    params.append("customerid", customerid);
+    params.append("gasid", gasid);
     if (fromDate) params.append("fromDate", fromDate);
-    if (toDate) params.append("toDate", toDate);   
+    if (toDate) params.append("toDate", toDate);
 
     const response = await get(`/FinanceReport/SalesReport?${params.toString()}`);
     return response;
 };
 
-export const getProfitLoss = async ( orgid, currencyid, fromDate, toDate ) => { debugger
-    const params = new URLSearchParams();   
+export const getProfitLoss = async (orgid, currencyid, fromDate, toDate) => {
+    debugger
+    const params = new URLSearchParams();
     params.append("orgid", orgid);
-    params.append("currencyid", currencyid); 
- 
+    params.append("currencyid", currencyid);
+
     if (fromDate) params.append("fromDate", fromDate);
-    if (toDate) params.append("toDate", toDate);   
+    if (toDate) params.append("toDate", toDate);
 
     const response = await get(`/FinanceReport/ProfitAndLossReport?${params.toString()}`);
     return response;
 };
- 
- 
+
+
 export const updateAR = async (payload) => {
 
     try {
         let response;
 
-       
-            response = await  put("/AR/update", payload);
-        
+
+        response = await put("/AR/update", payload);
+
         console.log("add-cyliner response", response);
         if (response?.statusCode === 0) {
             return response;
@@ -137,5 +142,4 @@ export const updateAR = async (payload) => {
     }
 
 };
- 
- 
+

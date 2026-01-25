@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .database import engine, Base
 
 # 1. IMPORT THE ROUTERS
-from .routers import finance, invoice_api, bankbook, procurement, ppp, claim_payment
+from .routers import finance, invoice_api, bankbook, procurement, ppp, claim_payment, cashbook
 
 app = FastAPI(title="Finance API (Python)")
 
@@ -23,12 +23,17 @@ app.add_middleware(
 # Existing Finance Router
 app.include_router(finance.router)
 
-# Existing Invoice Router (Prefixed with /api)
-app.include_router(invoice_api.router, prefix="/api", tags=["Invoices"])
+# Existing Invoice Router (Prefix removed as per user request)
+app.include_router(invoice_api.router, tags=["Invoices"])
 
 # --- NEW: Include BankBook Router ---
 # Since your request URL was /api/AR/..., we must add the /api prefix here too.
-app.include_router(bankbook.router, prefix="/api", tags=["Bank Book"]) 
+# User requested /AR/... so removing /api prefix to make it accessible at root /AR
+app.include_router(bankbook.router, tags=["Bank Book"]) 
+
+# Including CashBook Router (Missing previously)
+# cashbook router already has prefix="/AR/cash"
+app.include_router(cashbook.router, tags=["Cash Book"])
 
 # Include Procurement Router
 app.include_router(procurement.router, tags=["Procurement"]) 

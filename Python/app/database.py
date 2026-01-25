@@ -17,6 +17,7 @@ DB_NAME_FINANCE = os.getenv('DB_NAME_FINANCE', 'btggasify_finance_live')
 DB_NAME_USER = os.getenv('DB_NAME_USER', 'btggasify_live')
 DB_NAME_PURCHASE = os.getenv('DB_NAME_PURCHASE', 'btggasify_purchase_live')
 DB_NAME_MASTER = os.getenv('DB_NAME_MASTER', 'btggasify_masterpanel_live')
+DB_NAME_OLD = os.getenv('DB_NAME_OLD', 'btggasify_live')
 
 # Default DB for main connection
 db_name = DB_NAME_FINANCE

@@ -6,7 +6,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from .. import schemas
 from .. import crud 
-from ..database import get_db
+from ..database import get_db, DB_NAME_USER, DB_NAME_FINANCE, DB_NAME_MASTER, DB_NAME_OLD
 from ..models.finance import ARReceipt
 
 # Distinct prefix for Cash Book to avoid conflict with Bank Book
@@ -46,7 +46,7 @@ async def get_daily_cash_entries(db: AsyncSession = Depends(get_db)):
     to ensure visibility, letting Frontend filter if necessary.
     """
     try:
-        query = text("""
+        query = text(f"""
             SELECT 
                 r.receipt_id,
                 r.created_date as date,
@@ -72,9 +72,9 @@ async def get_daily_cash_entries(db: AsyncSession = Depends(get_db)):
                 END as verification_status
 
             FROM tbl_ar_receipt r
-            LEFT JOIN btg_userpanel_uat.master_customer c ON r.customer_id = c.Id
-            LEFT JOIN btg_masterpanel_uat.master_bank b ON r.deposit_bank_id = b.BankId
-            LEFT JOIN btg_userpanel_uat.master_currency mc ON b.CurrencyId = mc.CurrencyId
+            LEFT JOIN {DB_NAME_USER}.master_customer c ON r.customer_id = c.Id
+            LEFT JOIN {DB_NAME_MASTER}.master_bank b ON r.deposit_bank_id = b.BankId
+            LEFT JOIN {DB_NAME_OLD}.master_currency mc ON b.CurrencyId = mc.CurrencyId
             
             -- Optional: Add filter for Cash Accounts here if needed
             -- WHERE b.BankTypeId = 2 
@@ -100,7 +100,7 @@ async def get_cash_book_report(
     Specific Report Endpoint for Cash Book.
     """
     try:
-        sql = """
+        sql = f"""
             SELECT 
                 r.receipt_id,
                 r.created_date as Date,
@@ -117,9 +117,9 @@ async def get_cash_book_report(
                 r.bank_amount as NetAmount
                 
             FROM tbl_ar_receipt r
-            LEFT JOIN btg_userpanel_uat.master_customer c ON r.customer_id = c.Id
-            LEFT JOIN btg_masterpanel_uat.master_bank b ON r.deposit_bank_id = b.BankId
-            LEFT JOIN btg_userpanel_uat.master_currency mc ON b.CurrencyId = mc.CurrencyId
+            LEFT JOIN {DB_NAME_USER}.master_customer c ON r.customer_id = c.Id
+            LEFT JOIN {DB_NAME_MASTER}.master_bank b ON r.deposit_bank_id = b.BankId
+            LEFT JOIN {DB_NAME_OLD}.master_currency mc ON b.CurrencyId = mc.CurrencyId
             
             WHERE r.created_date BETWEEN :from_date AND :to_date
               AND r.is_active = 1

@@ -6,7 +6,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from .. import schemas
 from .. import crud 
-from ..database import get_db
+from ..database import get_db, DB_NAME_USER, DB_NAME_FINANCE, DB_NAME_MASTER, DB_NAME_OLD
 from ..models.finance import ARReceipt
 
 router = APIRouter(
@@ -39,7 +39,7 @@ class CreateReceiptRequest(BaseModel):
 async def get_daily_entries(db: AsyncSession = Depends(get_db)):
     try:
         # UPDATED: Filter where deposit_bank_id is NOT NULL, NOT Empty, and NOT '0'
-        query = text("""
+        query = text(f"""
             SELECT 
                 r.receipt_id,
                 r.created_date as date,
@@ -65,7 +65,7 @@ async def get_daily_entries(db: AsyncSession = Depends(get_db)):
                 END as verification_status
 
             FROM tbl_ar_receipt r
-            LEFT JOIN btg_userpanel_uat.master_customer c ON r.customer_id = c.Id
+            LEFT JOIN {DB_NAME_USER}.master_customer c ON r.customer_id = c.Id
             
             -- FILTER FOR BANK BOOK ENTRIES ONLY --
             WHERE r.deposit_bank_id IS NOT NULL 
@@ -92,7 +92,7 @@ async def get_bank_book_report(
 ):
     try:
         # Fetches data specifically for the Bank Book Report
-        sql = """
+        sql = f"""
             SELECT 
                 r.receipt_id,
                 r.created_date as Date,
@@ -101,7 +101,7 @@ async def get_bank_book_report(
                 b.BankName as Account,
                 c.CustomerName as Party,
                 r.reference_no as Description,
-                'IDR' as Currency, 
+                COALESCE(mc.CurrencyCode, 'IDR') as Currency, 
                 
                 CASE WHEN r.bank_amount >= 0 THEN r.bank_amount ELSE 0 END as CreditIn,
                 CASE WHEN r.bank_amount < 0 THEN ABS(r.bank_amount) ELSE 0 END as DebitOut,
@@ -109,8 +109,9 @@ async def get_bank_book_report(
                 r.bank_amount as NetAmount
                 
             FROM tbl_ar_receipt r
-            LEFT JOIN btg_userpanel_uat.master_customer c ON r.customer_id = c.Id
-            LEFT JOIN btg_masterpanel_uat.master_bank b ON r.deposit_bank_id = b.BankId
+            LEFT JOIN {DB_NAME_USER}.master_customer c ON r.customer_id = c.Id
+            LEFT JOIN {DB_NAME_MASTER}.master_bank b ON r.deposit_bank_id = b.BankId
+            LEFT JOIN {DB_NAME_OLD}.master_currency mc ON b.CurrencyId = mc.CurrencyId
             WHERE r.created_date BETWEEN :from_date AND :to_date
               AND r.is_active = 1
               AND r.deposit_bank_id IS NOT NULL 
@@ -231,11 +232,11 @@ async def update_receipt(receipt_id: int, payload: CreateReceiptRequest, db: Asy
 @router.get("/get-sales-persons")
 async def get_sales_persons(db: AsyncSession = Depends(get_db)):
     try:
-        query = text("""
+        query = text(f"""
             SELECT 
                 Id as value, 
                 CONCAT(FirstName, ' ', IFNULL(LastName, '')) as label 
-            FROM btg_userpanel_uat.users 
+            FROM {DB_NAME_USER}.users 
             WHERE IsActive = 1 
               AND Department = '4'
             ORDER BY FirstName ASC
@@ -253,9 +254,9 @@ async def get_sales_persons(db: AsyncSession = Depends(get_db)):
 @router.get("/get-customer-defaults")
 async def get_customer_defaults(db: AsyncSession = Depends(get_db)):
     try:
-        query = text("""
+        query = text(f"""
             SELECT Id, SalesPersonId 
-            FROM btg_userpanel_uat.master_customer 
+            FROM {DB_NAME_USER}.master_customer 
             WHERE IsActive = 1
         """)
         

@@ -5,6 +5,13 @@ from . import schemas
 from .models.finance import ARReceipt
 from sqlalchemy import text
 from typing import List
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DB_NAME_FINANCE = os.getenv('DB_NAME_FINANCE', 'btg_finance_uat')
+DB_NAME_USER = os.getenv('DB_NAME_USER', 'btg_userpanel_uat')
 
 # ----------------------------------------------------------
 # 1. CREATE AR RECEIPT
@@ -119,8 +126,8 @@ async def update_customer_and_verify(
     # 3. PROCESS ALLOCATIONS (Update Invoice Balances)
     for alloc in data.allocations:
         if alloc.amount_allocated > 0:
-            update_invoice_sql = text("""
-                UPDATE btg_userpanel_uat.tbl_salesinvoices_header
+            update_invoice_sql = text(f"""
+                UPDATE {DB_NAME_USER}.tbl_salesinvoices_header
                 SET PaidAmount = IFNULL(PaidAmount, 0) + :amount
                 WHERE id = :inv_id
             """)
@@ -272,8 +279,8 @@ async def update_customer_and_verify(
     for alloc in data.allocations:
         if alloc.amount_allocated > 0:
             # SQL to update the invoice balance
-            update_invoice_sql = text("""
-                UPDATE btg_userpanel_uat.tbl_salesinvoices_header
+            update_invoice_sql = text(f"""
+                UPDATE {DB_NAME_USER}.tbl_salesinvoices_header
                 SET PaidAmount = IFNULL(PaidAmount, 0) + :amount
                 WHERE id = :inv_id
             """)
@@ -330,8 +337,8 @@ async def save_verification_draft(
 async def update_invoice_reference(db: AsyncSession, invoice_id: int, new_reference: str):
     try:
         # Update the Sales Invoice Header table
-        query = text("""
-            UPDATE btg_userpanel_uat.tbl_salesinvoices_header 
+        query = text(f"""
+            UPDATE {DB_NAME_USER}.tbl_salesinvoices_header 
             SET salesinvoicenbr = :ref 
             WHERE id = :id
         """)
@@ -364,9 +371,9 @@ async def bulk_update_ar_reference(db: AsyncSession, ar_ids: List[int], new_refe
         # reference (e.g., "DO-123") into the 'DOnumber' column of the items table.
         # This ensures the original DO number is not lost.
         # ------------------------------------------------------------------
-        preserve_do_query = text("""
-            UPDATE btg_userpanel_uat.tbl_salesinvoices_details d
-            INNER JOIN btg_finance_uat.tbl_accounts_receivable ar 
+        preserve_do_query = text(f"""
+            UPDATE {DB_NAME_USER}.tbl_salesinvoices_details d
+            INNER JOIN {DB_NAME_FINANCE}.tbl_accounts_receivable ar 
                 ON d.salesinvoicesheaderid = ar.invoice_id
             SET d.DOnumber = ar.invoice_no
             WHERE ar.ar_id IN :ids
@@ -380,8 +387,8 @@ async def bulk_update_ar_reference(db: AsyncSession, ar_ids: List[int], new_refe
         # STEP 3: UPDATE FINANCE TABLE (Renaming to Invoice)
         # ------------------------------------------------------------------
         # Now it is safe to overwrite the finance record with the new Invoice No.
-        query_finance = text("""
-            UPDATE btg_finance_uat.tbl_accounts_receivable 
+        query_finance = text(f"""
+            UPDATE {DB_NAME_FINANCE}.tbl_accounts_receivable 
             SET invoice_no = :ref 
             WHERE ar_id IN :ids
         """)
@@ -393,12 +400,12 @@ async def bulk_update_ar_reference(db: AsyncSession, ar_ids: List[int], new_refe
         # STEP 4: UPDATE SALES HEADER (Renaming to Invoice)
         # ------------------------------------------------------------------
         # Sync the change to the Sales Header so the Popup View matches.
-        query_sales = text("""
-            UPDATE btg_userpanel_uat.tbl_salesinvoices_header
+        query_sales = text(f"""
+            UPDATE {DB_NAME_USER}.tbl_salesinvoices_header
             SET salesinvoicenbr = :ref
             WHERE id IN (
                 SELECT invoice_id 
-                FROM btg_finance_uat.tbl_accounts_receivable 
+                FROM {DB_NAME_FINANCE}.tbl_accounts_receivable 
                 WHERE ar_id IN :ids
             )
         """)

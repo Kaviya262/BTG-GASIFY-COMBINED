@@ -7,10 +7,22 @@ import mysql.connector
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date
+import os
+from dotenv import load_dotenv
+
+# Load env to ensure we can access them locally if needed
+load_dotenv()
+
+# Helper to get DB Names (defaults to UAT if not set, or ensuring consistency)
+DB_NAME_FINANCE = os.getenv('DB_NAME_FINANCE', 'btg_finance_uat')
+DB_NAME_USER = os.getenv('DB_NAME_USER', 'btg_userpanel_uat')
+DB_NAME_MASTER = os.getenv('DB_NAME_MASTER', 'btg_masterpanel_uat')
+DB_NAME_OLD = os.getenv('DB_NAME_OLD', 'btggasify_live')
+
 # -------------------------------
 
 router = APIRouter(
-    prefix="/api/AR",
+    prefix="/AR",
     tags=["Accounts Receivable"]
 )
 
@@ -29,10 +41,11 @@ class ARBookRequest(BaseModel):
 # --------------------------------------------------
 def get_db_connection_sync():
     return mysql.connector.connect(
-        host="localhost",       # UPDATE THIS
-        user="root",            # UPDATE THIS
-        password="password",    # UPDATE THIS
-        database="btg_finance_uat" 
+        host=os.getenv('DB_HOST'),
+        user=os.getenv('DB_USER'),
+        password=os.getenv('DB_PASSWORD'),
+        database=DB_NAME_FINANCE,
+        ssl_disabled=True # Matches procurement.py pattern
     )
 
 # --------------------------------------------------
@@ -78,6 +91,56 @@ def get_ar_book(request: ARBookRequest):
         if cursor: cursor.close()
         if conn: conn.close()
 
+
+# --------------------------------------------------
+# 4. GET AR BOOK COMPATIBILITY ENDPOINT
+# --------------------------------------------------
+@router.get("/getARBook")
+def get_ar_book_get(
+    orgid: int = 1,
+    branchid: int = 1,
+    customer_id: int = 0,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None
+):
+    conn = None
+    cursor = None
+    try:
+        conn = get_db_connection_sync()
+        cursor = conn.cursor(dictionary=True)
+
+        args = (
+            orgid, 
+            branchid, 
+            customer_id, 
+            from_date, 
+            to_date
+        )
+
+        cursor.callproc('proc_ar_book', args)
+
+        result_rows = []
+        for result in cursor.stored_results():
+            result_rows = result.fetchall()
+
+        for row in result_rows:
+            if row.get('ledger_date'):
+                row['ledger_date'] = str(row['ledger_date'])
+
+        return {
+            "status": True, 
+            "message": "Success", 
+            "data": result_rows
+        }
+
+    except Exception as e:
+        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
 # --------------------------------------------------
 # GET ALL PENDING RECEIPTS (FIXED & IMPROVED)
 # --------------------------------------------------
@@ -91,17 +154,17 @@ async def get_pending_list(db: AsyncSession = Depends(database.get_db)):
         # --- FIXED SQL QUERY ---
         # 1. Removed stray decorator text.
         # 2. Added JOIN to master_bank to get CurrencyId, then master_currency for the Code.
-        query = text("""
+        query = text(f"""
             SELECT 
                 r.*, 
                 COALESCE(mc.CurrencyCode, 'IDR') as CurrencyCode,
                 c.CustomerName
             FROM tbl_ar_receipt r
-            LEFT JOIN btg_userpanel_uat.master_customer c ON r.customer_id = c.Id
+            LEFT JOIN {DB_NAME_USER}.master_customer c ON r.customer_id = c.Id
             
             -- Join Bank to get the Currency ID --
-            LEFT JOIN btg_masterpanel_uat.master_bank b ON r.deposit_bank_id = b.BankId
-            LEFT JOIN btg_userpanel_uat.master_currency mc ON b.CurrencyId = mc.CurrencyId
+            LEFT JOIN {DB_NAME_MASTER}.master_bank b ON r.deposit_bank_id = b.BankId
+            LEFT JOIN {DB_NAME_OLD}.master_currency mc ON b.CurrencyId = mc.CurrencyId
             
             WHERE r.pending_verification = 1 
               AND r.is_active = 1
@@ -180,14 +243,14 @@ async def save_draft(
 @router.get("/get-outstanding-invoices/{customer_id}")
 async def get_outstanding_invoices(customer_id: int, db: AsyncSession = Depends(database.get_db)):
     try:
-        query = text("""
+        query = text(f"""
             SELECT 
                 h.id as invoice_id,
                 h.salesinvoicenbr as invoice_no,
                 DATE_FORMAT(h.Salesinvoicesdate, '%d-%m-%Y') as invoice_date,
                 h.TotalAmount as total_amount,
                 (h.TotalAmount - IFNULL(h.PaidAmount, 0)) as balance_due
-            FROM btg_userpanel_uat.tbl_salesinvoices_header h
+            FROM {DB_NAME_USER}.tbl_salesinvoices_header h
             WHERE h.customerid = :cust_id
               AND (h.TotalAmount - IFNULL(h.PaidAmount, 0)) > 0
               AND h.IsSubmitted = 1
