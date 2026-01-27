@@ -33,3 +33,4 @@ class User(Base):
     HomePage = Column(String(100))
     IsNotification = Column(Boolean)
     hodid = Column(Integer)
+    DepartmentId = Column(Integer)  # Foreign key to departments table

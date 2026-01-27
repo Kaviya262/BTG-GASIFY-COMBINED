@@ -94,7 +94,19 @@ const ManageApproval = ({ selectedType, setSelectedType }) => {
   const [claims, setclaims] = useState([]);
   const [claimsPPP, setclaimsPPP] = useState([]);
 
+  useEffect(() => {
+    if (claims && claims.length > 0) {
+      const hasLimitReached = claims.some(item =>
+        item.hod_discussed_count === 3 ||
+        item.gm_discussed_count === 3 ||
+        item.director_discussed_count === 3
+      );
 
+      if (hasLimitReached) {
+        Swal.fire("Attention", "It's already the 3 rd discussion point,delete icon is enabled,you can delete the claim", "warning");
+      }
+    }
+  }, [claims]);
   const [roledetails, setroledetails] = useState([]);
   const [historyArray, sethistoryArray] = useState([]);
   const [selectedPPPRows, setSelectedPPPRows] = useState([]);
@@ -122,13 +134,6 @@ const ManageApproval = ({ selectedType, setSelectedType }) => {
   const handleGmDirectorDiscuss = (rowData, role) => {
     setHistoryClaimId(rowData.id);
     setHistoryMode("GM_DIRECTOR");
-    setSenderRole(role);
-    setHistoryModalOpen(true);
-  };
-
-  const handleDirectorCeoDiscuss = (rowData, role) => {
-    setHistoryClaimId(rowData.id);
-    setHistoryMode("DIRECTOR_CEO");
     setSenderRole(role);
     setHistoryModalOpen(true);
   };
@@ -871,8 +876,6 @@ const ManageApproval = ({ selectedType, setSelectedType }) => {
     //    fetchClaimApprovedDetails();
   }, []);
 
-
-
   const handleDiscuss = (rowData) => {
     setSelectedClaim(rowData);
     setShowModal(true);
@@ -1035,12 +1038,6 @@ const ManageApproval = ({ selectedType, setSelectedType }) => {
 
       var updatedClaims = "";
       if (selectedClaim?.Claim_Discussed_Count == 2) {
-        Swal.fire({
-          title: "Warning",
-          text: "This transaction will be cancelled,since,its your 3 rd discussuion",
-          icon: "warning",
-          confirmButtonText: "OK",
-        });
         updatedClaims = claims.map(claim =>
           claim.id === selectedClaim.id
             ? { ...claim, comment: " Cancel The Transaction : " + selectedClaim.comment }
@@ -1101,12 +1098,6 @@ const ManageApproval = ({ selectedType, setSelectedType }) => {
 
       var updatedClaims = "";
       if (selectedClaim?.PPP_Discussed_Count == 2) {
-        Swal.fire({
-          title: "Warning",
-          text: "This transaction will be cancelled,since,its your 3 rd discussuion",
-          icon: "warning",
-          confirmButtonText: "OK",
-        });
 
 
         updatedClaims = claims.map(claim =>
@@ -2112,7 +2103,6 @@ word-break: break-word;
                                   handleClickgmapprovan={handleClickgmapprovan}
                                   handleHodGmDiscuss={handleHodGmDiscuss}
                                   handleGmDirectorDiscuss={handleGmDirectorDiscuss}
-                                  handleDirectorCeoDiscuss={handleDirectorCeoDiscuss}
                                   load={load}
                                   handleClick1={handleClick1}
                                   handleClick2={handleClick2}
@@ -2161,7 +2151,6 @@ word-break: break-word;
                               handleClickgmapprovan={handleClickgmapprovan}
                               handleHodGmDiscuss={handleHodGmDiscuss}
                               handleGmDirectorDiscuss={handleGmDirectorDiscuss}
-                              handleDirectorCeoDiscuss={handleDirectorCeoDiscuss}
                               load={load}
                               handleClick1={handleClick1}
                               handleClick3={handleClick3}
@@ -3398,7 +3387,6 @@ const ApprovalTable = ({
   handleHodDiscuss,
   handleHodGmDiscuss,
   handleGmDirectorDiscuss,
-  handleDirectorCeoDiscuss,
   handleDiscussPPP,
   load,
   handleClick1,
@@ -3603,19 +3591,16 @@ const ApprovalTable = ({
           updateselectedrows(e.value);
         }}
         rowSelectable={(rowData) => rowData.ppp_IsRejected !== 1}
-        rowClassName={(rowData) => {
-          // Grey out row if cancelled (is_delete_required)
-          if (rowData.is_delete_required === 1 || rowData.isDeleteRequired === 1) return "cancelled-row";
-          if (rowData.ppp_IsRejected === 1) return "rejected-row";
-          return "";
-        }}
+        rowClassName={(rowData) =>
+          rowData.ppp_IsRejected === 1 ? "rejected-row" : ""
+        }
       >
         {/* <Column expander style={{ width: '3em' }} /> */}
         <Column
           header="Sel"
           headerStyle={{ width: '3em', textAlign: 'center' }}
           body={(rowData) => {
-            const isDisabled = rowData.ppp_IsRejected === 1 || rowData.ppp_commissioner_approvalone === 1 || rowData.is_delete_required === 1 || rowData.isDeleteRequired === 1;
+            const isDisabled = rowData.ppp_IsRejected === 1 || rowData.ppp_commissioner_approvalone === 1;
             const isSelected = selectedPPPRows.some(r => r.id === rowData.id);
 
             return (
@@ -3645,8 +3630,7 @@ const ApprovalTable = ({
               handleShowDetails(rowData);
             }
           };
-          const isCancelled = rowData.is_delete_required === 1 || rowData.isDeleteRequired === 1;
-          if (access.canViewDetails && !isCancelled) {
+          if (access.canViewDetails) {
             return (
               <span
                 id={`tt-${rowData.claimno}`}
@@ -3660,7 +3644,7 @@ const ApprovalTable = ({
           } else {
             return (
               <button
-                style={{ color: isCancelled ? '#b0b0b0' : 'gray', background: 'none', border: 'none', cursor: 'default', padding: 0 }}
+                style={{ color: 'gray', background: 'none', border: 'none', cursor: 'default', padding: 0 }}
                 disabled
                 onClick={handleClaimClick}
               >
@@ -3669,7 +3653,6 @@ const ApprovalTable = ({
             );
           }
         }} />
-        {/* Add CSS for cancelled-row */}
         <Column field="date" header="Claim Date" filter />
         <Column field="name" header="Applicant Name" filter />
         <Column field="dept" filter header="Applicant Department" />
@@ -3686,6 +3669,7 @@ const ApprovalTable = ({
           <span onClick={() => handleViewRemarks(rowData.id)} title="View History" style={{ cursor: 'pointer' }}>
             <i className="mdi mdi-comment-text-outline" style={{ fontSize: '1.5rem', color: '#17a2b8' }}></i>
           </span>
+
         )} />
         <Column header="PV" field="voucherno" filter body={actionAckBodyTemplate} className="text-center" />
         {/* <Column header="Details" body={(rowData) => (
@@ -3857,7 +3841,7 @@ const ApprovalTable = ({
                         }`}
                       onClick={() => {
                         handlePPPClick3('discuss', rowData.id, data);
-                        handleDirectorCeoDiscuss(rowData, "CEO");
+                        handleDiscussPPP(rowData, "CEO");
                       }}
                       tooltip={rowData.comment}
                       tooltipOptions={{ position: 'top' }}
@@ -3949,11 +3933,9 @@ const ApprovalTable = ({
           filters={filters} globalFilterFields={['claimno', 'date', 'name', 'dept', 'curr', 'amount']}
           dataKey="claimno" onFilter={(e) => setFilters(e.filters)} expandedRows={null} rowExpansionTemplate={detailTemplate}
           onRowToggle={(e) => { }} responsiveLayout="scroll"
-          rowClassName={(rowData) => {
-            const isDelReq = rowData?.is_delete_required === 1 || rowData?.isDeleteRequired === 1;
-            const isDiscussed = rowData?.discussedone == 1 || rowData?.discussedtwo == 1 || rowData?.discussedeight == 1;
-            return isDelReq ? "Grey-row" : isDiscussed ? "Discussed-row" : "";
-          }}
+          rowClassName={(rowData) =>
+            rowData.discussedone == 1 || rowData.discussedtwo == 1 || rowData.discussedeight == 1 ? "Discussed-row" : ""
+          }
         >
           {/* <Column expander style={{ width: '3em' }} /> */}
           <Column
@@ -3962,24 +3944,16 @@ const ApprovalTable = ({
           />
           {/* <Column field="claimno" header="Claim#" filter  /> */}
 
-          <Column field="claimno" header="Claim#" filter body={(rowData) => {
-            const isCancelled = rowData?.is_delete_required === 1 || rowData?.isDeleteRequired === 1;
-            return (
-              <span
-                id={`tt-${rowData.claimno}`}
-                style={{
-                  color: isCancelled ? 'gray' : '#007bff',
-                  cursor: isCancelled ? 'default' : 'pointer',
-                  pointerEvents: isCancelled ? 'none' : 'auto'
-                }}
-                onClick={() => {
-                  if (!isCancelled) handleShowDetails(rowData);
-                }}
-              >
-                {rowData.claimno}
-              </span>
-            );
-          }} />
+          <Column field="claimno" header="Claim#" filter body={(rowData) => (
+
+            <span id={`tt-${rowData.claimno}`} style={{ color: '#007bff', cursor: 'pointer' }} onClick={() => {
+              handleShowDetails(rowData);
+            }}>
+              {rowData.claimno}
+
+            </span>
+
+          )} />
 
           <Column field="date" header="Claim Date" filter />
           <Column field="name" header="Applicant Name" filter />
@@ -4017,10 +3991,9 @@ const ApprovalTable = ({
             style={{ textAlign: 'center' }}
             header="HOD"
             body={(rowData) => {
-              const isCancelled = rowData?.is_delete_required === 1 || rowData?.isDeleteRequired === 1;
               const hodApproved = action3[rowData.id] === 'approve';
               const gmDiscussed = action3[rowData.id] === 'discuss';
-              const hodDisabled = isCancelled || !ApproverEight || (rowData.approvedeight === 1 && !gmDiscussed) || rowData.discussedeight == 1;
+              const hodDisabled = !ApproverEight || (rowData.approvedeight === 1 && !gmDiscussed) || rowData.discussedeight == 1;
 
 
               const tooltipId = `hod-tooltip-${rowData.id}`;   // unique for every row
@@ -4063,8 +4036,6 @@ const ApprovalTable = ({
               style={{ textAlign: 'center' }}
               header="GM"
               body={(rowData) => {
-                const isCancelled = rowData?.is_delete_required === 1 || rowData?.isDeleteRequired === 1;
-
                 // HOD discussing with GM
                 if (ApproverEight && !ApproverOne && !ApproverTwo) {
                   return (
@@ -4074,14 +4045,13 @@ const ApprovalTable = ({
                       onClick={() => handleHodGmDiscuss(rowData, 'HOD')}
                       tooltip="Discuss with GM"
                       tooltipOptions={{ position: 'top' }}
-                      disabled={isCancelled}
                     />
                   );
                 }
 
                 const gmApproved = action1[rowData.id] === 'approve';
                 const directorDiscussed = action2[rowData.id] === 'discuss';
-                const gmDisabled = isCancelled || !ApproverOne || (rowData.approvedone === 1 && !directorDiscussed) || rowData.discussedone == 1;
+                const gmDisabled = !ApproverOne || (rowData.approvedone === 1 && !directorDiscussed) || rowData.discussedone == 1;
 
                 // CASE: gmApproved is true AND directorDiscussed is false
                 const tooltipId = `gm-tooltip-${rowData.id}`;   // unique for every row
@@ -4133,7 +4103,6 @@ const ApprovalTable = ({
                           }`}
                         tooltip={rowData.comment}
                         tooltipOptions={{ position: 'top' }}
-                        disabled={isCancelled}
                       />
                     </div>)
                 }
@@ -4149,8 +4118,6 @@ const ApprovalTable = ({
               style={{ textAlign: 'center' }}
               header="Director"
               body={(rowData) => {
-                const isCancelled = rowData?.is_delete_required === 1 || rowData?.isDeleteRequired === 1;
-
                 // GM discussing with Director
                 if (ApproverOne && !ApproverTwo) {
                   return (
@@ -4160,13 +4127,12 @@ const ApprovalTable = ({
                       onClick={() => handleGmDirectorDiscuss(rowData, 'GM')}
                       tooltip="Discuss with Director"
                       tooltipOptions={{ position: 'top' }}
-                      disabled={isCancelled}
                     />
                   );
                 }
 
                 const directorDisabled =
-                  isCancelled || !ApproverTwo || rowData.approvedone === 0 || rowData.approvedtwo === 1 || rowData.discussedtwo == 1;
+                  !ApproverTwo || rowData.approvedone === 0 || rowData.approvedtwo === 1 || rowData.discussedtwo == 1;
                 if (rowData.approvedone === 1) {
                   return (
                     <div className="d-flex gap-2">
@@ -4212,7 +4178,6 @@ const ApprovalTable = ({
                           }`}
                         tooltip={rowData.comment}
                         tooltipOptions={{ position: 'top' }}
-                        disabled={isCancelled}
                       />
                     </div>)
                 }

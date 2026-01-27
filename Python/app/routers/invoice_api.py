@@ -235,7 +235,7 @@ async def get_all_invoices(filter_data: InvoiceFilter):
         WHERE h.Salesinvoicesdate BETWEEN :from_date AND :to_date
           AND (:customer_id = 0 OR h.customerid = :customer_id)
           AND h.isactive = 1 
-          AND h.IsAR = :is_ar
+          AND h.IsSubmitted = :is_ar
         ORDER BY h.id DESC;
         """)
 

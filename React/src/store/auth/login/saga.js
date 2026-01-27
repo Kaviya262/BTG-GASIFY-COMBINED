@@ -50,8 +50,20 @@ function* loginUser({ payload: { user, history } }) {
 
       // ✅ Check if response exists and has a token
       if (response.status && response?.data.token) {
-        debugger;
-        const userdetails = { username: user.email, email: user.email, uid: response.data.userId, IsAdmin: response.data.isAdmin, u_id: response.data.u_Id, superAdmin: response.data.superIsAdmin }
+        // debugger; 
+        console.log("LOGIN RESPONSE SUCCESS:", response); // DEBUG LOG
+        const userdetails = {
+          username: user.email,
+          email: user.email,
+          uid: response.data.userId,
+          IsAdmin: response.data.isAdmin,
+          u_id: response.data.u_Id,
+          superAdmin: response.data.superIsAdmin,
+          department: response.data.department, // Try to get from API
+          departmentId: response.data.departmentId, // Added for Security Checks
+          roleName: response.data.roleName // Added for Role Checks
+        };
+
         // Encrypt and store "authUser"
         localStorage.setItem("authUser", JSON.stringify(userdetails));
         localStorage.setItem("authDetails", encryptData(JSON.stringify(response)));

@@ -22,7 +22,29 @@ export default function useAccess(moduleName, screenName) {
         const fetchAccess = async () => {
             try {
                 const auth = localStorage.getItem("authUser");
-                const userId = auth ? JSON.parse(auth).u_id : null;
+                let authUser = null;
+                if (auth) {
+                    try {
+                        authUser = JSON.parse(auth);
+                    } catch (e) {
+                        console.error("Error parsing authUser", e);
+                    }
+                }
+
+                // Super Admin / Admin Bypass
+                if (authUser && (authUser.superAdmin || authUser.IsAdmin)) {
+                    console.log("useAccess: SuperAdmin/Admin detected. Granting FULL ACCESS.");
+                    setAccess({
+                        canView: true, canEdit: true, canDelete: true,
+                        canSave: true, canNew: true, canPrint: true,
+                        canExport: true, canPost: true, canViewDetails: true,
+                        canViewRate: true, canSendMail: true,
+                        loading: false
+                    });
+                    return;
+                }
+
+                const userId = authUser ? authUser.u_id : null;
 
                 if (!userId) {
                     setAccess(prev => ({ ...prev, loading: false }));

@@ -321,6 +321,17 @@ async def login(model: LoginModel, db: AsyncSession = Depends(database.get_db)):
     if "SuperAdmin" in user_roles:
         super_is_admin = 1
     
+    # 7. Get Department Info from users table
+    department_id = None
+    department_name = None
+    if user.userid:
+        stmt_user = select(User).where(User.Id == user.userid)
+        result_user = await db.execute(stmt_user)
+        user_record = result_user.scalars().first()
+        if user_record:
+            department_id = user_record.DepartmentId
+            department_name = user_record.Department
+    
     print("Login Success")
     return {
         "data": {
@@ -330,7 +341,10 @@ async def login(model: LoginModel, db: AsyncSession = Depends(database.get_db)):
             "userId": user.Id,
             "isAdmin": is_admin,
             "u_Id": user.userid,
-            "superIsAdmin": super_is_admin
+            "superIsAdmin": super_is_admin,
+            "roleName": user_roles[0] if user_roles else "",
+            "departmentId": department_id,
+            "department": department_name
         },
         "status": True,
         "message": "Success",

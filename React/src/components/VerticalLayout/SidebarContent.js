@@ -5,6 +5,7 @@ import MetisMenu from "metismenujs";
 import { withRouter } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { withTranslation } from "react-i18next";
+import { Modules } from "../../common/data/constants";
 
 class SidebarContent extends Component {
     constructor(props) {
@@ -285,7 +286,170 @@ class SidebarContent extends Component {
         reportsMenu.screen.sort((a, b) => a.screenName.localeCompare(b.screenName));
 
         // ---------------------------------------------------------
-        // 10. SORT MENUS BY menuOrder AND LOG FOR DEBUGGING
+        // 10. INJECT MISSING MENUS (LOCAL DEV ONLY - MATCHING BETA UI)
+        // ---------------------------------------------------------
+
+        // A. Inject "Masters" Matches User Screenshot
+        let mastersModule = menuData.menus.find(m => m.moduleName === "Masters");
+        if (!mastersModule) {
+            mastersModule = {
+                moduleId: 99990,
+                moduleName: "Masters",
+                icon: "bx bx-customize",
+                screen: [],
+                menuOrder: 1
+            };
+
+            const masterItems = [
+                { name: "Access Rights", url: "/access-rights", icon: "bx bx-user-voice" },
+                { name: "Country", url: "/country", icon: "bx bx-flag" },
+                { name: "Currency", url: "/currency", icon: "bx bx-money" },
+                { name: "Customers", url: "/manage-customer", icon: "bx bx-user" },
+                { name: "Cylinder", url: "/manage-cylinder", icon: "bx bx-cylinder" },
+                { name: "Departments", url: "/department", icon: "bx bx-building" },
+                { name: "Gas", url: "/manage-gas", icon: "bx bx-wind" },
+                { name: "Payment Methods", url: "/manage-payment-methods", icon: "bx bx-credit-card" },
+                { name: "Payment Terms", url: "/manage-payment-terms", icon: "bx bx-calendar" },
+                { name: "Pallet", url: "/manage-pallet", icon: "bx bx-box" },
+                { name: "Claim & Payment Description", url: "/manage-claim-payment-desc", icon: "bx bx-detail" },
+                { name: "Suppliers", url: "/manage-suppliers", icon: "bx bx-user-check" },
+                { name: "Items", url: "/manage-items", icon: "bx bx-list-ul" },
+                { name: "Users", url: "/manage-users", icon: "bx bx-user-circle" },
+                { name: "UOM", url: "/manage-units", icon: "bx bx-ruler" }
+            ];
+
+            masterItems.forEach((item, index) => {
+                mastersModule.screen.push({
+                    screenId: 99940 + index,
+                    screenName: item.name,
+                    url: item.url,
+                    icon: item.icon,
+                    module: []
+                });
+            });
+
+            menuData.menus.push(mastersModule);
+        }
+
+        // B. Inject "Sales" 
+        let salesModule = menuData.menus.find(m => m.moduleName === "Sales");
+        if (!salesModule) {
+            salesModule = {
+                moduleId: 99991,
+                moduleName: "Sales",
+                icon: "bx bx-cart",
+                screen: [],
+                menuOrder: 2
+            };
+            // Add Sales Quotation, Sales Order, etc.
+            salesModule.screen.push({ screenId: 99980, screenName: "Sales Quotation", url: "/manage-quotation", icon: "bx bx-file", module: [] });
+            salesModule.screen.push({ screenId: 99981, screenName: "Sales Order", url: "/manage-order", icon: "bx bx-cart-alt", module: [] });
+
+            menuData.menus.push(salesModule);
+        }
+
+        // C. Inject "Procurement" (Restored to User's Previous Config)
+        let procurementModule = menuData.menus.find(m => m.moduleName === "Procurement");
+        if (!procurementModule) {
+            procurementModule = {
+                moduleId: 99992,
+                moduleName: "Procurement",
+                icon: "bx bx-shopping-bag",
+                screen: [],
+                menuOrder: 3
+            };
+
+            // specific items from previous correct state
+            const procurementItems = [
+                { name: "Purchase Memo", url: "/procurementspurchase-memo", icon: "bx bx-file" },
+                { name: "Purchase Requisition", url: "/procurementspurchase-requisition", icon: "bx bx-file" },
+                { name: "Approval", url: "/purchase-requisition-approval", icon: "bx bx-check-circle" },
+                { name: "Purchase Order", url: "/procurementspurchase-order", icon: "bx bx-cart" },
+                { name: "GRN", url: "/procurementsgrn", icon: "bx bx-box" },
+                { name: "IRN", url: "/InvoiceReceipt", icon: "bx bx-receipt" }
+            ];
+
+            procurementItems.forEach((item, index) => {
+                procurementModule.screen.push({
+                    screenId: 99970 + index,
+                    screenName: item.name,
+                    url: item.url,
+                    icon: item.icon,
+                    module: []
+                });
+            });
+
+            menuData.menus.push(procurementModule);
+        }
+
+        // D. Inject "Claim"
+        let claimModule = menuData.menus.find(m => m.moduleName === "Claim" || m.moduleName === "Claims");
+        if (!claimModule) {
+            claimModule = {
+                moduleId: 99993,
+                moduleName: "Claim",
+                icon: "bx bx-briefcase-alt-2",
+                screen: [],
+                menuOrder: 4
+            };
+
+            claimModule.screen.push({
+                screenId: 99930,
+                screenName: "Claim & Payment",
+                url: "/Manageclaim&Payment",
+                icon: "bx bx-detail",
+                module: []
+            });
+
+            claimModule.screen.push({
+                screenId: 99931,
+                screenName: "Master Payment Plan",
+                url: "/paymentplanapproval", // Verified URL from user edits
+                icon: "bx bx-calendar-check",
+                module: []
+            });
+
+            // Hide PPP for specific users
+            const authUserPPP = JSON.parse(localStorage.getItem("authUser"));
+            const restrictedPPPUsers = [136, 137, 184, 170, 169];
+            const currentUserId = authUserPPP ? (parseInt(authUserPPP.u_id) || 0) : 0;
+
+            if (!restrictedPPPUsers.includes(currentUserId)) {
+                claimModule.screen.push({
+                    screenId: 99932,
+                    screenName: "PPP",
+                    url: "/PPP", // Verified URL
+                    icon: "bx bx-file",
+                    module: []
+                });
+            }
+
+            // -- NEW INJECTION from Step 463 --
+            // Restored Approval for GM/Director
+            claimModule.screen.push({
+                screenId: 99933,
+                screenName: "Approval",
+                url: "/Manageapproval",
+                icon: "bx bx-check-square",
+                module: []
+            });
+
+            claimModule.screen.push({
+                screenId: 99934,
+                screenName: "Approval Discussions",
+                url: "/approval-discussions",
+                icon: "bx bx-chat",
+                module: []
+            });
+
+            menuData.menus.push(claimModule);
+        }
+
+        // Remove old "Employee" or "Procurement & Claims" if they exist from previous injection
+        menuData.menus = menuData.menus.filter(m => m.moduleName !== "Employee" && m.moduleName !== "Procurement & Claims");
+
+        // ---------------------------------------------------------
+        // 11. SORT MENUS BY menuOrder AND LOG FOR DEBUGGING
         // ---------------------------------------------------------
         menuData.menus.sort((a, b) => (a.menuOrder || 999) - (b.menuOrder || 999));
 
@@ -294,6 +458,117 @@ class SidebarContent extends Component {
         console.log("Invoices Menu:", invoiceMenu);
         console.log("Reports Menu:", reportsMenu);
         console.log("All Menus:", menuData.menus.map(m => ({ name: m.moduleName, order: m.menuOrder, screens: m.screen.length })));
+
+        // ---------------------------------------------------------
+        // 12. SECURITY FILTER: PROCUREMENT DEPARTMENT
+        // ---------------------------------------------------------
+        let authUser = JSON.parse(localStorage.getItem("authUser"));
+
+        // Apply restriction ONLY if user is NOT a Super Admin
+        // "Role Super Admin should see everything"
+        if (authUser) {
+            console.log("=== SECURITY DEBUG START ===");
+            console.log("Department:", authUser.department);
+            console.log("Department ID:", authUser.departmentId);
+            console.log("Role Name:", authUser.roleName);
+            console.log("Is Admin:", authUser.IsAdmin);
+            console.log("Super Admin:", authUser.superAdmin);
+            console.log("=== SECURITY DEBUG END ===");
+        }
+
+
+        // ---------------------------------------------------------
+        // UNIVERSAL SECURITY FILTERS
+        // ---------------------------------------------------------
+
+        // Universal Security Filters
+
+        // 1. GM, Director, CEO & Restricted Users: ONLY APPROVAL PAGES (Strict Priority)
+        const role = authUser && authUser.roleName ? authUser.roleName.trim().toLowerCase() : "";
+        const restrictedApprovalUsers = [138, 139, 140];
+        const currentUserIdFilter = authUser ? (parseInt(authUser.u_id) || 0) : 0;
+
+        if (role === "gm" || role === "director" || role === "ceo" || role === "general manager" || restrictedApprovalUsers.includes(currentUserIdFilter)) {
+            console.log("--- GM/DIRECTOR/CEO: Approval Pages Only (Restriction Applied) ---");
+
+            const allowedModules = ["Procurement", "Claim", "Claims"];
+            // Special Case: User 135 gets Masters
+            if (currentUserIdFilter === 135) {
+                allowedModules.push("Masters");
+            }
+
+            menuData.menus = menuData.menus.filter(m => allowedModules.includes(m.moduleName));
+
+            // Keep ONLY approval pages
+            menuData.menus.forEach(menu => {
+                if (menu.screen && menu.screen.length > 0) {
+                    menu.screen = menu.screen.filter(item => {
+                        // Special Case: Masters screens should be visible for 135
+                        if (currentUserIdFilter === 135 && menu.moduleName === "Masters") {
+                            return true;
+                        }
+
+                        // Special Case: User 156 gets Approval Discussions
+                        if (currentUserIdFilter === 156 && (item.screenName === "Approval Discussions" || item.url === "/approval-discussions")) {
+                            return true;
+                        }
+
+                        const isApprovalLink = item.url && item.url.toLowerCase().includes("approval");
+
+                        // For restricted users (138, 139, 140), exclude specific pages even if they are approval pages
+                        if (restrictedApprovalUsers.includes(currentUserIdFilter)) {
+                            const excludedUrls = ["/paymentplanapproval", "/approval-discussions"];
+                            if (excludedUrls.includes(item.url)) {
+                                return false;
+                            }
+                        }
+
+                        return isApprovalLink;
+                    });
+                }
+            });
+        }
+        // 2. SuperAdmin: Full Access
+        else if (authUser && authUser.superAdmin) {
+            console.log("--- SUPER ADMIN: Full Access ---");
+        }
+
+        // EVERYONE ELSE: Procurement + Claim WITHOUT approvals
+        else if (authUser) {
+            console.log("--- DEFAULT USER: Procurement + Claim (No Approvals) ---");
+
+            const allowedModules = ["Procurement", "Claim", "Claims"];
+            // Special Case: User 135 gets Masters
+            if (currentUserIdFilter === 135) {
+                allowedModules.push("Masters");
+            }
+
+            menuData.menus = menuData.menus.filter(m => allowedModules.includes(m.moduleName));
+
+            // HIDE all approval pages
+            menuData.menus.forEach(menu => {
+                if (menu.screen && menu.screen.length > 0) {
+                    menu.screen = menu.screen.filter(item => {
+                        // Special Case: Masters screens should be visible for 135
+                        if (currentUserIdFilter === 135 && menu.moduleName === "Masters") {
+                            return true;
+                        }
+
+                        // Special Case: User 156 gets Approval Discussions
+                        if (currentUserIdFilter === 156 && (item.screenName === "Approval Discussions" || item.url === "/approval-discussions")) {
+                            return true;
+                        }
+
+                        return !item.url || !item.url.toLowerCase().includes("approval");
+                    });
+                }
+            });
+        }
+
+        // Hide Finance from non-SuperAdmin
+        if (authUser && !authUser.superAdmin) {
+            menuData.menus = menuData.menus.filter(m => m.moduleName !== "Finance");
+        }
 
         // 11. Update State
         this.setState({ dynamicMenu: menuData || [] }, () => {
