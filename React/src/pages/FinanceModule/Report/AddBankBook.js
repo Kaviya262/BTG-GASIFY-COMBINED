@@ -35,19 +35,19 @@ const AddBankBook = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [globalFilter, setGlobalFilter] = useState("");
     const [loading, setLoading] = useState(false);
-    
+
     // --- DATA STATES ---
     const [bankList, setBankList] = useState([]);
     const [customerList, setCustomerList] = useState([]);
     const [entryList, setEntryList] = useState([]);
     const [salesList, setSalesList] = useState([]);
-    const [customerDefaults, setCustomerDefaults] = useState({}); 
+    const [customerDefaults, setCustomerDefaults] = useState({});
 
     // --- BATCH ENTRY STATES ---
     const [selectedBank, setSelectedBank] = useState(null);
-    const [rows, setRows] = useState([]); 
+    const [rows, setRows] = useState([]);
     const [totals, setTotals] = useState({ receipt: 0, payment: 0 });
-    const [editMode, setEditMode] = useState(false); 
+    const [editMode, setEditMode] = useState(false);
 
     // --- PREVIEW MODAL STATES ---
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -60,10 +60,10 @@ const AddBankBook = () => {
         const loadInitialData = async () => {
             const banks = await GetBankList(1, 1);
             setBankList(banks.map(item => ({ value: item.value, label: item.BankName })));
-            
+
             const customers = await GetCustomerFilter(1, "%");
             setCustomerList(Array.isArray(customers) ? customers.map(c => ({ value: c.CustomerID, label: c.CustomerName })) : []);
-            
+
             loadSalesPersons();
             loadCustomerDefaults();
         };
@@ -100,7 +100,7 @@ const AddBankBook = () => {
         try {
             const response = await axios.get(`${PYTHON_API_URL}/AR/get-customer-defaults`);
             if (response.data?.status === "success") {
-                setCustomerDefaults(response.data.data); 
+                setCustomerDefaults(response.data.data);
             }
         } catch (err) { console.error("Failed to load customer defaults", err); }
     };
@@ -116,7 +116,7 @@ const AddBankBook = () => {
                     customerName: customerList.find(c => c.value === item.customer_id)?.label || item.customer_id,
                     displayDate: item.date ? format(new Date(item.date), "dd-MMM-yyyy") : "-",
                     verificationStatus: item.verification_status,
-                    customerId: item.customer_id 
+                    customerId: item.customer_id
                 }));
                 setEntryList(mapped);
             }
@@ -127,8 +127,8 @@ const AddBankBook = () => {
     // --- HANDLERS ---
     const handleAddRow = () => {
         setRows(prevRows => [...prevRows, {
-            id: Date.now(), 
-            rowId: 0, 
+            id: Date.now(),
+            rowId: 0,
             type: "Receipt",
             date: new Date(),
             customerId: "",
@@ -155,7 +155,7 @@ const AddBankBook = () => {
             if (defaultSP) {
                 newRows[index]['salesPersonId'] = defaultSP;
             } else {
-                newRows[index]['salesPersonId'] = ""; 
+                newRows[index]['salesPersonId'] = "";
             }
         }
 
@@ -166,10 +166,10 @@ const AddBankBook = () => {
         setEditMode(false);
         setSelectedBank(null);
         setTotals({ receipt: 0, payment: 0 });
-        
+
         const initialRow = {
-            id: Date.now(), 
-            rowId: 0, 
+            id: Date.now(),
+            rowId: 0,
             type: "Receipt",
             date: new Date(),
             customerId: "",
@@ -179,8 +179,8 @@ const AddBankBook = () => {
             salesPersonId: "",
             sendNotification: false
         };
-        
-        setRows([initialRow]); 
+
+        setRows([initialRow]);
         setIsModalOpen(true);
     };
 
@@ -225,7 +225,7 @@ const AddBankBook = () => {
                 bank_amount: row.type === 'Payment' ? -Math.abs(parseFloat(row.amount)) : Math.abs(parseFloat(row.amount)),
                 bank_charges: parseFloat(row.bankCharges) || 0,
                 deposit_bank_id: parseInt(selectedBank.value),
-                receipt_date: format(row.date, "yyyy-MM-dd"), 
+                receipt_date: format(row.date, "yyyy-MM-dd"),
                 reference_no: row.referenceNo,
                 sales_person_id: row.salesPersonId,
                 send_notification: row.sendNotification,
@@ -240,23 +240,23 @@ const AddBankBook = () => {
             }));
 
             const payload = {
-                orgId: 1, 
-                branchId: 1, 
-                userId: 505, 
-                userIp: "127.0.0.1", 
+                orgId: 1,
+                branchId: 1,
+                userId: 505,
+                userIp: "127.0.0.1",
                 header: headerPayload
             };
-            
+
             const endpoint = editMode ? `${PYTHON_API_URL}/AR/update` : `${PYTHON_API_URL}/AR/create`;
-            if(editMode) await axios.put(endpoint, payload); 
+            if (editMode) await axios.put(endpoint, payload);
             else await axios.post(endpoint, payload);
-            
+
             toast.success(`${rows.length} Entries ${isPosted ? 'Posted' : 'Saved'} Successfully`);
             setIsModalOpen(false);
             loadEntryList();
-        } catch (err) { 
+        } catch (err) {
             console.error(err);
-            toast.error("Error saving entries"); 
+            toast.error("Error saving entries");
         }
     };
 
@@ -274,7 +274,7 @@ const AddBankBook = () => {
         setSelectedEntry(rowData);
         setIsPreviewOpen(true);
         setLoadingInvoices(true);
-        setInvoiceList([]); 
+        setInvoiceList([]);
 
         if (rowData.customerId) {
             try {
@@ -316,7 +316,7 @@ const AddBankBook = () => {
         if (!rowData.is_posted) return null;
         const isCompleted = rowData.verificationStatus === 'Completed';
         const isPending = rowData.verificationStatus === 'Pending';
-        
+
         if (isPending) {
             return (
                 <div className="d-flex justify-content-center">
@@ -338,25 +338,25 @@ const AddBankBook = () => {
         const isPosted = rowData.is_posted;
         const isCompleted = rowData.verificationStatus === 'Completed';
         const isEditable = !isPosted;
-        const isPreviewable = true; 
-        const isActionable = isCompleted; 
+        const isPreviewable = true;
+        const isActionable = isCompleted;
 
         return (
             <div className="d-flex justify-content-center gap-3 align-items-center table-actions">
                 {/* Edit */}
-                <button 
+                <button
                     className={`btn-icon ${isEditable ? 'text-primary' : 'text-muted'}`}
-                    onClick={() => { if(isEditable) openEditModal(rowData); }}
+                    onClick={() => { if (isEditable) openEditModal(rowData); }}
                     disabled={!isEditable}
                     title="Edit"
                 >
                     <i className="bx bx-pencil font-size-18"></i>
                 </button>
-                
+
                 {/* Preview */}
-                <button 
+                <button
                     className={`btn-icon ${isPreviewable ? 'text-info' : 'text-muted'}`}
-                    onClick={() => { if(isPreviewable) handlePreview(rowData); }}
+                    onClick={() => { if (isPreviewable) handlePreview(rowData); }}
                     disabled={!isPreviewable}
                     title="Preview Invoice"
                 >
@@ -364,18 +364,18 @@ const AddBankBook = () => {
                 </button>
 
                 {/* Query */}
-                <button 
+                <button
                     className={`btn-icon ${isActionable ? 'text-warning' : 'text-muted'}`}
                     disabled={!isActionable}
                     title="Query"
                 >
                     <i className="bx bx-question-mark font-size-18"></i>
                 </button>
-                
+
                 {/* Submit */}
-                <button 
+                <button
                     className={`btn-icon ${isActionable ? 'text-success' : 'text-muted'}`}
-                    onClick={() => { if(isActionable) handleSubmitRow(rowData.receipt_id); }}
+                    onClick={() => { if (isActionable) handleSubmitRow(rowData.receipt_id); }}
                     disabled={!isActionable}
                     title="Submit to Finance"
                 >
@@ -412,29 +412,29 @@ const AddBankBook = () => {
                             <Column field="reference_no" header="Reference" sortable filter style={{ width: '10%' }} />
                             <Column field="bank_amount" header="Amount" textAlign="right" body={(d) => parseFloat(d.bank_amount || 0).toLocaleString()} style={{ width: '10%' }} />
                             <Column field="bank_charges" header="Bank Charges" textAlign="right" body={(d) => parseFloat(d.bank_charges || 0).toLocaleString()} style={{ width: '10%' }} />
-                            <Column header="Status" body={statusBodyTemplate} style={{ width: '8%' }} className="text-center"/>
-                            <Column header="Verify" body={verificationBodyTemplate} style={{ width: '8%' }} className="text-center" headerStyle={{ textAlign: 'center' }}/>
-                            <Column header="Action" body={actionBodyTemplate} style={{ width: '16%' }} className="text-center" headerStyle={{ textAlign: 'center' }}/>
+                            <Column header="Status" body={statusBodyTemplate} style={{ width: '8%' }} className="text-center" />
+                            <Column header="Verify" body={verificationBodyTemplate} style={{ width: '8%' }} className="text-center" headerStyle={{ textAlign: 'center' }} />
+                            <Column header="Action" body={actionBodyTemplate} style={{ width: '16%' }} className="text-center" headerStyle={{ textAlign: 'center' }} />
                         </DataTable>
                     </CardBody>
                 </Card>
 
                 {/* --- BATCH ENTRY MODAL --- */}
-                <Dialog 
+                <Dialog
                     header={editMode ? "Edit Entry" : "New Bank Book Entry (Batch)"}
-                    visible={isModalOpen} 
-                    onHide={() => setIsModalOpen(false)} 
-                    className="modern-dialog" 
+                    visible={isModalOpen}
+                    onHide={() => setIsModalOpen(false)}
+                    className="modern-dialog"
                     style={{ width: '90vw', maxWidth: '1250px' }}
                     draggable={false}
                     resizable={false}
                 >
                     <div className="bg-light p-3 rounded mb-3 d-flex justify-content-between align-items-center">
-                        <div className="d-flex align-items-center gap-3" style={{width: '40%'}}>
+                        <div className="d-flex align-items-center gap-3" style={{ width: '40%' }}>
                             <Label className="fw-bold mb-0 text-nowrap">Bank Account:</Label>
-                            <Select 
+                            <Select
                                 className="flex-grow-1"
-                                options={bankList} 
+                                options={bankList}
                                 value={selectedBank}
                                 onChange={setSelectedBank}
                                 placeholder="Select Bank..."
@@ -444,39 +444,39 @@ const AddBankBook = () => {
                         </div>
                         <div className="d-flex gap-4">
                             <div className="text-end border-end pe-4">
-                                <small className="text-muted d-block text-uppercase" style={{fontSize: '10px', letterSpacing: '1px'}}>Total Receipts</small>
+                                <small className="text-muted d-block text-uppercase" style={{ fontSize: '10px', letterSpacing: '1px' }}>Total Receipts</small>
                                 <h5 className="text-success m-0 fw-bold">{totals.receipt.toLocaleString('en-US', { minimumFractionDigits: 2 })}</h5>
                             </div>
                             <div className="text-end">
-                                <small className="text-muted d-block text-uppercase" style={{fontSize: '10px', letterSpacing: '1px'}}>Total Payments</small>
+                                <small className="text-muted d-block text-uppercase" style={{ fontSize: '10px', letterSpacing: '1px' }}>Total Payments</small>
                                 <h5 className="text-danger m-0 fw-bold">{totals.payment.toLocaleString('en-US', { minimumFractionDigits: 2 })}</h5>
                             </div>
                         </div>
                     </div>
 
-                    <div className="table-responsive" style={{maxHeight: '450px', overflowY: 'auto', border: '1px solid #e9ecef', borderRadius: '4px'}}>
+                    <div className="table-responsive" style={{ maxHeight: '450px', overflowY: 'auto', border: '1px solid #e9ecef', borderRadius: '4px' }}>
                         <Table className="table table-bordered align-middle table-sm table-hover mb-0">
                             <thead className="table-light sticky-top">
                                 <tr>
-                                    <th style={{width: '90px'}} className="text-center">Type</th>
-                                    <th style={{width: '110px'}} className="text-center">Date</th>
-                                    <th style={{width: '220px'}}>Customer</th>
-                                    <th style={{width: '120px'}}>Reference No.</th>
-                                    <th style={{width: '130px'}} className="text-end">Amount</th>
-                                    <th style={{width: '100px'}} className="text-end">Charges</th>
-                                    <th style={{width: '160px'}}>Sales Person</th>
-                                    <th style={{width: '40px'}} className="text-center">Del</th>
+                                    <th style={{ width: '90px' }} className="text-center">Type</th>
+                                    <th style={{ width: '110px' }} className="text-center">Date</th>
+                                    <th style={{ width: '220px' }}>Customer</th>
+                                    <th style={{ width: '120px' }}>Reference No.</th>
+                                    <th style={{ width: '130px' }} className="text-end">Amount</th>
+                                    <th style={{ width: '100px' }} className="text-end">Charges</th>
+                                    <th style={{ width: '160px' }}>Sales Person</th>
+                                    <th style={{ width: '40px' }} className="text-center">Del</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {rows.map((row, index) => (
                                     <tr key={row.id}>
                                         <td>
-                                            <select 
+                                            <select
                                                 className="form-select form-select-sm"
                                                 value={row.type}
                                                 onChange={(e) => handleRowChange(index, 'type', e.target.value)}
-                                                style={{fontSize: '12px'}}
+                                                style={{ fontSize: '12px' }}
                                             >
                                                 <option value="Receipt">Receipt</option>
                                                 <option value="Payment">Payment</option>
@@ -488,30 +488,30 @@ const AddBankBook = () => {
                                                 value={row.date}
                                                 onChange={(date) => handleRowChange(index, 'date', date[0])}
                                                 options={{ dateFormat: "d-M-Y" }}
-                                                style={{fontSize: '12px'}}
+                                                style={{ fontSize: '12px' }}
                                             />
                                         </td>
                                         <td>
-                                            <Select 
+                                            <Select
                                                 options={customerList}
                                                 value={customerList.find(c => c.value === row.customerId)}
                                                 onChange={(opt) => handleRowChange(index, 'customerId', opt?.value)}
                                                 styles={customSelectStyles}
-                                                menuPortalTarget={document.body} 
+                                                menuPortalTarget={document.body}
                                                 placeholder="Select..."
                                             />
                                         </td>
                                         <td>
-                                            <Input bsSize="sm" value={row.referenceNo} onChange={(e) => handleRowChange(index, 'referenceNo', e.target.value)} style={{fontSize: '12px'}} />
+                                            <Input bsSize="sm" value={row.referenceNo} onChange={(e) => handleRowChange(index, 'referenceNo', e.target.value)} style={{ fontSize: '12px' }} />
                                         </td>
                                         <td>
-                                            <Input type="number" bsSize="sm" value={row.amount} onChange={(e) => handleRowChange(index, 'amount', e.target.value)} className="text-end" style={{fontSize: '12px'}} />
+                                            <Input type="number" bsSize="sm" value={row.amount} onChange={(e) => handleRowChange(index, 'amount', e.target.value)} className="text-end" style={{ fontSize: '12px' }} />
                                         </td>
                                         <td>
-                                            <Input type="number" bsSize="sm" value={row.bankCharges} onChange={(e) => handleRowChange(index, 'bankCharges', e.target.value)} className="text-end" style={{fontSize: '12px'}} />
+                                            <Input type="number" bsSize="sm" value={row.bankCharges} onChange={(e) => handleRowChange(index, 'bankCharges', e.target.value)} className="text-end" style={{ fontSize: '12px' }} />
                                         </td>
                                         <td>
-                                            <Select 
+                                            <Select
                                                 options={salesList}
                                                 value={salesList.find(c => c.value === row.salesPersonId)}
                                                 onChange={(opt) => handleRowChange(index, 'salesPersonId', opt?.value)}
@@ -528,7 +528,7 @@ const AddBankBook = () => {
                             </tbody>
                         </Table>
                     </div>
-                    
+
                     <div className="mt-2">
                         <Button color="primary" size="sm" onClick={handleAddRow} style={{ fontSize: '12px', padding: '5px 12px', color: 'white' }}>
                             <i className="bx bx-plus me-1"></i> Add Entry
@@ -543,10 +543,10 @@ const AddBankBook = () => {
                 </Dialog>
 
                 {/* --- OUTSTANDING INVOICES MODAL (PREVIEW) --- */}
-                <Dialog 
-                    header="Customer Preview" 
-                    visible={isPreviewOpen} 
-                    onHide={() => setIsPreviewOpen(false)} 
+                <Dialog
+                    header="Customer Preview"
+                    visible={isPreviewOpen}
+                    onHide={() => setIsPreviewOpen(false)}
                     className="modern-dialog"
                     style={{ width: '650px' }}
                     draggable={false}
@@ -558,36 +558,36 @@ const AddBankBook = () => {
                                 <span className="fw-bold text-secondary me-2">Customer:</span>
                                 <span className="fw-bold text-dark">{selectedEntry.customerName}</span>
                             </div>
-                            
+
                             {loadingInvoices ? (
                                 <div className="text-center py-4"><Spinner color="primary" /></div>
                             ) : (
-                                <div style={{maxHeight: '300px', overflowY: 'auto'}}>
+                                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
                                     <Table bordered className="mb-0 text-center align-middle table-hover">
-                                            <thead className="table-light sticky-top">
-                                                <tr>
-                                                    <th>Invoice No.</th>
-                                                    <th>Date</th>
-                                                    <th>Balance Due</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {invoiceList.length > 0 ? (
-                                                    invoiceList.map((inv, idx) => (
-                                                        <tr key={idx}>
-                                                            <td>{inv.invoice_no}</td>
-                                                            <td>{inv.invoice_date}</td>
-                                                            <td className="text-end fw-bold">
-                                                                {parseFloat(inv.balance_due).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                                            </td>
-                                                        </tr>
-                                                    ))
-                                                ) : (
-                                                    <tr>
-                                                        <td colSpan="3" className="text-muted py-3">No outstanding invoices found.</td>
+                                        <thead className="table-light sticky-top">
+                                            <tr>
+                                                <th>Invoice No.</th>
+                                                <th>Date</th>
+                                                <th>Balance Due</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {invoiceList.length > 0 ? (
+                                                invoiceList.map((inv, idx) => (
+                                                    <tr key={idx}>
+                                                        <td>{inv.invoice_no}</td>
+                                                        <td>{inv.invoice_date}</td>
+                                                        <td className="text-end fw-bold">
+                                                            {parseFloat(inv.balance_due).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                                        </td>
                                                     </tr>
-                                                )}
-                                            </tbody>
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan="3" className="text-muted py-3">No outstanding invoices found.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
                                     </Table>
                                 </div>
                             )}

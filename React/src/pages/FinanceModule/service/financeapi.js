@@ -2,24 +2,21 @@ import { get, post, put } from "../../../helpers/api_helper";
 import axios from "axios";
 import { saveAs } from "file-saver";
 import Swal from 'sweetalert2';
+import { toast } from 'react-toastify';
+import { PYTHON_API_URL } from "../../../common/pyapiconfig";
 
 const transformData = (data, valueParam, labelParam) => {
-
     return data.map(item => ({
         ...item,
         value: item[valueParam],
         label: item[labelParam] || "-"
     }));
 };
-import { toast } from 'react-toastify';
-
 
 //#region GetFilteredCylinders
 export const getARByCustomer = async ({ customerId, orgId, branchId }) => {
-
     try {
-        const response = await get(`/AR/get-by-id?customerid=${customerId}&orgId=${orgId}&branchId=${branchId}`
-        );
+        const response = await get(`/AR/get-by-id?customerid=${customerId}&orgId=${orgId}&branchId=${branchId}`);
         return response;
     } catch (error) {
         console.error("API error:", error);
@@ -27,14 +24,9 @@ export const getARByCustomer = async ({ customerId, orgId, branchId }) => {
     }
 };
 
-
-import { PYTHON_API_URL } from "../../../common/pyapiconfig";
-
 export const getARBook = async (customerId, orgId, branchId, fromdate, todate) => {
-
     try {
-        const response = await get(`${PYTHON_API_URL}/AR/getARBook?customer_id=${customerId}&orgid=${orgId}&branchid=${branchId}&from_date=${fromdate}&to_date=${todate}`
-        );
+        const response = await get(`${PYTHON_API_URL}/AR/getARBook?customer_id=${customerId}&orgid=${orgId}&branchid=${branchId}&from_date=${fromdate}&to_date=${todate}`);
         return response;
     } catch (error) {
         console.error("API error:", error);
@@ -45,15 +37,23 @@ export const getARBook = async (customerId, orgId, branchId, fromdate, todate) =
 export const createAR = async (payload) => {
     try {
         console.log("Sending payload:", payload);
-        const response = await post("/AR/create", payload);;
 
-        if (response?.statusCode === 0) {
-            return response;
-        } else if (response?.statusCode === 1) {
-            toast.error(response.message || "An error occurred");
-            return null;
+        // --- SAFETY NET: Redirect to Invoice Posting if invoiceId exists ---
+        if (payload.invoiceId) {
+            return await postInvoiceToAR(payload);
+        }
+
+        // Use PYTHON_API_URL for Python backend
+        const response = await axios.post(`${PYTHON_API_URL}/AR/create`, payload);
+
+        if (response.data?.status === "success" || response.data?.status === true) {
+            return response.data;
         } else {
-            throw new Error(response?.message || 'Failed to save createAR');
+            if (response.data?.statusCode === 1) {
+                toast.error(response.data.message || "An error occurred");
+                return null;
+            }
+            return response.data;
         }
 
     } catch (error) {
@@ -62,16 +62,30 @@ export const createAR = async (payload) => {
     }
 };
 
-export const GetCustomerFilter = async (branchId = 1, searchtext) => {
+// --- NEW FUNCTION FOR POSTING INVOICES TO AR BOOK ---
+export const postInvoiceToAR = async (payload) => {
+    try {
+        console.log("Posting Invoice to AR:", payload);
+        // Ensure this endpoint matches your Python router prefix
+        const response = await axios.post(`${PYTHON_API_URL}/AR/post-invoice`, payload);
 
+        if (response.data?.status === "success") {
+            return response.data;
+        } else {
+            throw new Error(response.data?.detail || "Failed to post invoice");
+        }
+    } catch (error) {
+        console.error("postInvoiceToAR Error:", error);
+        toast.error(error.response?.data?.detail || "Failed to post invoice to AR Book");
+        throw error;
+    }
+};
+
+export const GetCustomerFilter = async (branchId = 1, searchtext) => {
     try {
         const response = await get(`/ordermngmaster/GetCustomerFilter?branchid=${branchId}&searchtext=${searchtext}`);
         if (response?.status) {
-
             return transformData(response.data, "CustomerID", "CustomerName");
-
-
-
         } else {
             throw new Error(response?.message || "Failed");
         }
@@ -82,7 +96,6 @@ export const GetCustomerFilter = async (branchId = 1, searchtext) => {
 };
 
 export const getBankReconciliation = async ({ orgid, branchid, fromDate, toDate }) => {
-    debugger
     const params = new URLSearchParams();
     params.append("orgid", orgid);
     params.append("branchid", branchid);
@@ -94,7 +107,6 @@ export const getBankReconciliation = async ({ orgid, branchid, fromDate, toDate 
 };
 
 export const getsalesreport = async (orgid, customerid, fromDate, toDate, gasid) => {
-    debugger
     const params = new URLSearchParams();
     params.append("orgid", orgid);
     params.append("customerid", customerid);
@@ -107,7 +119,6 @@ export const getsalesreport = async (orgid, customerid, fromDate, toDate, gasid)
 };
 
 export const getProfitLoss = async (orgid, currencyid, fromDate, toDate) => {
-    debugger
     const params = new URLSearchParams();
     params.append("orgid", orgid);
     params.append("currencyid", currencyid);
@@ -119,27 +130,21 @@ export const getProfitLoss = async (orgid, currencyid, fromDate, toDate) => {
     return response;
 };
 
-
 export const updateAR = async (payload) => {
-
     try {
         let response;
+        response = await axios.put(`${PYTHON_API_URL}/AR/update`, payload);
 
-
-        response = await put("/AR/update", payload);
-
-        console.log("add-cyliner response", response);
-        if (response?.statusCode === 0) {
-            return response;
-        } else if (response?.statusCode === 400) {
-            return response;
+        console.log("updateAR response", response);
+        if (response.data?.status === "success" || response.data?.status === true) {
+            return response.data;
+        } else if (response.data?.statusCode === 400) {
+            return response.data;
         } else {
-            throw new Error(response?.message || 'Failed to updateAR');
+            throw new Error(response.data?.message || 'Failed to updateAR');
         }
     } catch (error) {
         console.error('updateAR Error:', error);
         throw error;
     }
-
 };
-

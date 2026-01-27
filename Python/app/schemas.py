@@ -62,3 +62,9 @@ class UpdateReferenceRequest(BaseModel):
 class BulkUpdateReferenceRequest(BaseModel):
     ids: List[int]
     new_reference: str
+
+class PostInvoiceToARRequest(BaseModel):
+    orgId: int
+    branchId: int
+    userId: int
+    invoiceId: int

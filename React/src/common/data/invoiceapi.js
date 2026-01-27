@@ -1,4 +1,4 @@
-import { get, post, put } from "../../helpers/api_helper";
+import { get, post, put, del } from "../../helpers/api_helper";
 import axios from "axios";
 import { saveAs } from "file-saver";
 import { PYTHON_API_URL } from "common/pyapiconfig";
@@ -21,7 +21,7 @@ const gastransformData = (data, valueParam, labelParam) => {
 };
 
 // =====================================================================
-//  PYTHON API FUNCTIONS
+//  PYTHON API FUNCTIONS (Invoices & Sales)
 // =====================================================================
 
 export const GetInvoiceDetails = async (invoicesid) => {
@@ -36,6 +36,38 @@ export const GetInvoiceDetails = async (invoicesid) => {
     } catch (error) {
         console.error("Error fetching invoice details:", error);
         return null;
+    }
+};
+
+export const CreatenewInvoice = async (orderData) => {
+    try {
+        const response = await axios.post(`${PYTHON_API_URL}/CreateInvoice`, orderData);
+
+        if (response.status === 200 && response.data.status === "success") {
+            // Ensure consistent response format for Frontend
+            return { status: true, data: response.data.InvoiceId || response.data.data, message: response.data.message };
+        } else {
+            throw new Error(response.data.detail || "Failed to create invoice");
+        }
+    } catch (error) {
+        console.error("Error calling Python CreateInvoice:", error);
+        return { status: false, message: error.response?.data?.detail || error.message };
+    }
+};
+
+export const UpdateInvoice = async (orderData) => {
+    try {
+        // Point to Python Update Endpoint
+        const response = await axios.post(`${PYTHON_API_URL}/UpdateInvoice`, orderData);
+
+        if (response.status === 200 && response.data.status === true) {
+            return { status: true, data: response.data.data, message: response.data.message };
+        } else {
+            throw new Error(response.data.detail || "Failed to update invoice");
+        }
+    } catch (error) {
+        console.error("Error calling Python UpdateInvoice:", error);
+        return { status: false, message: error.response?.data?.detail || error.message };
     }
 };
 
@@ -69,23 +101,14 @@ export const GetALLInvoices = async (customerid, FromDate, ToDate, branchId, IsA
             }
 
             if (Array.isArray(response.data)) {
-                return {
-                    status: true,
-                    data: response.data
-                };
+                return { status: true, data: response.data };
             }
 
             if (response.data && response.data.data) {
-                return {
-                    status: true,
-                    data: response.data.data
-                };
+                return { status: true, data: response.data.data };
             }
 
-            return {
-                status: true,
-                data: response.data
-            };
+            return { status: true, data: response.data };
         } else {
             throw new Error("Failed to fetch invoices from Python API");
         }
@@ -114,13 +137,10 @@ export const GetSalesDetails = async (filterData) => {
     }
 };
 
-// *** NEW ADDITION: GetItemFilter ***
 export const GetItemFilter = async () => {
     try {
-        // This calls the Python endpoint: @router.get("/GetItemFilter")
         const response = await axios.get(`${PYTHON_API_URL}/GetItemFilter`);
         if (response.status === 200) {
-            // The backend returns [{value: 1, label: 'GasName'}, ...] directly
             return response.data;
         } else {
             return [];
@@ -179,7 +199,7 @@ export const CreateInvoiceFromDO = async (payload) => {
 };
 
 // =====================================================================
-//  EXISTING .NET API FUNCTIONS (Unchanged)
+//  EXISTING .NET API FUNCTIONS (Unchanged / Fallback)
 // =====================================================================
 
 export const GetInvoiceSNo = async (branchId, type) => {
@@ -187,35 +207,6 @@ export const GetInvoiceSNo = async (branchId, type) => {
         const response = await get(`/Invoices/GetInvoicesSiNo?BranchId=${branchId}&type=${type}`);
         if (response?.status) {
             return response.data;
-        } else {
-            throw new Error(response?.message || "Failed");
-        }
-    } catch (error) {
-        console.error("Error :", error);
-        return [];
-    }
-};
-
-export const CreatenewInvoice = async (orderData) => {
-    try {
-        const response = await axios.post(`${PYTHON_API_URL}/CreateInvoice`, orderData);
-
-        if (response.status === 200 && response.data.status === "success") {
-            return { status: true, data: response.data.InvoiceId, message: response.data.message };
-        } else {
-            throw new Error(response.data.detail || "Failed to create invoice");
-        }
-    } catch (error) {
-        console.error("Error calling Python CreateInvoice:", error);
-        return { status: false, message: error.response?.data?.detail || error.message };
-    }
-};
-
-export const UpdateInvoice = async (orderData) => {
-    try {
-        const response = await put(`/Invoices/Update`, orderData);
-        if (response) {
-            return response;
         } else {
             throw new Error(response?.message || "Failed");
         }

@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from .. import schemas, crud, database
 from sqlalchemy import text
-# --- IMPORTS FOR AR BOOK LOGIC ---
 import mysql.connector
 from pydantic import BaseModel
 from typing import Optional, List
@@ -10,16 +9,14 @@ from datetime import date
 import os
 from dotenv import load_dotenv
 
-# Load env to ensure we can access them locally if needed
 load_dotenv()
 
-# Helper to get DB Names (defaults to UAT if not set, or ensuring consistency)
-DB_NAME_FINANCE = os.getenv('DB_NAME_FINANCE', 'btg_finance_uat')
-DB_NAME_USER = os.getenv('DB_NAME_USER', 'btg_userpanel_uat')
-DB_NAME_MASTER = os.getenv('DB_NAME_MASTER', 'btg_masterpanel_uat')
+# --- UPDATED DEFAULTS TO LIVE DATABASES ---
+DB_NAME_FINANCE = os.getenv('DB_NAME_FINANCE', 'btggasify_finance_live')
+DB_NAME_USER = os.getenv('DB_NAME_USER', 'btggasify_live')
+DB_NAME_USER_NEW = os.getenv('DB_NAME_USER_NEW', 'btggasify_userpanel_live')
+DB_NAME_MASTER = os.getenv('DB_NAME_MASTER', 'btggasify_masterpanel_live')
 DB_NAME_OLD = os.getenv('DB_NAME_OLD', 'btggasify_live')
-
-# -------------------------------
 
 router = APIRouter(
     prefix="/AR",
@@ -45,7 +42,7 @@ def get_db_connection_sync():
         user=os.getenv('DB_USER'),
         password=os.getenv('DB_PASSWORD'),
         database=DB_NAME_FINANCE,
-        ssl_disabled=True # Matches procurement.py pattern
+        ssl_disabled=True 
     )
 
 # --------------------------------------------------
@@ -142,30 +139,40 @@ def get_ar_book_get(
         if conn: conn.close()
 
 # --------------------------------------------------
-# GET ALL PENDING RECEIPTS (FIXED & IMPROVED)
+# CREATE AR RECEIPT
+# --------------------------------------------------
+@router.post("/create")
+async def create_ar_receipt(
+    command: schemas.CreateARCommand,
+    db: AsyncSession = Depends(database.get_db)
+):
+    try:
+        new_receipts = await crud.create_ar_receipt(db, command)
+        return {
+            "status": "success",
+            "message": "Receipt(s) created successfully",
+            "data": new_receipts
+        }
+    except Exception as e:
+        print(f"Error creating AR receipt: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# --------------------------------------------------
+# GET ALL PENDING RECEIPTS
 # --------------------------------------------------
 @router.get("/get-pending-list")
 async def get_pending_list(db: AsyncSession = Depends(database.get_db)):
-    """
-    Get all Bank Book entries where pending_verification = 1.
-    Includes Currency Code fetched from the Master Bank table.
-    """
     try:
-        # --- FIXED SQL QUERY ---
-        # 1. Removed stray decorator text.
-        # 2. Added JOIN to master_bank to get CurrencyId, then master_currency for the Code.
         query = text(f"""
             SELECT 
                 r.*, 
                 COALESCE(mc.CurrencyCode, 'IDR') as CurrencyCode,
                 c.CustomerName
             FROM tbl_ar_receipt r
-            LEFT JOIN {DB_NAME_USER}.master_customer c ON r.customer_id = c.Id
-            
-            -- Join Bank to get the Currency ID --
+            LEFT JOIN {DB_NAME_USER_NEW}.master_customer c ON r.customer_id = c.Id
             LEFT JOIN {DB_NAME_MASTER}.master_bank b ON r.deposit_bank_id = b.BankId
-            LEFT JOIN {DB_NAME_OLD}.master_currency mc ON b.CurrencyId = mc.CurrencyId
-            
+            LEFT JOIN {DB_NAME_USER}.master_currency mc ON b.CurrencyId = mc.CurrencyId
             WHERE r.pending_verification = 1 
               AND r.is_active = 1
             ORDER BY r.receipt_id DESC
@@ -250,7 +257,7 @@ async def get_outstanding_invoices(customer_id: int, db: AsyncSession = Depends(
                 DATE_FORMAT(h.Salesinvoicesdate, '%d-%m-%Y') as invoice_date,
                 h.TotalAmount as total_amount,
                 (h.TotalAmount - IFNULL(h.PaidAmount, 0)) as balance_due
-            FROM {DB_NAME_USER}.tbl_salesinvoices_header h
+            FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header h
             WHERE h.customerid = :cust_id
               AND (h.TotalAmount - IFNULL(h.PaidAmount, 0)) > 0
               AND h.IsSubmitted = 1
@@ -287,13 +294,11 @@ async def bulk_update_reference(
     payload: schemas.BulkUpdateReferenceRequest,
     db: AsyncSession = Depends(database.get_db)
 ):
-    # Call the CRUD function
     updated_count = await crud.bulk_update_ar_reference(db, payload.ids, payload.new_reference)
     
     if updated_count == -1:
-        raise HTTPException(status_code=500, detail="Database error occurred. Check server logs.")
+        raise HTTPException(status_code=500, detail="Database error occurred.")
     
-    # If 0, it means the SQL ran but found no IDs matching what you sent.
     if updated_count == 0:
         raise HTTPException(status_code=404, detail=f"No records found for IDs: {payload.ids}")
         
@@ -301,3 +306,18 @@ async def bulk_update_reference(
         "status": "success", 
         "message": f"Successfully updated {updated_count} records."
     }
+
+# --------------------------------------------------
+# POST INVOICE TO AR
+# --------------------------------------------------
+@router.post("/post-invoice")
+async def post_invoice_endpoint(
+    payload: schemas.PostInvoiceToARRequest,
+    db: AsyncSession = Depends(database.get_db)
+):
+    success = await crud.post_invoice_to_ar(db, payload)
+    
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to post Invoice to AR Book.")
+        
+    return {"status": "success", "message": "Invoice posted to AR Book successfully"}

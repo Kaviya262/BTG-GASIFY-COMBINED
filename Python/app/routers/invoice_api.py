@@ -1,8 +1,20 @@
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import List, Optional
 from sqlalchemy import text
-from ..database import engine, DB_NAME_USER, DB_NAME_FINANCE, DB_NAME_MASTER, DB_NAME_OLD 
+from ..database import engine 
+import os
+from dotenv import load_dotenv
+
+# --- FORCE LOAD ENV VARIABLES ---
+load_dotenv()
+
+# Explicitly load names to ensure we don't use stale defaults from imports
+DB_NAME_USER = os.getenv('DB_NAME_USER', 'btggasify_live')
+DB_NAME_USER_NEW = os.getenv('DB_NAME_USER_NEW', 'btggasify_userpanel_live')
+DB_NAME_FINANCE = os.getenv('DB_NAME_FINANCE', 'btggasify_finance_live')
+DB_NAME_MASTER = os.getenv('DB_NAME_MASTER', 'btggasify_masterpanel_live')
+DB_NAME_OLD = os.getenv('DB_NAME_OLD', 'btggasify_live')
 
 router = APIRouter()
 
@@ -25,10 +37,7 @@ class SalesReportItem(BaseModel):
     CustomerName: Optional[str] = ""
     InvoiceCurrency: Optional[str] = ""
     InvoiceNo: Optional[str] = ""
-    
-    # --- NEW FIELD ---
     DONumber: Optional[str] = "" 
-    
     ItemName: Optional[str] = ""
     Qty: float
     UnitPrice: float
@@ -77,7 +86,7 @@ class ConvertDORequest(BaseModel):
     created_by: int = 1
 
 # ==========================================
-# 2. REQUEST MODELS 
+# 2. REQUEST MODELS
 # ==========================================
 
 class ManualInvoiceDetail(BaseModel):
@@ -91,11 +100,13 @@ class ManualInvoiceDetail(BaseModel):
     driverName: Optional[str] = ""
     truckName: Optional[str] = ""
     deliveryAddress: Optional[str] = ""
+    ExchangeRate: Optional[float] = 1.0
     
     class Config:
         extra = "ignore"
 
 class ManualInvoiceHeader(BaseModel):
+    id: Optional[int] = 0
     customerId: int
     salesInvoiceDate: str
     salesInvoiceNbr: str 
@@ -115,6 +126,12 @@ class CreateInvoiceRequest(BaseModel):
     class Config:
         extra = "ignore"
 
+class UpdateInvoiceRequest(BaseModel):
+    command: str
+    header: ManualInvoiceHeader
+    details: List[ManualInvoiceDetail]
+    doDetail: List[dict] = [] 
+
 # ==========================================
 # 3. API ENDPOINTS
 # ==========================================
@@ -126,7 +143,7 @@ async def create_invoice(payload: CreateInvoiceRequest):
         try:
             # 1. Create Header
             header_query = text(f"""
-                INSERT INTO {DB_NAME_USER}.tbl_salesinvoices_header 
+                INSERT INTO {DB_NAME_USER_NEW}.tbl_salesinvoices_header 
                 (salesinvoicenbr, customerid, Salesinvoicesdate, TotalAmount, IsSubmitted, CalculatedPrice, createdby, OrgId, BranchId, IsManual, CreatedDate)
                 VALUES (:nbr, :cust, :date, 0, :submitted, 0, :user, :org, :branch, :manual, NOW())
             """)
@@ -151,7 +168,7 @@ async def create_invoice(payload: CreateInvoiceRequest):
                 # A. Get Rate
                 rate_query = text(f"""
                     SELECT COALESCE(ExchangeRate, 1) 
-                    FROM {DB_NAME_OLD}.master_currency 
+                    FROM {DB_NAME_USER}.master_currency 
                     WHERE CurrencyId = :cid
                 """)
                 cid = item.CurrencyId if item.CurrencyId else 1
@@ -165,10 +182,9 @@ async def create_invoice(payload: CreateInvoiceRequest):
                 total_header_amount += line_total
                 total_calculated_price_idr += line_calculated_price
 
-                # C. Insert Detail
-                # Insert DOnumber string directly
+                # C. Insert Detail (Restored ExchangeRate now that DB Name is fixed)
                 detail_query = text(f"""
-                    INSERT INTO {DB_NAME_USER}.tbl_salesinvoices_details
+                    INSERT INTO {DB_NAME_USER_NEW}.tbl_salesinvoices_details
                     (salesinvoicesheaderid, gascodeid, PickedQty, UnitPrice, TotalPrice, Price, Currencyid, ExchangeRate, uomid, DOnumber, PONumber, DriverName, TruckName, DeliveryAddress)
                     VALUES (:hid, :gas, :qty, :price, :total, :calc_price, :cur, :rate, :uom, :do, :po, :driver, :truck, :addr)
                 """)
@@ -191,7 +207,7 @@ async def create_invoice(payload: CreateInvoiceRequest):
 
             # 3. Update Header Totals
             update_header = text(f"""
-                UPDATE {DB_NAME_USER}.tbl_salesinvoices_header
+                UPDATE {DB_NAME_USER_NEW}.tbl_salesinvoices_header
                 SET TotalAmount = :total,
                     CalculatedPrice = :calc_price
                 WHERE id = :hid
@@ -202,10 +218,94 @@ async def create_invoice(payload: CreateInvoiceRequest):
                 "hid": new_header_id
             })
 
-            return {"status": "success", "message": "Invoice Created", "InvoiceId": new_header_id}
+            return {"status": "success", "message": "Invoice Created", "data": new_header_id, "InvoiceId": new_header_id}
 
         except Exception as e:
             print(f"Error creating invoice: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+# --- Update Invoice ---
+@router.post("/UpdateInvoice")
+async def update_invoice(payload: UpdateInvoiceRequest):
+    async with engine.begin() as conn:
+        try:
+            invoice_id = payload.header.id
+            if not invoice_id:
+                raise HTTPException(status_code=400, detail="Invoice ID required for update")
+
+            # 1. Delete Existing Details
+            await conn.execute(text(f"DELETE FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_details WHERE salesinvoicesheaderid = :hid"), {"hid": invoice_id})
+
+            total_header_amount = 0.0
+            total_calculated_price_idr = 0.0
+
+            # 2. Insert New Details & Recalculate Totals
+            for item in payload.details:
+                # Get Rate
+                rate_query = text(f"SELECT COALESCE(ExchangeRate, 1) FROM {DB_NAME_USER}.master_currency WHERE CurrencyId = :cid")
+                cid = item.CurrencyId if item.CurrencyId else 1
+                rate_result = await conn.execute(rate_query, {"cid": cid})
+                exchange_rate = rate_result.scalar() or 1.0
+
+                # Calcs
+                line_total = float(item.pickedQty) * float(item.UnitPrice)
+                line_calculated_price = line_total * float(exchange_rate)
+
+                total_header_amount += line_total
+                total_calculated_price_idr += line_calculated_price
+
+                # Insert (Restored ExchangeRate)
+                detail_query = text(f"""
+                    INSERT INTO {DB_NAME_USER_NEW}.tbl_salesinvoices_details
+                    (salesinvoicesheaderid, gascodeid, PickedQty, UnitPrice, TotalPrice, Price, Currencyid, ExchangeRate, uomid, DOnumber, PONumber, DriverName, TruckName, DeliveryAddress)
+                    VALUES (:hid, :gas, :qty, :price, :total, :calc_price, :cur, :rate, :uom, :do, :po, :driver, :truck, :addr)
+                """)
+                await conn.execute(detail_query, {
+                    "hid": invoice_id,
+                    "gas": item.gasCodeId,
+                    "qty": item.pickedQty,
+                    "price": item.UnitPrice,
+                    "total": line_total,
+                    "calc_price": line_calculated_price,
+                    "cur": cid,
+                    "rate": exchange_rate,
+                    "uom": item.UomId,
+                    "do": item.doNumber,
+                    "po": item.poNumber,
+                    "driver": item.driverName,
+                    "truck": item.truckName,
+                    "addr": item.deliveryAddress
+                })
+
+            # 3. Update Header Totals
+            update_header = text(f"""
+                UPDATE {DB_NAME_USER_NEW}.tbl_salesinvoices_header
+                SET TotalAmount = :total,
+                    CalculatedPrice = :calc_price,
+                    salesinvoicenbr = :nbr,
+                    customerid = :cust,
+                    Salesinvoicesdate = :date,
+                    IsSubmitted = :submitted,
+                    updatedby = :user,
+                    LastModifiedDate = NOW()
+                WHERE id = :hid
+            """)
+            
+            await conn.execute(update_header, {
+                "total": total_header_amount,
+                "calc_price": total_calculated_price_idr,
+                "nbr": payload.header.salesInvoiceNbr,
+                "cust": payload.header.customerId,
+                "date": payload.header.salesInvoiceDate,
+                "user": payload.header.userId,
+                "submitted": payload.header.isSubmitted,
+                "hid": invoice_id
+            })
+
+            return {"status": True, "message": "Invoice updated successfully", "data": invoice_id}
+
+        except Exception as e:
+            print(f"Error updating invoice: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
 # --- Get All Invoices ---
@@ -218,11 +318,11 @@ async def get_all_invoices(filter_data: InvoiceFilter):
             h.salesinvoicenbr AS InvoiceNbr,
             DATE_FORMAT(h.Salesinvoicesdate, '%Y-%m-%d') AS Salesinvoicesdate,
             COALESCE(c.CustomerName, 'Unknown') AS CustomerName,
-            (SELECT d.PONumber FROM {DB_NAME_USER}.tbl_salesinvoices_details d 
+            (SELECT d.PONumber FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_details d 
              WHERE d.salesinvoicesheaderid = h.id LIMIT 1) AS PONumber, 
             (SELECT mc.CurrencyCode 
-             FROM {DB_NAME_USER}.tbl_salesinvoices_details d 
-             JOIN {DB_NAME_OLD}.master_currency mc ON d.Currencyid = mc.CurrencyId
+             FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_details d 
+             JOIN {DB_NAME_USER}.master_currency mc ON d.Currencyid = mc.CurrencyId
              WHERE d.salesinvoicesheaderid = h.id LIMIT 1) AS CurrencyCode,
             h.TotalAmount,
             COALESCE(h.CalculatedPrice, h.TotalAmount) AS CalculatedPrice,
@@ -230,8 +330,8 @@ async def get_all_invoices(filter_data: InvoiceFilter):
                 WHEN h.IsSubmitted = 1 THEN 'Posted' 
                 ELSE 'Saved' 
             END AS Status
-        FROM {DB_NAME_USER}.tbl_salesinvoices_header h
-        LEFT JOIN {DB_NAME_USER}.master_customer c ON h.customerid = c.Id
+        FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header h
+        LEFT JOIN {DB_NAME_USER_NEW}.master_customer c ON h.customerid = c.Id
         WHERE h.Salesinvoicesdate BETWEEN :from_date AND :to_date
           AND (:customer_id = 0 OR h.customerid = :customer_id)
           AND h.isactive = 1 
@@ -259,8 +359,7 @@ async def get_all_invoices(filter_data: InvoiceFilter):
 async def get_invoice_details(invoiceid: str):
     try:
         async with engine.connect() as conn:
-            # 1. Fetch ALL Headers matching this Invoice Number (or ID)
-            # We removed "LIMIT 1" and fetch all matches to aggregate them.
+            # 1. Fetch Headers
             header_query = text(f"""
                 SELECT 
                     h.id AS RealHeaderId, 
@@ -271,8 +370,8 @@ async def get_invoice_details(invoiceid: str):
                     COALESCE(h.TotalAmount, 0) AS TotalAmount,
                     COALESCE(h.CalculatedPrice, h.TotalAmount, 0) AS CalculatedPrice,
                     CASE WHEN h.IsSubmitted = 1 THEN 'Posted' ELSE 'Saved' END AS Status
-                FROM {DB_NAME_USER}.tbl_salesinvoices_header h
-                LEFT JOIN {DB_NAME_USER}.master_customer c ON h.customerid = c.Id
+                FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header h
+                LEFT JOIN {DB_NAME_USER_NEW}.master_customer c ON h.customerid = c.Id
                 WHERE h.salesinvoicenbr = :input_val 
                    OR h.id = :input_val
             """)
@@ -283,9 +382,6 @@ async def get_invoice_details(invoiceid: str):
             if not headers:
                 raise HTTPException(status_code=404, detail=f"Invoice '{invoiceid}' not found")
 
-            # 2. Aggregate Header Data
-            # We take the metadata (Date, Customer) from the FIRST row found.
-            # We SUM the totals from ALL rows found.
             primary_header = headers[0]
             
             aggregated_total_amount = 0.0
@@ -297,14 +393,11 @@ async def get_invoice_details(invoiceid: str):
                 aggregated_calc_price += float(h.CalculatedPrice)
                 all_header_ids.append(h.RealHeaderId)
 
-            # 3. Construct the Response Dict
             header_dict = dict(primary_header._mapping)
-            header_dict["InvoiceId"] = header_dict.pop("RealHeaderId") # Use primary ID as representative
+            header_dict["InvoiceId"] = header_dict.pop("RealHeaderId") 
             header_dict["TotalAmount"] = aggregated_total_amount
             header_dict["CalculatedPrice"] = aggregated_calc_price
 
-            # 4. Fetch Details for ALL identified Header IDs
-            # We use the IN clause to get items from all 7 DOs
             if all_header_ids:
                 detail_query = text(f"""
                     SELECT 
@@ -315,21 +408,19 @@ async def get_invoice_details(invoiceid: str):
                         COALESCE(d.UnitPrice, 0) AS UnitPrice,
                         COALESCE(d.TotalPrice, 0) AS TotalPrice,
                         COALESCE(d.Currencyid, 1) AS Currencyid,
-                        COALESCE(d.ExchangeRate, 1) AS ExchangeRate,
+                        COALESCE(d.ExchangeRate, 1) AS ExchangeRate, 
                         d.DOnumber AS DOnumber,
                         d.PONumber AS PONumber
-                    FROM {DB_NAME_USER}.tbl_salesinvoices_details d
-                    LEFT JOIN {DB_NAME_USER}.master_gascode g ON d.gascodeid = g.Id
+                    FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_details d
+                    LEFT JOIN {DB_NAME_USER_NEW}.master_gascode g ON d.gascodeid = g.Id
                     WHERE d.salesinvoicesheaderid IN :hids
                 """)
                 
-                # SQLAlchemy handles list binding with tuple
                 details_result = await conn.execute(detail_query, {"hids": tuple(all_header_ids)})
                 details_rows = details_result.fetchall()
             else:
                 details_rows = []
 
-            # 5. Process Items
             items_list = []
             for row in details_rows:
                 row_dict = dict(row._mapping)
@@ -361,9 +452,9 @@ async def get_available_dos(filter_data: DOFilter):
                     h.TotalQty as qty,
                     h.TotalAmount as total,
                     MAX(g.GasName) as GasName
-                FROM {DB_NAME_USER}.tbl_salesinvoices_header h
-                LEFT JOIN {DB_NAME_USER}.tbl_salesinvoices_details det ON h.id = det.salesinvoicesheaderid
-                LEFT JOIN {DB_NAME_USER}.master_gascode g ON det.gascodeid = g.Id
+                FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header h
+                LEFT JOIN {DB_NAME_USER_NEW}.tbl_salesinvoices_details det ON h.id = det.salesinvoicesheaderid
+                LEFT JOIN {DB_NAME_USER_NEW}.master_gascode g ON det.gascodeid = g.Id
                 WHERE h.customerid = :cust_id
                   AND h.isactive = 1 
                 GROUP BY h.id, h.salesinvoicenbr, h.Salesinvoicesdate, h.TotalQty, h.TotalAmount
@@ -381,7 +472,7 @@ async def get_available_dos(filter_data: DOFilter):
         print(f"Error fetching DOs: {e}")
         return {"status": False, "message": str(e), "data": []}
 
-# --- Create Invoice From DO (FIXED) ---
+# --- Create Invoice From DO ---
 @router.post("/CreateInvoiceFromDO")
 async def create_invoice_from_do(payload: ConvertDORequest):
     async with engine.begin() as conn:
@@ -391,7 +482,7 @@ async def create_invoice_from_do(payload: ConvertDORequest):
 
             # 1. Create Invoice Header
             header_query = text(f"""
-                INSERT INTO {DB_NAME_USER}.tbl_salesinvoices_header 
+                INSERT INTO {DB_NAME_USER_NEW}.tbl_salesinvoices_header 
                 (customerid, Salesinvoicesdate, TotalAmount, IsSubmitted, CalculatedPrice, createdby, invoice_type)
                 VALUES (:cust, CURDATE(), 0, 0, 0, :user, 'DSI')
             """)
@@ -406,30 +497,28 @@ async def create_invoice_from_do(payload: ConvertDORequest):
 
             # 2. Process selected DOs
             for do_id in payload.do_ids:
-                # --- FIX: Fetch the DO Number string to copy into details ---
-                do_header_query = text(f"SELECT salesinvoicenbr FROM {DB_NAME_USER}.tbl_salesinvoices_header WHERE id = :doid")
+                do_header_query = text(f"SELECT salesinvoicenbr FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header WHERE id = :doid")
                 do_header_res = await conn.execute(do_header_query, {"doid": do_id})
                 do_number_str = do_header_res.scalar() or ""
 
-                # Fetch DO Items
                 do_details_query = text(f"""
                     SELECT gascodeid, PickedQty, UnitPrice, Currencyid, ExchangeRate 
-                    FROM {DB_NAME_USER}.tbl_salesinvoices_details 
+                    FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_details 
                     WHERE salesinvoicesheaderid = :doid
                 """)
                 do_res = await conn.execute(do_details_query, {"doid": do_id})
                 do_rows = do_res.fetchall()
                 
                 for row in do_rows:
+                    rate_val = float(row.ExchangeRate or 1.0)
                     line_total = row.PickedQty * row.UnitPrice
-                    line_calc_price = line_total * float(row.ExchangeRate or 1.0)
+                    line_calc_price = line_total * rate_val
                     
                     total_amount += line_total
                     total_calculated_price += line_calc_price
                     
-                    # --- FIX: Insert into 'DOnumber' column (text), NOT 'ref_do_id' ---
                     det_query = text(f"""
-                        INSERT INTO {DB_NAME_USER}.tbl_salesinvoices_details
+                        INSERT INTO {DB_NAME_USER_NEW}.tbl_salesinvoices_details
                         (salesinvoicesheaderid, gascodeid, PickedQty, UnitPrice, TotalPrice, Currencyid, ExchangeRate, DOnumber)
                         VALUES (:hid, :gas, :qty, :price, :total, :cur, :rate, :do_str)
                     """)
@@ -440,13 +529,13 @@ async def create_invoice_from_do(payload: ConvertDORequest):
                         "price": row.UnitPrice,
                         "total": line_total,
                         "cur": row.Currencyid,
-                        "rate": row.ExchangeRate,
-                        "do_str": do_number_str  # <--- Insert the String
+                        "rate": rate_val,
+                        "do_str": do_number_str
                     })
 
             # 3. Update Header Totals
             update_header = text(f"""
-                UPDATE {DB_NAME_USER}.tbl_salesinvoices_header
+                UPDATE {DB_NAME_USER_NEW}.tbl_salesinvoices_header
                 SET TotalAmount = :total, CalculatedPrice = :calc_total
                 WHERE id = :hid
             """)
@@ -469,7 +558,7 @@ async def get_gas_items():
         async with engine.connect() as conn:
             query = text(f"""
                 SELECT Id, GasName 
-                FROM {DB_NAME_USER}.master_gascode 
+                FROM {DB_NAME_USER_NEW}.master_gascode 
                 WHERE IsActive = 1 
                 ORDER BY GasName ASC
             """)
@@ -485,7 +574,6 @@ async def get_gas_items():
 @router.post("/GetSalesDetails", response_model=List[SalesReportItem])
 async def get_sales_details(filter_data: InvoiceFilter):
     try:
-        # --- FIXED QUERY: Uses existing 'DOnumber' column, no invalid JOIN ---
         sql = text(f"""
         SELECT 
             d.id as DetailId,
@@ -493,21 +581,18 @@ async def get_sales_details(filter_data: InvoiceFilter):
             COALESCE(TRIM(c.CustomerName), 'Unknown') AS CustomerName,
             mc.CurrencyCode as InvoiceCurrency,
             h.salesinvoicenbr as InvoiceNo,
-            
-            -- Use the existing Text Column --
             COALESCE(d.DOnumber, '') AS DONumber,
-            
             COALESCE(g.GasName, 'Item') as ItemName,
             d.PickedQty as Qty,
             d.UnitPrice,
             d.TotalPrice as OriginalTotal, 
             (d.TotalPrice * COALESCE(mc.ExchangeRate, 1)) as ConvertedTotal
-        FROM {DB_NAME_USER}.tbl_salesinvoices_header h
-        JOIN {DB_NAME_USER}.tbl_salesinvoices_details d ON h.id = d.salesinvoicesheaderid
+        FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header h
+        JOIN {DB_NAME_USER_NEW}.tbl_salesinvoices_details d ON h.id = d.salesinvoicesheaderid
         
-        LEFT JOIN {DB_NAME_USER}.master_customer c ON h.customerid = c.Id
-        LEFT JOIN {DB_NAME_USER}.master_gascode g ON d.gascodeid = g.Id
-        LEFT JOIN {DB_NAME_OLD}.master_currency mc ON d.Currencyid = mc.CurrencyId
+        LEFT JOIN {DB_NAME_USER_NEW}.master_customer c ON h.customerid = c.Id
+        LEFT JOIN {DB_NAME_USER_NEW}.master_gascode g ON d.gascodeid = g.Id
+        LEFT JOIN {DB_NAME_USER}.master_currency mc ON d.Currencyid = mc.CurrencyId
         
         WHERE DATE(h.Salesinvoicesdate) BETWEEN :from_date AND :to_date 
           AND h.isactive = 1 
@@ -535,7 +620,7 @@ async def get_sales_details(filter_data: InvoiceFilter):
 @router.get("/GetItemFilter")
 async def get_item_filter():
     try:
-        sql = text(f"SELECT Id as value, GasName as label FROM {DB_NAME_USER}.master_gascode WHERE IsActive = 1 ORDER BY GasName")
+        sql = text(f"SELECT Id as value, GasName as label FROM {DB_NAME_USER_NEW}.master_gascode WHERE IsActive = 1 ORDER BY GasName")
         async with engine.connect() as conn:
             result = await conn.execute(sql)
             return [dict(row._mapping) for row in result.fetchall()]

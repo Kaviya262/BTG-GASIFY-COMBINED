@@ -61,7 +61,8 @@ class SidebarContent extends Component {
                 { screenId: 99915, screenName: "Outstanding Pos", url: "/Pendingpo", icon: "bx bx-list-check" },
                 { screenId: 99916, screenName: "Over Draft", url: "/ManageOverDraft", icon: "bx bx-transfer" },
                 { screenId: 99917, screenName: "Petty Cash", url: "/pettyCash", icon: "bx bx-coin-stack" },
-                { screenId: 99918, screenName: "Receipt", url: "/InvoiceReceipt", icon: "bx bx-receipt" }
+                // --- NEW AP SCREEN ADDED HERE ---
+                { screenId: 99919, screenName: "AP", url: "/AP", icon: "bx bx-file" }
             ];
 
             missingScreens.forEach(item => {
@@ -299,39 +300,64 @@ class SidebarContent extends Component {
                 screen: [],
                 menuOrder: 1
             };
+            menuData.menus.push(mastersModule);
+        }
 
-            const masterItems = [
+        // FORCE RESET screens to ensure permission logic is applied
+        mastersModule.screen = [];
+
+        // Custom Masters Logic for Specific Users
+        const masterAuthUser = JSON.parse(localStorage.getItem("authUser"));
+        const currentUserId = masterAuthUser ? (parseInt(masterAuthUser.u_id) || 0) : 0;
+        const accessForUsers = [137, 168, 169, 170, 184];
+
+        let masterItems = [];
+
+        // IF USER is in the restricted list (137, 168, etc) -> SHOW ONLY 4 ITEMS
+        if (accessForUsers.includes(currentUserId)) {
+            masterItems = [
+                { name: "Payment Terms", url: "/manage-payment-terms", icon: "bx bx-calendar" },
+                { name: "Suppliers", url: "/manage-suppliers", icon: "bx bx-user-check" },
+                { name: "Items", url: "/manage-items", icon: "bx bx-list-ul" },
+                { name: "UOM", url: "/manage-units", icon: "bx bx-ruler" }
+            ];
+        }
+        // ELSE -> SHOW FULL LIST (Standard Behavior for Admin/Others)
+        else {
+            masterItems = [
                 { name: "Access Rights", url: "/access-rights", icon: "bx bx-user-voice" },
                 { name: "Country", url: "/country", icon: "bx bx-flag" },
                 { name: "Currency", url: "/currency", icon: "bx bx-money" },
                 { name: "Customers", url: "/manage-customer", icon: "bx bx-user" },
-                { name: "Cylinder", url: "/manage-cylinder", icon: "bx bx-cylinder" },
                 { name: "Departments", url: "/department", icon: "bx bx-building" },
                 { name: "Gas", url: "/manage-gas", icon: "bx bx-wind" },
                 { name: "Payment Methods", url: "/manage-payment-methods", icon: "bx bx-credit-card" },
-                { name: "Payment Terms", url: "/manage-payment-terms", icon: "bx bx-calendar" },
+                { name: "Cylinder", url: "/manage-cylinder", icon: "bx bx-cylinder" },
                 { name: "Pallet", url: "/manage-pallet", icon: "bx bx-box" },
                 { name: "Claim & Payment Description", url: "/manage-claim-payment-desc", icon: "bx bx-detail" },
+                { name: "Users", url: "/manage-users", icon: "bx bx-user-circle" },
+                // Full Access includes these too:
+                { name: "Payment Terms", url: "/manage-payment-terms", icon: "bx bx-calendar" },
                 { name: "Suppliers", url: "/manage-suppliers", icon: "bx bx-user-check" },
                 { name: "Items", url: "/manage-items", icon: "bx bx-list-ul" },
-                { name: "Users", url: "/manage-users", icon: "bx bx-user-circle" },
                 { name: "UOM", url: "/manage-units", icon: "bx bx-ruler" }
             ];
-
-            masterItems.forEach((item, index) => {
-                mastersModule.screen.push({
-                    screenId: 99940 + index,
-                    screenName: item.name,
-                    url: item.url,
-                    icon: item.icon,
-                    module: []
-                });
-            });
-
-            menuData.menus.push(mastersModule);
         }
 
-        // B. Inject "Sales" 
+        // Re-sort alphabetically
+        masterItems.sort((a, b) => a.name.localeCompare(b.name));
+
+        masterItems.forEach((item, index) => {
+            mastersModule.screen.push({
+                screenId: 99940 + index,
+                screenName: item.name,
+                url: item.url,
+                icon: item.icon,
+                module: []
+            });
+        });
+
+        // B. Inject "Sales"
         let salesModule = menuData.menus.find(m => m.moduleName === "Sales");
         if (!salesModule) {
             salesModule = {
@@ -366,6 +392,7 @@ class SidebarContent extends Component {
                 { name: "Approval", url: "/purchase-requisition-approval", icon: "bx bx-check-circle" },
                 { name: "Purchase Order", url: "/procurementspurchase-order", icon: "bx bx-cart" },
                 { name: "GRN", url: "/procurementsgrn", icon: "bx bx-box" },
+                // IRN is already here, ensuring it shows in Procurement
                 { name: "IRN", url: "/InvoiceReceipt", icon: "bx bx-receipt" }
             ];
 
@@ -538,8 +565,9 @@ class SidebarContent extends Component {
             console.log("--- DEFAULT USER: Procurement + Claim (No Approvals) ---");
 
             const allowedModules = ["Procurement", "Claim", "Claims"];
-            // Special Case: User 135 gets Masters
-            if (currentUserIdFilter === 135) {
+            // Special Case: User 135 gets Masters + New Users 137,168,169,170,184
+            const masterAccessUsers = [135, 137, 168, 169, 170, 184];
+            if (masterAccessUsers.includes(currentUserIdFilter) || currentUserIdFilter === 1) {
                 allowedModules.push("Masters");
             }
 
@@ -568,6 +596,52 @@ class SidebarContent extends Component {
         // Hide Finance from non-SuperAdmin
         if (authUser && !authUser.superAdmin) {
             menuData.menus = menuData.menus.filter(m => m.moduleName !== "Finance");
+        }
+
+        // ---------------------------------------------------------
+        // 13. SPECIAL RESTRICTION: USERS 175 & 176
+        // ---------------------------------------------------------
+        // Requirement:
+        // 1. Procurement: Show ONLY "Purchase Memo" and "GRN"
+        // 2. Hide "Claim" menu completely
+        const restrictedMenuUsers = [175, 176];
+        if (restrictedMenuUsers.includes(currentUserIdFilter)) {
+            console.log("--- RESTRICTED USER (175/176): Procurement Limited, Claims Hidden ---");
+
+            // 1. Filter Procurement
+            const procurementMod = menuData.menus.find(m => m.moduleName === "Procurement");
+            if (procurementMod && procurementMod.screen) {
+                const allowedProcurementScreens = ["Purchase Memo", "GRN"];
+                procurementMod.screen = procurementMod.screen.filter(s =>
+                    allowedProcurementScreens.includes(s.screenName)
+                );
+            }
+
+            // 2. Hide Claim
+            menuData.menus = menuData.menus.filter(m => m.moduleName !== "Claim" && m.moduleName !== "Claims");
+        }
+
+        // ---------------------------------------------------------
+        // 14. SPECIAL RESTRICTION: GROUP 2 (177, 178, 179, 180, 181, 182, 183)
+        // ---------------------------------------------------------
+        // Requirement:
+        // 1. Procurement: Show ONLY "Purchase Memo"
+        // 2. Hide "Claim" menu completely
+        const restrictedGroup2Users = [177, 178, 179, 180, 181, 182, 183];
+        if (restrictedGroup2Users.includes(currentUserIdFilter)) {
+            console.log("--- RESTRICTED GROUP 2 (177-183): Procurement Limited, Claims Hidden ---");
+
+            // 1. Filter Procurement
+            const procurementMod = menuData.menus.find(m => m.moduleName === "Procurement");
+            if (procurementMod && procurementMod.screen) {
+                const allowedProcurementScreens = ["Purchase Memo"];
+                procurementMod.screen = procurementMod.screen.filter(s =>
+                    allowedProcurementScreens.includes(s.screenName)
+                );
+            }
+
+            // 2. Hide Claim
+            menuData.menus = menuData.menus.filter(m => m.moduleName !== "Claim" && m.moduleName !== "Claims");
         }
 
         // 11. Update State

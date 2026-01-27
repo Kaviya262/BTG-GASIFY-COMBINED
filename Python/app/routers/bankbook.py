@@ -109,9 +109,9 @@ async def get_bank_book_report(
                 r.bank_amount as NetAmount
                 
             FROM tbl_ar_receipt r
-            LEFT JOIN {DB_NAME_USER}.master_customer c ON r.customer_id = c.Id
+            LEFT JOIN {DB_NAME_USER_NEW}.master_customer c ON r.customer_id = c.Id
             LEFT JOIN {DB_NAME_MASTER}.master_bank b ON r.deposit_bank_id = b.BankId
-            LEFT JOIN {DB_NAME_OLD}.master_currency mc ON b.CurrencyId = mc.CurrencyId
+            LEFT JOIN {DB_NAME_USER}.master_currency mc ON b.CurrencyId = mc.CurrencyId
             WHERE r.created_date BETWEEN :from_date AND :to_date
               AND r.is_active = 1
               AND r.deposit_bank_id IS NOT NULL 
@@ -256,7 +256,7 @@ async def get_customer_defaults(db: AsyncSession = Depends(get_db)):
     try:
         query = text(f"""
             SELECT Id, SalesPersonId 
-            FROM {DB_NAME_USER}.master_customer 
+            FROM {DB_NAME_USER_NEW}.master_customer 
             WHERE IsActive = 1
         """)
         

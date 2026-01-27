@@ -72,9 +72,9 @@ async def get_daily_cash_entries(db: AsyncSession = Depends(get_db)):
                 END as verification_status
 
             FROM tbl_ar_receipt r
-            LEFT JOIN {DB_NAME_USER}.master_customer c ON r.customer_id = c.Id
+            LEFT JOIN {DB_NAME_USER_NEW}.master_customer c ON r.customer_id = c.Id
             LEFT JOIN {DB_NAME_MASTER}.master_bank b ON r.deposit_bank_id = b.BankId
-            LEFT JOIN {DB_NAME_OLD}.master_currency mc ON b.CurrencyId = mc.CurrencyId
+            LEFT JOIN {DB_NAME_USER}.master_currency mc ON b.CurrencyId = mc.CurrencyId
             
             -- Optional: Add filter for Cash Accounts here if needed
             -- WHERE b.BankTypeId = 2 
@@ -117,9 +117,9 @@ async def get_cash_book_report(
                 r.bank_amount as NetAmount
                 
             FROM tbl_ar_receipt r
-            LEFT JOIN {DB_NAME_USER}.master_customer c ON r.customer_id = c.Id
+            LEFT JOIN {DB_NAME_USER_NEW}.master_customer c ON r.customer_id = c.Id
             LEFT JOIN {DB_NAME_MASTER}.master_bank b ON r.deposit_bank_id = b.BankId
-            LEFT JOIN {DB_NAME_OLD}.master_currency mc ON b.CurrencyId = mc.CurrencyId
+            LEFT JOIN {DB_NAME_USER}.master_currency mc ON b.CurrencyId = mc.CurrencyId
             
             WHERE r.created_date BETWEEN :from_date AND :to_date
               AND r.is_active = 1

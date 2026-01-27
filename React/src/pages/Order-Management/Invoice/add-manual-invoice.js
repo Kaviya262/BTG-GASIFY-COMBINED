@@ -1,18 +1,16 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Card, CardBody, Collapse, Col, Container, Row, Button, FormGroup, Label, Input, Table, Tooltip, Modal, ModalHeader, ModalBody, ModalFooter, UncontrolledAlert, } from "reactstrap";
+import React, { useState, useEffect } from "react";
+import { Card, CardBody, Collapse, Col, Container, Row, Button, FormGroup, Label, Input, Table, Modal, ModalHeader, ModalBody, ModalFooter, UncontrolledAlert, } from "reactstrap";
 import { useHistory, useParams } from "react-router-dom";
 import Select from "react-select";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/material_blue.css";
 import { Formik, Form, ErrorMessage } from "formik";
-import * as Yup from "yup";
 import Breadcrumbs from "../../../components/Common/Breadcrumb";
-import { GetCustomerFilter, fetchSalesInvoiceDOList, getPackingDetails, GetUoM, GetCurrency, fetchGasListDSI, GetCascodedetail, GetCurrencyconversion } from "../../../common/data/mastersapi";
+import { GetCustomerFilter, GetUoM, GetCurrency, fetchGasListDSI, GetCascodedetail, GetCurrencyconversion, getPackingDetails } from "../../../common/data/mastersapi";
 
-import { GetInvoiceDetails, CreatenewInvoice, GetInvoiceSNo, UpdateInvoice, GetAvailableDOs } from "../../../common/data/invoiceapi";
+import { GetInvoiceDetails, CreatenewInvoice, UpdateInvoice, GetAvailableDOs } from "../../../common/data/invoiceapi";
 import useAccess from "../../../common/access/useAccess";
-import { createAR } from "../../FinanceModule/service/financeapi";
-
+import { createAR, postInvoiceToAR } from "../../FinanceModule/service/financeapi";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 
@@ -34,13 +32,10 @@ const AddManualInvoice = () => {
   const { id } = useParams();
   const currentDate = new Date();
 
-  // --- REMOVED: isFirstWeek logic is no longer needed ---
-
   const [branchId] = useState(1);
   const [submitType, setSubmitType] = useState(1);
   const [iscustomerchange, setIscustomerchange] = useState(0);
   const [customerList, setCustomerList] = useState([]);
-  const [deliveryOrdersList, setDeliveryOrdersList] = useState([]);
   const [packingDetails, setPackingDetails] = useState([]);
   const [doDetail, setDoDetail] = useState([]);
   const [tooltipOpen, setTooltipOpen] = useState({});
@@ -115,7 +110,7 @@ const AddManualInvoice = () => {
       so_Issued_Qty: 0,
       balance_Qty: 0,
       ConvertedCurrencyId: currencySelect,
-      isImportedDO: false 
+      isImportedDO: false
     },
   ]);
 
@@ -153,7 +148,7 @@ const AddManualInvoice = () => {
       sqid: 0,
       packingid: 0,
       id: 0,
-      salesInvoicesId: 0,
+      salesInvoicesId: invoiceHeader.id || 0, // Ensure it gets current header ID
       packingDetailId: 0,
       deliveryNumber: "",
       GasCodeId: 0,
@@ -172,7 +167,7 @@ const AddManualInvoice = () => {
       Exchangerate: "",
       driverName: "",
       truckName: "",
-      poNumber: previousPO, 
+      poNumber: previousPO,
       doNumber: "",
       requestDeliveryDate: currentDate,
       deliveryAddress: "",
@@ -181,7 +176,7 @@ const AddManualInvoice = () => {
       so_Issued_Qty: 0,
       balance_Qty: 0,
       ConvertedCurrencyId: currencySelect || null,
-      isImportedDO: false 
+      isImportedDO: false
     };
 
     const updatedDetails = [...manualinvoiceDetails, newRow];
@@ -313,7 +308,7 @@ const AddManualInvoice = () => {
             }
 
             return {
-              sqid: 0, packingid: 0, id: 0, salesInvoicesId: 0, packingDetailId: 0, deliveryNumber: "",
+              sqid: 0, packingid: 0, id: 0, salesInvoicesId: invoiceHeader.id || 0, packingDetailId: 0, deliveryNumber: "",
 
               GasCodeId: item.gascodeid,
               gasCode: gasInfo ? gasInfo.GasName : "",
@@ -337,9 +332,7 @@ const AddManualInvoice = () => {
               doNumber: doNumber,
 
               requestDeliveryDate: currentDate,
-              
-              // --- FLAG AS IMPORTED DO ---
-              isImportedDO: true 
+              isImportedDO: true
             };
           }));
           newItems = [...newItems, ...mappedItems];
@@ -420,11 +413,12 @@ const AddManualInvoice = () => {
       calculatedPrice,
     };
 
+    // --- FIX: Force salesInvoicesId to match the header ID ---
     const updatedDetails = manualinvoiceDetails.map(item => ({
       sqid: item.sqid || 0,
       packingid: item.packingid || 0,
       id: item.id || 0,
-      salesInvoicesId: item.salesInvoicesId || 0,
+      salesInvoicesId: invoiceHeader.id || 0, // <--- CRITICAL FIX HERE: Ensures items are linked
       packingDetailId: item.packingDetailId || 0,
       deliveryNumber: item.deliveryNumber || "",
       gasCodeId: item.GasCodeId || 0,
@@ -469,7 +463,7 @@ const AddManualInvoice = () => {
       details: updatedDetails,
       doDetail: doDetailPayload
     };
-    
+
     console.log("Submitting Payload:", finalPayload);
 
     setIsSubmitting(true);
@@ -492,14 +486,31 @@ const AddManualInvoice = () => {
         setErrorMsg([]);
         setSuccessStatus(true);
 
-        if (Number(submitType) === 1) {
-           await createAR({
+        // --- ID RESOLUTION LOGIC ---
+        // 1. If updating (id exists in URL), use that.
+        // 2. If creating, use response.data (which might be the ID or an object)
+        let targetInvoiceId = id ? parseInt(id) : null;
+
+        if (!targetInvoiceId && response?.data) {
+          targetInvoiceId = typeof response.data === 'object' ? response.data.id : response.data;
+        }
+
+        console.log("Target Invoice ID for Posting:", targetInvoiceId);
+
+        // --- AR SYNC LOGIC (The Fix for Update Issue) ---
+        // Sync if:
+        // 1. User clicked "Post" (submitType === 1)
+        // 2. OR User clicked "Update" AND the invoice was PREVIOUSLY posted (isSubmitted === 1)
+        const isAlreadyPosted = invoiceHeader.isSubmitted === 1 || invoiceHeader.isSubmitted === true;
+        const isPostingNow = Number(submitType) === 1;
+
+        if ((isPostingNow || isAlreadyPosted) && targetInvoiceId) {
+          console.log("Syncing to AR Book...");
+          await postInvoiceToAR({
             "orgId": 1,
             "branchId": 1,
             "userId": 1,
-            "userIp": "123",
-            "invoiceId": response?.data,
-            "typeid": 0
+            "invoiceId": parseInt(targetInvoiceId)
           });
         }
 
@@ -510,7 +521,7 @@ const AddManualInvoice = () => {
           history.push("/manual-invoices");
         }, 1000);
       } else {
-        setErrorMsg([response?.message || "Please Fill All Details in Gas Detail. "]);
+        setErrorMsg([response?.message || "Operation failed."]);
       }
     } catch (err) {
       console.error("Error creating/updating invoice:", err.message);
@@ -521,28 +532,33 @@ const AddManualInvoice = () => {
 
   const getInvoiceDetails = async id => {
     try {
-      console.log("Fetching invoice details for ID:", id); 
+      console.log("Fetching invoice details for ID:", id);
       const data = await GetInvoiceDetails(id);
-      
+
+      // --- FIX: Capture the correct Header ID even if casing varies ---
+      // Some APIs return 'InvoiceId', some 'RealHeaderId', some 'id'
+      const actualHeaderId = data.InvoiceId || data.RealHeaderId || data.id || id;
+
       const isNewStructure = data?.Items && !data?.Header;
 
       if (isNewStructure) {
         SetInvoiceHeader(prev => ({
           ...prev,
-          id: data.InvoiceId || id,
+          id: actualHeaderId,
           salesInvoiceNbr: data.InvoiceNbr || "",
           customerId: data.customerid || "",
           salesInvoiceDate: data.Salesinvoicesdate || new Date(),
           totalAmount: data.TotalAmount || 0,
           calculatedPrice: data.CalculatedPrice || 0,
+          isSubmitted: data.IsSubmitted ?? 0,
         }));
 
         if (Array.isArray(data.Items) && data.Items.length > 0) {
           const mappedDetails = data.Items.map(item => ({
             sqid: 0,
             packingid: 0,
-            id: item.Id || 0,
-            salesInvoicesId: data.InvoiceId || 0,
+            id: item.Id || item.id || 0,
+            salesInvoicesId: actualHeaderId, // <--- Use the resolved Header ID
             packingDetailId: 0,
             deliveryNumber: "",
             GasCodeId: item.gascodeid || 0,
@@ -571,7 +587,7 @@ const AddManualInvoice = () => {
             so_Issued_Qty: item.so_Issued_Qty || 0,
             balance_Qty: item.balance_Qty || 0,
             ConvertedCurrencyId: item.convertedCurrencyId || item.Currencyid || 0,
-            isImportedDO: !!item.ref_do_id 
+            isImportedDO: !!item.ref_do_id
           }));
           setmanualinvoiceDetails(mappedDetails);
           setcurrencySelect(mappedDetails[0]?.ConvertedCurrencyId || null);
@@ -582,6 +598,7 @@ const AddManualInvoice = () => {
             ...prev,
             ...data.Header,
             id: data.Header.id || id,
+            isSubmitted: data.Header.IsSubmitted ?? data.Header.isSubmitted ?? 0,
           }));
         }
 
@@ -590,7 +607,7 @@ const AddManualInvoice = () => {
             sqid: item.sqid || 0,
             packingid: item.packingid || 0,
             id: item.id || 0,
-            salesInvoicesId: item.salesInvoicesId || 0,
+            salesInvoicesId: data.Header?.id || id, // Ensure header ID is used
             packingDetailId: item.packingDetailId || 0,
             deliveryNumber: item.deliveryNumber || "",
             GasCodeId: item.gascodeid || 0,
@@ -902,7 +919,7 @@ const AddManualInvoice = () => {
                               )}
 
                               {access.canPost && (
-                                <Button color="success" onClick={(e) => { openpopup(e, 1) }} 
+                                <Button color="success" onClick={(e) => { openpopup(e, 1) }}
                                   disabled={isSubmitting} >
                                   <i className="bx bxs-save me-2"></i>Post
                                 </Button>
@@ -1047,178 +1064,170 @@ const AddManualInvoice = () => {
                                   <div className="accordion-body">
                                     <div className="table-responsive tab-wid table-height">
                                       <Table className="table mb-0">
-  <thead style={{ backgroundColor: "#3e90e2" }}>
-    <tr>
-      <th className="text-center" style={{ width: "2%" }}>
-        <span style={{ cursor: "pointer", alignItems: "center" }} onClick={handleAddItem}>
-          <i className="mdi mdi-plus" />
-        </span>
-      </th>
-      <th className="text-center required-label" style={{ width: "14%" }}> Gas Name </th>
-      
-      {/* MOVED: PO No. and DO No. came before Qty */}
-      <th className="text-center required-label" style={{ width: "8%" }}> PO No. </th>
-      <th className="text-center " style={{ width: "8%" }}> DO No. </th>
+                                        <thead style={{ backgroundColor: "#3e90e2" }}>
+                                          <tr>
+                                            <th className="text-center" style={{ width: "2%" }}>
+                                              <span style={{ cursor: "pointer", alignItems: "center" }} onClick={handleAddItem}>
+                                                <i className="mdi mdi-plus" />
+                                              </span>
+                                            </th>
+                                            <th className="text-center required-label" style={{ width: "14%" }}> Gas Name </th>
 
-      {/* MOVED: Qty is now here, Prior to UOM */}
-      <th className="text-center required-label" style={{ width: "8%" }}> Qty </th>
+                                            <th className="text-center required-label" style={{ width: "8%" }}> PO No. </th>
+                                            <th className="text-center " style={{ width: "8%" }}> DO No. </th>
 
-      <th className="text-center required-label" style={{ width: "10%" }}> UOM </th>
-      <th className="text-center required-label" style={{ width: "12%" }}> Unit Price </th>
-      <th className="text-center" style={{ width: "11%" }}> Total Price{" "} </th>
-      <th className="text-center" style={{ width: "14%" }}> Price (IDR) </th>
-    </tr>
-  </thead>
-  <tbody>
-    {manualinvoiceDetails.map((item, index) => {
-      // --- ALL ROWS ARE NOW EDITABLE ---
-      // We removed the 'isRowFrozen' logic entirely.
+                                            <th className="text-center required-label" style={{ width: "8%" }}> Qty </th>
 
-      return (
-        <tr key={item.GasCodeId || index}>
-          <td>
-            {/* Always allow delete if user has permission */}
-            {access.canDelete && (
-              <span color="danger" className="btn-sm" onClick={() => handleDeleteRow(index)} title="Delete">
-                <i className="mdi mdi-trash-can-outline label-icon align-middle" title="Delete" />
-              </span>
-            )}
-          </td>
-          
-          {/* Gas Code Column */}
-          <td>
-            <Select
-              name="GasCodeId"
-              id={`GasCodeId-${index}`}
-              options={gasCodeList
-                .filter(code => !manualinvoiceDetails.some((item, i) => i !== index && item.GasCodeId === code.GasCodeId))
-                .map(code => ({ value: code.GasCodeId, label: code.GasName }))}
-              value={gasCodeList.find(option => option.GasCodeId === manualinvoiceDetails[index]?.GasCodeId) || null}
-              onChange={option => handleGasCodeChange(index, option ? option.value : null)}
-              classNamePrefix="select"
-              isDisabled={isDisabled} 
-              isLoading={isLoading}
-              isClearable={isClearable}
-              isSearchable={isSearchable}
-            />
-            <ErrorMessage name={`manualinvoiceDetails.${index}.GasCodeId`} component="div" className="text-danger" />
-          </td>
+                                            <th className="text-center required-label" style={{ width: "10%" }}> UOM </th>
+                                            <th className="text-center required-label" style={{ width: "12%" }}> Unit Price </th>
+                                            <th className="text-center" style={{ width: "11%" }}> Total Price{" "} </th>
+                                            <th className="text-center" style={{ width: "14%" }}> Price (IDR) </th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {manualinvoiceDetails.map((item, index) => {
+                                            // --- ALL ROWS ARE NOW EDITABLE ---
 
-          {/* PO Number Column */}
-          <td>
-            <Input type="text" name={`manualinvoiceDetails.${index}.poNumber`} className="text-end" maxLength={40}
-              onChange={e => handlePOChange(index, e.target.value)}
-              value={manualinvoiceDetails[index]?.poNumber}
-              id={`poNumber-${index}`}
-              // Removed disabled prop
-            />
-            <ErrorMessage name={`manualinvoiceDetails.${index}.poNumber`} component="div" className="text-danger" />
-          </td>
+                                            return (
+                                              <tr key={item.GasCodeId || index}>
+                                                <td>
+                                                  {/* Always allow delete if user has permission */}
+                                                  {access.canDelete && (
+                                                    <span color="danger" className="btn-sm" onClick={() => handleDeleteRow(index)} title="Delete">
+                                                      <i className="mdi mdi-trash-can-outline label-icon align-middle" title="Delete" />
+                                                    </span>
+                                                  )}
+                                                </td>
 
-          {/* DO Number Column */}
-          <td>
-            <Input type="text" className="text-end" maxLength={20}
-              onChange={e => handleDOChange(index, e.target.value)}
-              value={manualinvoiceDetails[index]?.doNumber}
-              id={`doNumber-${index}`}
-              // Removed disabled prop
-            />
-          </td>
+                                                {/* Gas Code Column */}
+                                                <td>
+                                                  <Select
+                                                    name="GasCodeId"
+                                                    id={`GasCodeId-${index}`}
+                                                    options={gasCodeList
+                                                      .filter(code => !manualinvoiceDetails.some((item, i) => i !== index && item.GasCodeId === code.GasCodeId))
+                                                      .map(code => ({ value: code.GasCodeId, label: code.GasName }))}
+                                                    value={gasCodeList.find(option => option.GasCodeId === manualinvoiceDetails[index]?.GasCodeId) || null}
+                                                    onChange={option => handleGasCodeChange(index, option ? option.value : null)}
+                                                    classNamePrefix="select"
+                                                    isDisabled={isDisabled}
+                                                    isLoading={isLoading}
+                                                    isClearable={isClearable}
+                                                    isSearchable={isSearchable}
+                                                  />
+                                                  <ErrorMessage name={`manualinvoiceDetails.${index}.GasCodeId`} component="div" className="text-danger" />
+                                                </td>
 
-          {/* Qty Column */}
-          <td>
-            <Input name={`manualinvoiceDetails.${index}.pickedQty`} type="text" inputMode="numeric" className="text-end" maxLength={5}
-              onChange={e => handleQtyUpdate(index, e.target.value)}
-              value={manualinvoiceDetails[index]?.pickedQty || ""}
-              id={`Qty-${index}`}
-              // Removed disabled prop
-              onKeyDown={e => {
-                if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Tab") {
-                  e.preventDefault();
-                }
-              }}
-            />
-            <ErrorMessage name={`manualinvoiceDetails.${index}.pickedQty`} component="div" className="text-danger" />
-          </td>
+                                                {/* PO Number Column */}
+                                                <td>
+                                                  <Input type="text" name={`manualinvoiceDetails.${index}.poNumber`} className="text-end" maxLength={40}
+                                                    onChange={e => handlePOChange(index, e.target.value)}
+                                                    value={manualinvoiceDetails[index]?.poNumber}
+                                                    id={`poNumber-${index}`}
+                                                  />
+                                                  <ErrorMessage name={`manualinvoiceDetails.${index}.poNumber`} component="div" className="text-danger" />
+                                                </td>
 
-          {/* UOM Column */}
-          <td>
-            <Input type="select"
-              onChange={e => handleUOMChange(index, e.target.value)}
-              id={`Uom-${index}`}
-              value={manualinvoiceDetails[index]?.UomId || ""}
-              // Removed disabled prop
-            >
-              <option key="0" value="">Select</option>
-              {UOMList.map(uom => (
-                <option key={uom.UoMId} value={uom.UoMId}> {uom.UoM} </option>
-              ))}
-            </Input>
-            <ErrorMessage name={`manualinvoiceDetails.${index}.UomId`} component="div" className="text-danger" />
-          </td>
+                                                {/* DO Number Column */}
+                                                <td>
+                                                  <Input type="text" className="text-end" maxLength={20}
+                                                    onChange={e => handleDOChange(index, e.target.value)}
+                                                    value={manualinvoiceDetails[index]?.doNumber}
+                                                    id={`doNumber-${index}`}
+                                                  />
+                                                </td>
 
-          {/* Unit Price Column */}
-          <td>
-            <Input type="text" name={`manualinvoiceDetails.${index}.UnitPrice`} inputMode="decimal" className="text-end" maxLength={15}
-              value={manualinvoiceDetails[index]?.UnitPrice || ""}
-              // Removed disabled prop
-              onChange={e => {
-                const raw = e.target.value.replace(/[^0-9.]/g, "");
-                if ((raw.match(/\./g) || []).length > 1) return;
-                if (raw.length <= 15) handleUnitPriceChange(index, raw);
-              }}
-              onKeyDown={e => {
-                if (e.key === "e" || e.key === "-" || (e.key.length === 1 && !/[0-9.]/.test(e.key))) {
-                  e.preventDefault();
-                }
-              }}
-            />
-            <ErrorMessage name={`manualinvoiceDetails.${index}.UnitPrice`} component="div" className="text-danger" />
-          </td>
+                                                {/* Qty Column */}
+                                                <td>
+                                                  <Input name={`manualinvoiceDetails.${index}.pickedQty`} type="text" inputMode="numeric" className="text-end" maxLength={5}
+                                                    onChange={e => handleQtyUpdate(index, e.target.value)}
+                                                    value={manualinvoiceDetails[index]?.pickedQty || ""}
+                                                    id={`Qty-${index}`}
+                                                    onKeyDown={e => {
+                                                      if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Tab") {
+                                                        e.preventDefault();
+                                                      }
+                                                    }}
+                                                  />
+                                                  <ErrorMessage name={`manualinvoiceDetails.${index}.pickedQty`} component="div" className="text-danger" />
+                                                </td>
 
-          {/* Total Price Column */}
-          <td>
-            <Input type="text" disabled name="TotalPrice" className="text-end" value={new Intl.NumberFormat("en-US",
-              { style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2, }
-            ).format(manualinvoiceDetails[index]?.TotalPrice || 0)}
-              id={`TotalPrice-${index}`}
-            />
-          </td>
+                                                {/* UOM Column */}
+                                                <td>
+                                                  <Input type="select"
+                                                    onChange={e => handleUOMChange(index, e.target.value)}
+                                                    id={`Uom-${index}`}
+                                                    value={manualinvoiceDetails[index]?.UomId || ""}
+                                                  >
+                                                    <option key="0" value="">Select</option>
+                                                    {UOMList.map(uom => (
+                                                      <option key={uom.UoMId} value={uom.UoMId}> {uom.UoM} </option>
+                                                    ))}
+                                                  </Input>
+                                                  <ErrorMessage name={`manualinvoiceDetails.${index}.UomId`} component="div" className="text-danger" />
+                                                </td>
 
-          {/* Converted Price Column */}
-          <td>
-            <Input type="text" disabled name="ConvertedPrice"
-              value={new Intl.NumberFormat("en-US",
-                { style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2, }
-              ).format(manualinvoiceDetails[index]?.ConvertedPrice || 0)}
-              id={`ConvertedPrice-${index}`} className="text-end"
-            />
-          </td>
-        </tr>
-      );
-    })}
-  </tbody>
-  {/* Footer remains unchanged as colSpan covers the rearranged columns */}
-  <tfoot>
-    <tr className="fw-bold">
-      <td colSpan="7" className="text-end">Total</td>
-      <td className="text-end">
-        {new Intl.NumberFormat("en-US", {
-          style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2,
-        }).format(
-          manualinvoiceDetails.reduce((sum, item) => sum + (parseFloat(item.TotalPrice) || 0), 0)
-        )}
-      </td>
-      <td className="text-end">
-        {new Intl.NumberFormat("en-US", {
-          style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2,
-        }).format(
-          manualinvoiceDetails.reduce((sum, item) => sum + (parseFloat(item.ConvertedPrice) || 0), 0)
-        )}
-      </td>
-    </tr>
-  </tfoot>
-</Table>
+                                                {/* Unit Price Column */}
+                                                <td>
+                                                  <Input type="text" name={`manualinvoiceDetails.${index}.UnitPrice`} inputMode="decimal" className="text-end" maxLength={15}
+                                                    value={manualinvoiceDetails[index]?.UnitPrice || ""}
+                                                    onChange={e => {
+                                                      const raw = e.target.value.replace(/[^0-9.]/g, "");
+                                                      if ((raw.match(/\./g) || []).length > 1) return;
+                                                      if (raw.length <= 15) handleUnitPriceChange(index, raw);
+                                                    }}
+                                                    onKeyDown={e => {
+                                                      if (e.key === "e" || e.key === "-" || (e.key.length === 1 && !/[0-9.]/.test(e.key))) {
+                                                        e.preventDefault();
+                                                      }
+                                                    }}
+                                                  />
+                                                  <ErrorMessage name={`manualinvoiceDetails.${index}.UnitPrice`} component="div" className="text-danger" />
+                                                </td>
+
+                                                {/* Total Price Column */}
+                                                <td>
+                                                  <Input type="text" disabled name="TotalPrice" className="text-end" value={new Intl.NumberFormat("en-US",
+                                                    { style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2, }
+                                                  ).format(manualinvoiceDetails[index]?.TotalPrice || 0)}
+                                                    id={`TotalPrice-${index}`}
+                                                  />
+                                                </td>
+
+                                                {/* Converted Price Column */}
+                                                <td>
+                                                  <Input type="text" disabled name="ConvertedPrice"
+                                                    value={new Intl.NumberFormat("en-US",
+                                                      { style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2, }
+                                                    ).format(manualinvoiceDetails[index]?.ConvertedPrice || 0)}
+                                                    id={`ConvertedPrice-${index}`} className="text-end"
+                                                  />
+                                                </td>
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                        {/* Footer remains unchanged as colSpan covers the rearranged columns */}
+                                        <tfoot>
+                                          <tr className="fw-bold">
+                                            <td colSpan="7" className="text-end">Total</td>
+                                            <td className="text-end">
+                                              {new Intl.NumberFormat("en-US", {
+                                                style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2,
+                                              }).format(
+                                                manualinvoiceDetails.reduce((sum, item) => sum + (parseFloat(item.TotalPrice) || 0), 0)
+                                              )}
+                                            </td>
+                                            <td className="text-end">
+                                              {new Intl.NumberFormat("en-US", {
+                                                style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2,
+                                              }).format(
+                                                manualinvoiceDetails.reduce((sum, item) => sum + (parseFloat(item.ConvertedPrice) || 0), 0)
+                                              )}
+                                            </td>
+                                          </tr>
+                                        </tfoot>
+                                      </Table>
                                     </div>
                                   </div>
                                 </Collapse>
@@ -1298,3 +1307,4 @@ const AddManualInvoice = () => {
 };
 
 export default AddManualInvoice;
+

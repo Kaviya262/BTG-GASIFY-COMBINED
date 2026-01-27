@@ -649,119 +649,8 @@ word-break: break-word;
       }, {})
     );
 
-    return (
-      <>
-
-
-        <table className="paymentsummarypv table text-center mt-3">
-          <thead className="table-light">
-            <tr>
-              <th>Mode Of Payment</th>
-              <th>Bank Name</th>
-              <th>Supplier / Applicant Name</th>
-              {currencies.map(curr => (
-                <th key={curr}>{curr}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {/* Normal rows */}
-            {Object.values(grouped).map((group, index) => {
-              const rowTotals = currencies.reduce((acc, curr) => {
-                acc[curr] = group.rows
-                  .filter(r => r.curr === curr)
-                  .reduce((sum, r) => sum + parseFloat(r.amount || 0), 0);
-                return acc;
-              }, {});
-              return (
-                <tr key={`row-${index}`}>
-                  <td style={{ textAlign: "left" }}>{group.method}</td>
-                  <td style={{ textAlign: "left" }}>{group.bank || "-"}</td>
-                  <td className="linkcolor"
-                    style={{ textAlign: "left", cursor: "pointer" }}
-                    onClick={() =>
-                      openPopup(group.summaryId, group.id, "Party",
-                        group.supplierId, group.applicantId,
-                        group.modeOfPaymentId, group.bankId)
-                    }
-                  >
-                    {group.groupName}
-                  </td>
-                  {currencies.map(curr => (
-                    <td style={{ textAlign: "right" }} key={curr}>
-                      {rowTotals[curr]
-                        ? rowTotals[curr].toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                        : "0.00"}
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
-
-            {/* Cash Withdrawal rows */}
-            {cashGrouped.map((cg, i) => {
-              const rowTotals = currencies.reduce((acc, curr) => {
-                acc[curr] = cg.rows
-                  .filter(r => r.curr === curr)
-                  .reduce((sum, r) => sum + parseFloat(r.amount || 0), 0);
-                return acc;
-              }, {});
-              return (
-                <tr key={`cw-${i}`} style={{ backgroundColor: "#fff7e6" }}>
-                  <td style={{ textAlign: "left" }}>Cash Withdrawal</td>
-                  <td style={{ textAlign: "left" }}>{cg.bank}</td>
-                  <td className="linkcolor"
-                    style={{ textAlign: "left", cursor: "pointer" }}
-                    onClick={() =>
-                      openPopup(cg.SummaryId, cg.SupplierId || cg.ApplicantId, "Party", 0, 0, 0, cg.BankId)
-                    }
-                  >
-                    N/A
-                  </td>
-                  {currencies.map(curr => (
-                    <td style={{ textAlign: "right" }} key={curr}>
-                      {rowTotals[curr]
-                        ? rowTotals[curr].toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                        : "0.00"}
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
-
-            {/* Cash in Hand */}
-            <tr style={{ backgroundColor: "#e8f4ff", fontWeight: "bold" }}>
-              <td colSpan={3} style={{ textAlign: "left" }}>Cash in Hand</td>
-              {currencies.map(curr => (
-                <td style={{ textAlign: "right" }} key={`cashinhand-${curr}`}>
-                  -{((cashInHand[curr] || 0) + (cashFromSales[curr] || 0)).toLocaleString("en-US", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                  })}
-                </td>
-              ))}
-            </tr>
-
-            {/* Total */}
-            <tr style={{ backgroundColor: "#f1f1f1", fontWeight: "bold" }}>
-              <td colSpan={3}>Total</td>
-              {currencies.map(curr => {
-                const netTotal = (overallTotals[curr] || 0) - ((cashInHand[curr] || 0) + (cashFromSales[curr] || 0));
-                return (
-                  <td style={{ textAlign: "right" }} key={`total-${curr}`}>
-                    {netTotal.toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2
-                    })}
-                  </td>
-                );
-              })}
-            </tr>
-          </tbody>
-        </table>
-
-      </>
-    );
+    // Mode of Payment table removed as per user request
+    return null;
   };
 
 
@@ -789,9 +678,6 @@ word-break: break-word;
               .reduce((sum, r) => sum + parseFloat(r.amount || 0), 0);
           }
           else {
-            if (selectedsummaryRows.length > 0) {
-
-            }
             return selectedsummaryRows
               .filter(r =>
                 r.ClaimCategory === category &&
@@ -830,14 +716,17 @@ word-break: break-word;
 
         const getTotalB = () => {
           return currencies.reduce((acc, curr) => {
-            // sum non-cash categories
-            const nonCash = ["Claim", "Cash Advance", "Supplier Payment"]
-              .reduce((sum, cat) => sum + getAmountForCategoryCurrency(cat, curr, "NonCash"), 0);
+            // For Total B, we sum ALL payment categories (Claim, Cash Advance, Supplier Payment)
+            // regardless of payment method
+            const total = ["Claim", "Cash Advance", "Supplier Payment"]
+              .reduce((sum, cat) => {
+                const filtered = selectedsummaryRows.filter(r => r.ClaimCategory === cat && r.curr === curr);
+                const categoryTotal = filtered.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
 
-            // sum cash withdrawals (once)
-            const cash = getAmountForCategoryCurrency(null, curr, "Cash");
+                return sum + categoryTotal;
+              }, 0);
 
-            return { ...acc, [curr]: nonCash + cash };
+            return { ...acc, [curr]: total };
           }, {});
         };
 

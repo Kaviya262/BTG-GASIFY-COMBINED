@@ -15,6 +15,7 @@ db_port = os.getenv('DB_PORT')
 # Database Names
 DB_NAME_FINANCE = os.getenv('DB_NAME_FINANCE', 'btggasify_finance_live')
 DB_NAME_USER = os.getenv('DB_NAME_USER', 'btggasify_live')
+DB_NAME_USER_NEW = os.getenv('DB_NAME_USER_NEW', 'btggasify_userpanel_live')
 DB_NAME_PURCHASE = os.getenv('DB_NAME_PURCHASE', 'btggasify_purchase_live')
 DB_NAME_MASTER = os.getenv('DB_NAME_MASTER', 'btggasify_masterpanel_live')
 DB_NAME_OLD = os.getenv('DB_NAME_OLD', 'btggasify_live')
