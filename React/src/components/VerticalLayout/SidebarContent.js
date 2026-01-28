@@ -62,7 +62,7 @@ class SidebarContent extends Component {
                 { screenId: 99916, screenName: "Over Draft", url: "/ManageOverDraft", icon: "bx bx-transfer" },
                 { screenId: 99917, screenName: "Petty Cash", url: "/pettyCash", icon: "bx bx-coin-stack" },
                 // --- NEW AP SCREEN ADDED HERE ---
-                { screenId: 99919, screenName: "AP", url: "/AP", icon: "bx bx-file" }
+                //{ screenId: 99919, screenName: "AP", url: "/AP", icon: "bx bx-file" }
             ];
 
             missingScreens.forEach(item => {
@@ -599,13 +599,20 @@ class SidebarContent extends Component {
         }
 
         // ---------------------------------------------------------
+        // DEFINE RESTRICTED USER LIST (New Group)
+        // ---------------------------------------------------------
+        // Users: 161, 172, 145, 171, 160, 152, 154, 174, 147, 151, 163, 159, 185, 133, 168, 150, 143, 186, 155, 166, 164, 142, 148, 146, 153, 141, 165, 157, 144, 162, 187, 149, 173, 167, 190
+        const claimOnlyUsers = [161, 172, 145, 171, 160, 152, 154, 174, 147, 151, 163, 159, 185, 133, 168, 150, 143, 186, 155, 166, 164, 142, 148, 146, 153, 141, 165, 157, 144, 162, 187, 149, 173, 167, 190];
+
+        // ---------------------------------------------------------
         // 13. SPECIAL RESTRICTION: USERS 175 & 176
         // ---------------------------------------------------------
         // Requirement:
         // 1. Procurement: Show ONLY "Purchase Memo" and "GRN"
         // 2. Hide "Claim" menu completely
+        // NOTE: If user is in claimOnlyUsers, SKIP this block (let the new block handle it)
         const restrictedMenuUsers = [175, 176];
-        if (restrictedMenuUsers.includes(currentUserIdFilter)) {
+        if (restrictedMenuUsers.includes(currentUserIdFilter) && !claimOnlyUsers.includes(currentUserIdFilter)) {
             console.log("--- RESTRICTED USER (175/176): Procurement Limited, Claims Hidden ---");
 
             // 1. Filter Procurement
@@ -627,8 +634,9 @@ class SidebarContent extends Component {
         // Requirement:
         // 1. Procurement: Show ONLY "Purchase Memo"
         // 2. Hide "Claim" menu completely
+        // NOTE: If user is in claimOnlyUsers, SKIP this block
         const restrictedGroup2Users = [177, 178, 179, 180, 181, 182, 183];
-        if (restrictedGroup2Users.includes(currentUserIdFilter)) {
+        if (restrictedGroup2Users.includes(currentUserIdFilter) && !claimOnlyUsers.includes(currentUserIdFilter)) {
             console.log("--- RESTRICTED GROUP 2 (177-183): Procurement Limited, Claims Hidden ---");
 
             // 1. Filter Procurement
@@ -642,6 +650,31 @@ class SidebarContent extends Component {
 
             // 2. Hide Claim
             menuData.menus = menuData.menus.filter(m => m.moduleName !== "Claim" && m.moduleName !== "Claims");
+        }
+
+        // ---------------------------------------------------------
+        // 15. SPECIAL RESTRICTION: CLAIM ONLY USERS (35 Users)
+        // ---------------------------------------------------------
+        // Requirement:
+        // 1. Hide Procurement module completely
+        // 2. Claim: Show ONLY "Claim & Payment" page
+        if (claimOnlyUsers.includes(currentUserIdFilter)) {
+            console.log(`--- CLAIM ONLY USER (${currentUserIdFilter}): Procurement Hidden, Claim & Payment Only ---`);
+
+            // 1. Remove Procurement module entirely
+            menuData.menus = menuData.menus.filter(m => m.moduleName !== "Procurement");
+            console.log(`[RESTRICTION APPLIED] Procurement module removed for user ${currentUserIdFilter}`);
+
+            // 2. Filter Claim module to show ONLY "Claim & Payment"
+            const claimMod = menuData.menus.find(m => m.moduleName === "Claim" || m.moduleName === "Claims");
+            if (claimMod && claimMod.screen) {
+                const originalScreenCount = claimMod.screen.length;
+                claimMod.screen = claimMod.screen.filter(s =>
+                    s.screenName === "Claim & Payment" ||
+                    s.url === "/Manageclaim&Payment"
+                );
+                console.log(`[RESTRICTION APPLIED] Claim screens filtered from ${originalScreenCount} to ${claimMod.screen.length} for user ${currentUserIdFilter}`);
+            }
         }
 
         // 11. Update State
@@ -784,4 +817,4 @@ SidebarContent.propTypes = {
     type: PropTypes.string,
 };
 
-export default withRouter(withTranslation()(SidebarContent));
+export default withRouter(withTranslation()(SidebarContent))

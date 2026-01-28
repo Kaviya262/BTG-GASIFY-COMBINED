@@ -649,8 +649,133 @@ word-break: break-word;
       }, {})
     );
 
-    // Mode of Payment table removed as per user request
-    return null;
+    return (
+      <>
+        <table className="paymentsummarypv table text-center mt-3">
+          <thead className="table-light">
+            <tr>
+              <th>Mode Of Payment</th>
+              <th>Bank Name</th>
+              <th>Supplier / Applicant Name</th>
+              {currencies.map(curr => (
+                <th key={curr}>{curr}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {/* Normal rows - only show if at least one currency has non-zero amount */}
+            {Object.values(grouped).map((group, index) => {
+              const rowTotals = currencies.reduce((acc, curr) => {
+                acc[curr] = group.rows
+                  .filter(r => r.curr === curr)
+                  .reduce((sum, r) => sum + parseFloat(r.amount || 0), 0);
+                return acc;
+              }, {});
+
+              // Check if all amounts are zero
+              const hasNonZeroAmount = currencies.some(curr => rowTotals[curr] > 0);
+              if (!hasNonZeroAmount) return null;
+
+              // Skip rows where groupName is "0" or empty (N/A cases)
+              if (!group.groupName || group.groupName === "0") return null;
+
+              return (
+                <tr key={`row-${index}`}>
+                  <td style={{ textAlign: "left" }}>{group.method}</td>
+                  <td style={{ textAlign: "left" }}>{group.bank || "-"}</td>
+                  <td style={{ textAlign: "left" }}>
+                    <span
+                      className="linkcolor"
+                      style={{ cursor: "pointer" }}
+                      onClick={() =>
+                        openPopup(group.summaryId, group.id, "Party",
+                          group.supplierId, group.applicantId,
+                          group.modeOfPaymentId, group.bankId)
+                      }
+                    >
+                      {group.groupName}
+                    </span>
+                  </td>
+                  {currencies.map(curr => (
+                    <td style={{ textAlign: "right" }} key={curr}>
+                      {rowTotals[curr]
+                        ? rowTotals[curr].toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        : "0.00"}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+
+            {/* Cash Withdrawal rows - only show if at least one currency has non-zero amount */}
+            {cashGrouped.map((cg, i) => {
+              const rowTotals = currencies.reduce((acc, curr) => {
+                acc[curr] = cg.rows
+                  .filter(r => r.curr === curr)
+                  .reduce((sum, r) => sum + parseFloat(r.amount || 0), 0);
+                return acc;
+              }, {});
+
+              // Check if all amounts are zero
+              const hasNonZeroAmount = currencies.some(curr => rowTotals[curr] > 0);
+              if (!hasNonZeroAmount) return null;
+
+              return (
+                <tr key={`cw-${i}`} style={{ backgroundColor: "#fff7e6" }}>
+                  <td style={{ textAlign: "left" }}>Cash Withdrawal</td>
+                  <td style={{ textAlign: "left" }}>{cg.bank}</td>
+                  <td className="linkcolor"
+                    style={{ textAlign: "left", cursor: "pointer" }}
+                    onClick={() =>
+                      openPopup(cg.SummaryId, cg.SupplierId || cg.ApplicantId, "Party", 0, 0, 0, cg.BankId)
+                    }
+                  >
+                    N/A
+                  </td>
+                  {currencies.map(curr => (
+                    <td style={{ textAlign: "right" }} key={curr}>
+                      {rowTotals[curr]
+                        ? rowTotals[curr].toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        : "0.00"}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+
+            {/* Cash in Hand */}
+            <tr style={{ backgroundColor: "#e8f4ff", fontWeight: "bold" }}>
+              <td colSpan={3} style={{ textAlign: "left" }}>Cash in Hand</td>
+              {currencies.map(curr => (
+                <td style={{ textAlign: "right" }} key={`cashinhand-${curr}`}>
+                  -{((cashInHand[curr] || 0) + (cashFromSales[curr] || 0)).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })}
+                </td>
+              ))}
+            </tr>
+
+            {/* Total */}
+            <tr style={{ backgroundColor: "#f1f1f1", fontWeight: "bold" }}>
+              <td colSpan={3}>Total</td>
+              {currencies.map(curr => {
+                const netTotal = (overallTotals[curr] || 0) - ((cashInHand[curr] || 0) + (cashFromSales[curr] || 0));
+                return (
+                  <td style={{ textAlign: "right" }} key={`total-${curr}`}>
+                    {netTotal.toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    })}
+                  </td>
+                );
+              })}
+            </tr>
+          </tbody>
+        </table>
+
+      </>
+    );
   };
 
 

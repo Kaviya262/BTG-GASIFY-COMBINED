@@ -1,4 +1,3 @@
-
 import {
   Col,
   Row,
@@ -869,7 +868,7 @@ const ManageApproval = ({ selectedType, setSelectedType }) => {
     //     Swal.fire({
     //       icon: 'error',
     //       text: res.message || 'No access rights for this page.',
-    //   });   
+    //   });  
     //   }
     // }
     // GetAccessRights();
@@ -1470,56 +1469,56 @@ text-align: right;
 }
         @page {
           size: A4 landscape;
-       margin: 5mm; 
+       margin: 5mm;
        @bottom-center {
 content: element(pageFooter);
 }
         }
-  
+ 
         body {
           font-family: Arial, sans-serif;
           font-size: 11px;
           padding: 10px;
           color: #000;
         }
-  
+ 
         h2 {
           text-align: center;
           margin-bottom: 20px;
           font-size: 16px;
         }
-  
+ 
         .section-title {
           font-weight: bold;
           margin: 12px 0 5px;
           padding-bottom: 2px;
-        
+       
           font-size: 12px;
         }
-  
+ 
         .info-table {
           width: 100%;
           border-collapse: collapse;
           margin-bottom: 10px;
         }
-  
+ 
         .info-table td {
           padding: 4px 6px;
           vertical-align: top;
         }
-  
+ 
         .info-table td.label {
           font-weight: bold;
           width: 20%;
           white-space: nowrap;
         }
-  
+ 
         .claim-table {
           width: 100%;
           border-collapse: collapse;
           margin-bottom: 15px;
         }
-  
+ 
        .claim-table th,
 .claim-table td {
 border: 1px solid #ccc;
@@ -1537,14 +1536,14 @@ vertical-align: top;
 .claim-table td:nth-child(4) { width: 17%;text-align: right; }  /* Amount */
 .claim-table td:nth-child(5) { width: 13%; text-align: center;}  /* Expense Date */
 .claim-table td:nth-child(6) { width: 24%;text-align: left; }  /* Purpose */
-  
+ 
         .status-table {
           width: 100%;
           border-collapse: collapse;
           text-align: center;
           margin-top: 15px;
         }
-  
+ 
         .status-table th,
         .status-table td {
           border: 1px solid #ccc;
@@ -1554,12 +1553,12 @@ word-break: break-word;
 white-space: normal;
 vertical-align: top;
         }
-  
+ 
         .status-header {
           background-color: #eee;
           font-weight: bold;
         }
-  
+ 
         .btn-circle {
           display: inline-block;
           height: 12px;
@@ -1567,21 +1566,21 @@ vertical-align: top;
           border-radius: 50%;
           margin: auto;
         }
-  
+ 
         .btn-success { background-color: #28a745; }
         .btn-warning { background-color: #ffc107; }
         .btn-secondary { background-color: #6c757d; }
-  
+ 
         .legend {
           margin-top: 10px;
           font-size: 10px;
         }
-  
+ 
         .legend span {
           margin-right: 15px;
 
         }
-  
+ 
         .remarks-box {
           border: 1px solid #ccc;
           padding: 8px;
@@ -1668,7 +1667,7 @@ word-break: break-word;
     `;
 
     const statusIndicators = `
-    
+   
      <table class="status-table">
       <thead>
        <tr class="status-header">
@@ -1721,7 +1720,7 @@ word-break: break-word;
           ${claimTable}
           ${remarksSection}
           ${statusIndicators}
-          
+         
         </body>
       </html>
     `);
@@ -1986,10 +1985,10 @@ word-break: break-word;
             <Row className="align-items-center g-2">
 
 
-              {/* 
+              {/*
           <Col lg="6" md="6">
           <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
-                    
+                   
                     {types.map((type, index) => (
                         <div key={index} className="p-field-radiobutton" style={{ display: 'flex', alignItems: 'center' }}>
                             <RadioButton
@@ -2004,7 +2003,7 @@ word-break: break-word;
                     ))}
                 </div>
 
-          
+         
 </Col> */}
 
               <Col lg="5" md="5">
@@ -4399,7 +4398,7 @@ const ApprovalTable = ({
               </div>
 
               {/* Dynamic tables */}
-              <PaymentSummaryTable claims={group.rows.filter(x => x.id == 0)} approvedata={group} onRefresh={() => load()} />
+              <PaymentSummaryTable claims={group.rows} approvedata={group} onRefresh={() => load()} />
 
               {/* Optional buttons */}
 
