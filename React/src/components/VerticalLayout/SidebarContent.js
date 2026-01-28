@@ -515,7 +515,16 @@ class SidebarContent extends Component {
         const restrictedApprovalUsers = [138, 139, 140];
         const currentUserIdFilter = authUser ? (parseInt(authUser.u_id) || 0) : 0;
 
+
+        // DEBUGGING FOR USER 158
+        if (currentUserIdFilter === 158) {
+            console.log("=== DEBUG 158: Checking Security Blocks ===");
+            console.log("Is 158 in restrictedApprovalUsers?", restrictedApprovalUsers.includes(158));
+            console.log("Is 158 a Director/GM/CEO?", role === "gm" || role === "director" || role === "ceo" || role === "general manager");
+        }
+
         if (role === "gm" || role === "director" || role === "ceo" || role === "general manager" || restrictedApprovalUsers.includes(currentUserIdFilter)) {
+            if (currentUserIdFilter === 158) console.log("=== DEBUG 158: Entered GM/Director Block (Line 518) ===");
             console.log("--- GM/DIRECTOR/CEO: Approval Pages Only (Restriction Applied) ---");
 
             const allowedModules = ["Procurement", "Claim", "Claims"];
@@ -544,6 +553,11 @@ class SidebarContent extends Component {
 
                         // For restricted users (138, 139, 140), exclude specific pages even if they are approval pages
                         if (restrictedApprovalUsers.includes(currentUserIdFilter)) {
+                            // EXCEPTION: Explicitly ALLOW "PPP" page
+                            if (item.url === "/PPP" || item.screenName === "PPP") {
+                                return true;
+                            }
+
                             const excludedUrls = ["/paymentplanapproval", "/approval-discussions"];
                             if (excludedUrls.includes(item.url)) {
                                 return false;
@@ -557,12 +571,19 @@ class SidebarContent extends Component {
         }
         // 2. SuperAdmin: Full Access
         else if (authUser && authUser.superAdmin) {
+            if (currentUserIdFilter === 158) console.log("=== DEBUG 158: Entered SUPER ADMIN Block (Line 564) ===");
             console.log("--- SUPER ADMIN: Full Access ---");
         }
 
         // EVERYONE ELSE: Procurement + Claim WITHOUT approvals
         else if (authUser) {
+            if (currentUserIdFilter === 158) console.log("=== DEBUG 158: Entered DEFAULT USER Block (Line 569) ===");
             console.log("--- DEFAULT USER: Procurement + Claim (No Approvals) ---");
+
+            // Check if 158 bypasses the filter
+            if (currentUserIdFilter === 158) {
+                console.log("=== DEBUG 158: Default Modules BEFORE filter: ", menuData.menus.map(m => m.moduleName));
+            }
 
             const allowedModules = ["Procurement", "Claim", "Claims"];
             // Special Case: User 135 gets Masters + New Users 137,168,169,170,184
@@ -572,6 +593,10 @@ class SidebarContent extends Component {
             }
 
             menuData.menus = menuData.menus.filter(m => allowedModules.includes(m.moduleName));
+
+            if (currentUserIdFilter === 158) {
+                console.log("=== DEBUG 158: Default Modules AFTER filter: ", menuData.menus.map(m => m.moduleName));
+            }
 
             // HIDE all approval pages
             menuData.menus.forEach(menu => {
@@ -584,6 +609,11 @@ class SidebarContent extends Component {
 
                         // Special Case: User 156 gets Approval Discussions
                         if (currentUserIdFilter === 156 && (item.screenName === "Approval Discussions" || item.url === "/approval-discussions")) {
+                            return true;
+                        }
+
+                        // Special Case: Users 142 & 145 get Approval
+                        if ([142, 145].includes(currentUserIdFilter) && (item.screenName === "Approval" || item.url === "/Manageapproval")) {
                             return true;
                         }
 
@@ -665,15 +695,84 @@ class SidebarContent extends Component {
             menuData.menus = menuData.menus.filter(m => m.moduleName !== "Procurement");
             console.log(`[RESTRICTION APPLIED] Procurement module removed for user ${currentUserIdFilter}`);
 
-            // 2. Filter Claim module to show ONLY "Claim & Payment"
+            // 2. Filter Claim module to show ONLY "Claim & Payment" (Exception: 142 & 145 get Approval too)
             const claimMod = menuData.menus.find(m => m.moduleName === "Claim" || m.moduleName === "Claims");
             if (claimMod && claimMod.screen) {
                 const originalScreenCount = claimMod.screen.length;
-                claimMod.screen = claimMod.screen.filter(s =>
-                    s.screenName === "Claim & Payment" ||
-                    s.url === "/Manageclaim&Payment"
-                );
+                claimMod.screen = claimMod.screen.filter(s => {
+                    const isClaimAndPayment = s.screenName === "Claim & Payment" || s.url === "/Manageclaim&Payment";
+                    const isApproval = s.screenName === "Approval" || s.url === "/Manageapproval";
+
+                    // Users 142 & 145: Allow Claim & Payment AND Approval
+                    if ([142, 145].includes(currentUserIdFilter)) {
+                        return isClaimAndPayment || isApproval;
+                    }
+
+                    // Others: Strictly Claim & Payment
+                    return isClaimAndPayment;
+                });
                 console.log(`[RESTRICTION APPLIED] Claim screens filtered from ${originalScreenCount} to ${claimMod.screen.length} for user ${currentUserIdFilter}`);
+            }
+
+            // 3. SPECIAL EXTRA RESTRICTION FOR USER 158
+            if (currentUserIdFilter === 158) {
+                console.log("--- RESTRICTED USER (158): Aggressive Cleanup ---");
+
+                // A. Remove Sales, Invoices, Reports, Employee, Attendance, and Procurement
+                const modulesToRemove = ["Sales", "Invoices", "Invoice", "Reports", "Employee", "Attendance", "Leaves", "Procurement"];
+                menuData.menus = menuData.menus.filter(m => !modulesToRemove.includes(m.moduleName));
+
+                // B. STRICTLY Enforce Claim to be ONLY "Claim & Payment"
+                // (This overrides any previous logic that might have let approvals slip in)
+                const claimMod = menuData.menus.find(m => m.moduleName === "Claim" || m.moduleName === "Claims");
+                if (claimMod) {
+                    claimMod.screen = claimMod.screen.filter(s =>
+                        s.screenName === "Claim & Payment" ||
+                        s.url === "/Manageclaim&Payment"
+                    );
+                }
+            }
+        }
+
+        // ---------------------------------------------------------
+        // FINAL OVERRIDE FOR USER 158 (Guaranteed Fix)
+        // ---------------------------------------------------------
+        // This block runs AFTER all other logic to ensure no other rule overrides it.
+        if (currentUserIdFilter === 158) {
+            console.log("=== FINAL OVERRIDE (158): Custom Configuration ===");
+
+            // 1. Remove Forbidden Modules (Allow Procurement & Invoices now)
+            // User requested: Remove Sales, Reports, Employee, Attendance, Leaves
+            const modulesToRemove = ["Sales", "Reports", "Employee", "Attendance", "Leaves"];
+            menuData.menus = menuData.menus.filter(m => !modulesToRemove.includes(m.moduleName));
+
+            // 2. Configure Procurement: Show ALL except "Approval"
+            const procurementMod = menuData.menus.find(m => m.moduleName === "Procurement");
+            if (procurementMod) {
+                procurementMod.screen = procurementMod.screen.filter(s =>
+                    s.screenName !== "Approval" &&
+                    !s.url.includes("approval")
+                );
+            }
+
+            // 3. Configure Claim: Strictly "MasterPaymentPlan", "PPP", "GRN", "IRN"
+            const claimMod = menuData.menus.find(m => m.moduleName === "Claim" || m.moduleName === "Claims");
+            if (claimMod) {
+                // Define the 3 specifics
+                const specificScreens = [
+                    { screenName: "Claim & Payment", url: "/Manageclaim&Payment", icon: "bx bx-detail" },
+                    { screenName: "Master Payment Plan", url: "/paymentplanapproval", icon: "bx bx-calendar-check" },
+                    { screenName: "PPP", url: "/PPP", icon: "bx bx-file" }
+                ];
+
+                // Rebuild Claim Screens
+                claimMod.screen = specificScreens.map((item, idx) => ({
+                    screenId: 99950 + idx, // arbitrary unique ID for this session
+                    screenName: item.screenName,
+                    url: item.url,
+                    icon: item.icon,
+                    module: []
+                }));
             }
         }
 

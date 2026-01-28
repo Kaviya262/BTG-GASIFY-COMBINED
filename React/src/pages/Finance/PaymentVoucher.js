@@ -503,7 +503,7 @@ const PaymentVoucher = ({ VoucherId }) => {
 
           {/* Right side - Applicant’s Signature */}
 
-          {header.paymentMethod == "Cash" && (
+          {(header.paymentMethod == "Cash" || header.paymentMethod == "Cheque") && (
             <div className="print-section" style={{ textAlign: "center" }}>
               <div
                 style={{

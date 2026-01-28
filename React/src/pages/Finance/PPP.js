@@ -188,6 +188,7 @@ const PPP = ({ selectedType, setSelectedType }) => {
       return;
     }
 
+    // Validation
     for (const row of groupRows) {
       if (row.ModeOfPaymentId !== 1 && !row.bank) {
         toast.warning(`Please select a bank for claim #${row.claimno || row.id}.`);
@@ -201,43 +202,106 @@ const PPP = ({ selectedType, setSelectedType }) => {
     }
 
     try {
-      const approveList = groupRows.map(row => ({
-        claimid: row.id,
-        ispaymentgenerated: true,
-        remarks: "",
-        modeOfPaymentId: row.ModeOfPaymentId,
-        bankId: row.bank,
-        paymentDate: row.paymentDate
-          ? formatDateToDateOnly(row.paymentDate)
-          : row.date
-            ? formatDateToDateOnly(row.date)
-            : null,
-      }));
+      let successCount = 0;
+      let failureCount = 0;
 
-      const payload = {
-        approve: {
-          approve: approveList,
-          userId: 1,
-          orgid: 1,
-          branchid: 1,
-        },
-      };
+      // Filter rows
+      // Case-insensitive check just to be safe
+      const cashAdvanceRows = groupRows.filter(r => (r.type || "").toUpperCase() === "CASH ADVANCE");
+      const otherRows = groupRows.filter(r => (r.type || "").toUpperCase() !== "CASH ADVANCE");
 
-      const res = await SaveVoucherAPI(payload);
+      // 1. Process "Cash Advance" rows individually (One Voucher per Claim)
+      for (const row of cashAdvanceRows) {
+        const approveList = [{
+          claimid: row.id,
+          ispaymentgenerated: true,
+          remarks: "",
+          modeOfPaymentId: row.ModeOfPaymentId,
+          bankId: row.bank,
+          paymentDate: row.paymentDate
+            ? formatDateToDateOnly(row.paymentDate)
+            : row.date
+              ? formatDateToDateOnly(row.date)
+              : null,
+        }];
 
-      if (res.status) {
-        toast.success('Voucher has been created successfully.');
+        const payload = {
+          approve: {
+            approve: approveList,
+            userId: 1,
+            orgid: 1,
+            branchid: 1,
+          },
+        };
+
+        try {
+          const res = await SaveVoucherAPI(payload);
+          if (res.status) {
+            successCount++;
+          } else {
+            failureCount++;
+            console.error(`Failed to generate voucher for Cash Advance claim ${row.claimno}: ${res.message}`);
+          }
+        } catch (err) {
+          failureCount++;
+          console.error(`Error generating voucher for Cash Advance claim ${row.claimno}:`, err);
+        }
+      }
+
+      // 2. Process other rows together (One Voucher for all)
+      if (otherRows.length > 0) {
+        const approveList = otherRows.map(row => ({
+          claimid: row.id,
+          ispaymentgenerated: true,
+          remarks: "",
+          modeOfPaymentId: row.ModeOfPaymentId,
+          bankId: row.bank,
+          paymentDate: row.paymentDate
+            ? formatDateToDateOnly(row.paymentDate)
+            : row.date
+              ? formatDateToDateOnly(row.date)
+              : null,
+        }));
+
+        const payload = {
+          approve: {
+            approve: approveList,
+            userId: 1,
+            orgid: 1,
+            branchid: 1,
+          },
+        };
+
+        try {
+          const res = await SaveVoucherAPI(payload);
+          if (res.status) {
+            successCount++; // Count as 1 successful batch voucher
+          } else {
+            failureCount++;
+            console.error(`Failed to generate grouped voucher: ${res.message}`);
+          }
+        } catch (err) {
+          failureCount++;
+          console.error(`Error generating grouped voucher:`, err);
+        }
+      }
+
+      // Feedback
+      if (successCount > 0) {
+        toast.success(`Successfully generated vouchers.`);
         setTimeout(async () => {
           await GetPaymentPalnAccordianDetails(1, 1, 1, 1);
         }, 1000);
       }
-      else {
-        toast.error(res.message || 'Something went wrong.');
+
+      if (failureCount > 0) {
+        toast.error(`Some vouchers failed to generate. Please check console.`);
       }
+
       load();
     } catch (error) {
-      console.error('Voucher generation failed:', error);
-      toast.error('API call failed. Please try again.');
+      console.error('Voucher generation process failed:', error);
+      toast.error('An unexpected error occurred. Please try again.');
     }
   };
 
@@ -1416,15 +1480,25 @@ let severity = 'secondary'; // default gray
                       );
                       const hasVoucher = group.rows.some(row => row.voucherid);
 
+                      // RESTRICTION: Hide "Update Voucher" for users 138, 139, 140
+                      const authUser = JSON.parse(localStorage.getItem("authUser"));
+                      const currentUserId = authUser ? (parseInt(authUser.u_id) || 0) : 0;
+                      const restrictedUpdateVoucherUsers = [138, 139, 140];
+                      // If user is restricted, they should ONLY see "Generate Voucher" (when hasVoucher is false).
+                      // If hasVoucher is true (Update mode), hide the button.
+                      const showVoucherButton = !hasVoucher || !restrictedUpdateVoucherUsers.includes(currentUserId);
+
                       return (
                         <AccordionTab
                           key={summaryId}
                           header={`Payment Plan Date: ${group.PaymentPlanDate} / PPP Number: ${group.PaymentNo}`}
                         >
                           <div className="d-flex justify-content-end mb-2">
-                            <button className="btn btn-success" style={{ marginRight: "10px" }} disabled={!allApproved} onClick={() => handleGenerateVoucher(group.rows)}>
-                              {hasVoucher ? "Update Voucher" : "Generate Voucher"}
-                            </button>
+                            {showVoucherButton && (
+                              <button className="btn btn-success" style={{ marginRight: "10px" }} disabled={!allApproved} onClick={() => handleGenerateVoucher(group.rows)}>
+                                {hasVoucher ? "Update Voucher" : "Generate Voucher"}
+                              </button>
+                            )}
                             {!access.loading && access.canViewDetails && (
                               <button
                                 style={{ marginRight: "10px" }}

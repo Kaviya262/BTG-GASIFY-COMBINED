@@ -195,6 +195,7 @@ const ManageClaimsPayment = () => {
     const [currentDiscussionClaimId, setCurrentDiscussionClaimId] = useState(null);
     const [remarksData, setRemarksData] = useState([]);
     const [selectedClaim, setSelectedClaim] = useState(null);
+    const [isPOOpenedFromDetail, setIsPOOpenedFromDetail] = useState(false);
 
     const toggleRemarkModal = () => {
         setRemarkModalOpen(!remarkModalOpen);
@@ -460,7 +461,10 @@ const ManageClaimsPayment = () => {
 
     const actionpoBodyTemplate = (rowData) => {
         return <span style={{ cursor: "pointer", color: "blue" }} className="btn-rounded btn btn-link"
-            onClick={() => handleShowPODetails(rowData)}>{rowData.pono}</span>;
+            onClick={() => {
+                setIsPOOpenedFromDetail(false);
+                handleShowPODetails(rowData);
+            }}>{rowData.pono}</span>;
     };
 
 
@@ -991,8 +995,59 @@ const ManageClaimsPayment = () => {
     const handleShowDetails = async (row) => {
         const res = await ClaimAndPaymentGetById(row.Claim_ID, 1, 1);
         if (res.status) {
+            let details = res.data.details || [];
 
-            setSelectedDetail(res.data);
+            // Extract unique PO IDs that are valid
+            const uniquePOIds = [...new Set(details.map(d => d.poid).filter(id => id && id > 0))];
+
+            if (uniquePOIds.length > 0) {
+                // Create a map to store PO ID -> PR Info
+                const poToPrMap = {};
+
+                // Fetch PO details for each unique PO
+                await Promise.all(uniquePOIds.map(async (poid) => {
+                    try {
+                        const poRes = await GetByIdPurchaseOrder(poid, orgId, branchId);
+
+                        if (poRes?.status && poRes.data?.Requisition) {
+                            // The Requisition array already contains the prnumber
+                            const prNumbers = poRes.data.Requisition
+                                .map(req => req.prnumber)
+                                .filter(Boolean); // Filter out null/undefined/empty strings
+
+                            // Join unique PR numbers
+                            const prConcat = [...new Set(prNumbers)].join(", ");
+
+                            // Also store the first PRID found for clicking purposes
+                            const firstPrId = poRes.data.Requisition.find(req => req.prid > 0)?.prid;
+
+                            poToPrMap[poid] = {
+                                prnumber: prConcat || "NA",
+                                prid: firstPrId
+                            };
+                        }
+                    } catch (err) {
+                        console.error(`Failed to fetch details for PO ${poid}`, err);
+                    }
+                }));
+
+                // Enrich details with PR info
+                details = details.map(d => {
+                    if (d.poid && poToPrMap[d.poid]) {
+                        return {
+                            ...d,
+                            prnumber: poToPrMap[d.poid].prnumber,
+                            prid: poToPrMap[d.poid].prid
+                        };
+                    }
+                    return { ...d, prnumber: "NA" };
+                });
+            }
+
+            setSelectedDetail({
+                ...res.data,
+                details: details
+            });
             setDetailVisible(true);
 
             setPreviewUrl(res.data.header.AttachmentPath == undefined || res.data.header.AttachmentPath == null ? "" : res.data.header.AttachmentPath);
@@ -1261,7 +1316,7 @@ const ManageClaimsPayment = () => {
             }
         } catch (err) {
             console.error("Error loading PR:", err);
-            Swal.fire("Error", "Failed to load PR details", "error");
+            Swal.fire("Error", "An error occurred while saving.", "error");
         }
     };
 
@@ -1597,6 +1652,40 @@ const ManageClaimsPayment = () => {
         printWindow.focus();
         printWindow.print();
         printWindow.onafterprint = () => printWindow.close();
+    };
+
+    const actionprBodyTemplate = (rowData) => {
+        const prNo = rowData.prnumber || rowData.PR_NUMBER; // Adjust based on actual API response field
+        if (!prNo || prNo === 'NA') return <span>{prNo || 'NA'}</span>;
+
+        return (
+            <span
+                style={{ cursor: "pointer", color: "blue" }}
+                className="btn-rounded btn btn-link"
+                onClick={() => {
+                    // Assuming rowData has prid or we can derive it. 
+                    // If the API for Claim Details doesn't return PRID, we might need to rely on just the number 
+                    // or fetch it. existing handlePRClick needs an ID.
+                    // Checking if rowData has prid
+                    if (rowData.prid) {
+                        handlePRClick(rowData.prid);
+                    } else {
+                        // Fallback or just show text if no ID
+                        console.warn("No PR ID found for", prNo);
+                    }
+                }}
+            >
+                {prNo}
+            </span>
+        );
+    };
+
+    const actionpoDetailsBodyTemplate = (rowData) => {
+        return <span style={{ cursor: "pointer", color: "blue" }} className="btn-rounded btn btn-link"
+            onClick={() => {
+                setIsPOOpenedFromDetail(true);
+                handleShowPODetails(rowData);
+            }}>{rowData.pono}</span>;
     };
 
 
@@ -2209,7 +2298,16 @@ const ManageClaimsPayment = () => {
 
                                         className="text-left"
                                         style={{ width: "10%" }}
-                                        body={actionpoBodyTemplate}
+                                        body={actionpoDetailsBodyTemplate}
+                                    />
+                                )}
+                                {(selectedDetail.header?.ClaimCategoryId === 3) && (
+                                    <Column
+                                        field="prnumber"
+                                        header="PR No"
+                                        className="text-left"
+                                        style={{ width: "10%" }}
+                                        body={actionprBodyTemplate}
                                     />
                                 )}
                                 <Column headerStyle={{ textAlign: 'center' }} field="claimtype" header="Claim Type" />
@@ -2410,13 +2508,15 @@ const ManageClaimsPayment = () => {
                                                                             <a
                                                                                 href="#"
                                                                                 style={{
-                                                                                    color: "#007bff",
-                                                                                    textDecoration: "underline",
-                                                                                    cursor: "pointer",
+                                                                                    color: isPOOpenedFromDetail ? "#666" : "#007bff",
+                                                                                    textDecoration: isPOOpenedFromDetail ? "none" : "underline",
+                                                                                    cursor: isPOOpenedFromDetail ? "default" : "pointer",
                                                                                 }}
                                                                                 onClick={(e) => {
                                                                                     e.preventDefault();
-                                                                                    handlePRClick(prid); // Opens correct PR
+                                                                                    if (!isPOOpenedFromDetail) {
+                                                                                        handlePRClick(prid); // Opens correct PR
+                                                                                    }
                                                                                 }}
                                                                                 title={`View ${cleanPR}`}
                                                                             >

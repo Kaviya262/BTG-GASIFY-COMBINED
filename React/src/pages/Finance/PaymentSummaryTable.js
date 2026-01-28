@@ -119,13 +119,34 @@ const PaymentSummaryTable = ({ claims, onRefresh, approvedata }) => {
     // }
   };
 
-  const openPopup = async (summaryId, id, type, supplierId, applicantId, modeOfPaymentId, bankId) => {
+  const openPopup = async (summaryId, id, type, supplierId, applicantId, modeOfPaymentId, bankId, preloadedRows = null) => {
     // If viewdetails is disabled, do not show popup
     if (!access?.canViewDetails) return;
+
+    console.log("openPopup called with:", { summaryId, id, type, supplierId, applicantId, modeOfPaymentId, bankId, preloadedRows });
 
     setSelectedSummaryId(summaryId);
     setSelectedId(id);
     setSelectedType(type);
+
+    if (preloadedRows && preloadedRows.length > 0) {
+      console.log("Using preloaded rows for popup:", preloadedRows);
+
+      // Map the preloaded rows to match the fields expected by the DataTable
+      const mappedRows = preloadedRows.map(row => ({
+        ...row,
+        claimcategory: row.ClaimCategory,
+        transactioncurrency: row.curr,
+        totalamountinidr: row.amount,
+        // claimno is usually already present as row.claimno, but ensuring it if case differs
+        claimno: row.claimno || row.ClaimNo
+      }));
+
+      setPopupRows(mappedRows);
+      setShowPopup(true);
+      return;
+    }
+
     let isDirector = 0;
     if (approvedata.PPP_PV_Director_approve === 0 && approvedata.PPP_PV_Commissioner_approveone === 0) {
       isDirector = 0;
@@ -142,6 +163,7 @@ const PaymentSummaryTable = ({ claims, onRefresh, approvedata }) => {
         isDirector,
         summaryId
       );
+      console.log("getClaimDetailsById response:", res);
       setPopupRows(res.data || []);
       setShowPopup(true);
     } catch (error) {
@@ -690,7 +712,7 @@ word-break: break-word;
                       onClick={() =>
                         openPopup(group.summaryId, group.id, "Party",
                           group.supplierId, group.applicantId,
-                          group.modeOfPaymentId, group.bankId)
+                          group.modeOfPaymentId, group.bankId, group.rows)
                       }
                     >
                       {group.groupName}
@@ -727,7 +749,7 @@ word-break: break-word;
                   <td className="linkcolor"
                     style={{ textAlign: "left", cursor: "pointer" }}
                     onClick={() =>
-                      openPopup(cg.SummaryId, cg.SupplierId || cg.ApplicantId, "Party", 0, 0, 0, cg.BankId)
+                      openPopup(cg.SummaryId, cg.SupplierId || cg.ApplicantId, "Party", 0, 0, cg.ModeOfPaymentId, cg.BankId, cg.rows)
                     }
                   >
                     N/A
