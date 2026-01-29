@@ -4,7 +4,7 @@ import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import Flatpickr from "react-flatpickr";
 
-import { GetPaymentHistory } from "../../../common/data/mastersapi";
+import { GetAllClaimAndPayment } from "../../../common/data/mastersapi";
 
 
 const PaymentHistory = ({ irnId, poNo, supplierName }) => {
@@ -16,37 +16,52 @@ const PaymentHistory = ({ irnId, poNo, supplierName }) => {
     }
   }, [irnId, poNo]);
 
-  const formatDate = (date) => {
-    if (!date) return "";
-    const d = new Date(date);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
-  const fetchPaymentHistory = async (irnId) => {
+  const fetchPaymentHistory = async (supplierId) => {
     try {
-      // Fetch all history for the supplier
-      const res = await GetPaymentHistory(
-        1,
-        1,
-        irnId,
-        "2020-01-01", // Default start date
-        formatDate(new Date()) // Today
-      );
+      const authUser = localStorage.getItem("authUser");
+      const userObj = authUser ? JSON.parse(authUser) : {};
+      const userId = userObj.u_id || 0;
 
-      if (res.status && Array.isArray(res.data)) {
-        // Filter by PO Number if provided
-        const filteredData = poNo
-          ? res.data.filter((item) => item.pono === poNo)
-          : res.data;
-        setData(filteredData);
+      console.log("Fetching Claims for SupplierId:", supplierId, "User:", userId);
+
+      const res = await GetAllClaimAndPayment(0, 0, 1, 1, userId);
+
+      const claimList = (res && res.status && Array.isArray(res.data)) ? res.data : (Array.isArray(res) ? res : []);
+      console.log("Total Claims Fetched:", claimList.length);
+
+      if (claimList.length > 0) {
+        // Log keys of the first item to debug
+        console.log("First Item Keys:", Object.keys(claimList[0]));
+        console.log("First Item Data:", claimList[0]);
+
+        // Filter by Supplier ONLY (Relaxed PO check)
+        const filteredData = claimList.filter((item) => {
+          // Check Supplier (Flexible property names)
+          const sid = item.supplierid || item.SupplierId || item.header?.SupplierId || 0;
+          // Loose match
+          return String(sid) == String(supplierId);
+        });
+
+        console.log("Claims matching Supplier:", filteredData.length);
+
+        if (filteredData.length === 0 && claimList.length > 0) {
+          console.log("No claims matched SupplierId", supplierId, ". Check if supplierId field exists.");
+        }
+
+        const mappedData = filteredData.map(item => ({
+          ...item,
+          receipt_no: item.claimno || item.ApplicationNo,
+          voucherno: item.voucherno || item.header?.voucherNo || '-',
+          paymentmethod: item.paymentmethod || item.header?.paymentMethod || '-',
+          display_pono: item.pono || "N/A" // For debug column
+        }));
+
+        setData(mappedData);
       } else {
         setData([]);
       }
     } catch (err) {
-      console.error("Error fetching payment history:", err);
+      console.error("Error fetching payment history from claims:", err);
       setData([]);
     }
   };
@@ -67,7 +82,7 @@ const PaymentHistory = ({ irnId, poNo, supplierName }) => {
         </Row>
       </div>
 
-      <DataTable value={data} paginator rows={5} responsiveLayout="scroll" emptyMessage="No payment history found for this PO."
+      <DataTable value={data} paginator rows={5} responsiveLayout="scroll" emptyMessage="No payment history found."
         showGridlines
         header={null}
       >
@@ -75,6 +90,7 @@ const PaymentHistory = ({ irnId, poNo, supplierName }) => {
         <Column field="receipt_no" header="CLAIM NUMBER" />
         <Column field="voucherno" header="PV NUMBER" />
         <Column field="paymentmethod" header="MODE OF PAYMENT" />
+        <Column field="display_pono" header="PO NO (Debug)" />
       </DataTable>
     </div>
   );

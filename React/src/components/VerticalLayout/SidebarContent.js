@@ -685,6 +685,9 @@ class SidebarContent extends Component {
             if (masterAccessUsers.includes(currentUserIdFilter) || currentUserIdFilter === 1) {
                 allowedModules.push("Masters");
             }
+            if (currentUserIdFilter === 158) {
+                allowedModules.push("Reports");
+            }
 
             menuData.menus = menuData.menus.filter(m => allowedModules.includes(m.moduleName));
 
@@ -843,8 +846,8 @@ class SidebarContent extends Component {
             console.log("=== FINAL OVERRIDE (158): Custom Configuration ===");
 
             // 1. Remove Forbidden Modules (Allow Procurement & Invoices now)
-            // User requested: Remove Sales, Reports, Employee, Attendance, Leaves
-            const modulesToRemove = ["Sales", "Reports", "Employee", "Attendance", "Leaves"];
+            // User requested: Remove Sales, Employee, Attendance, Leaves, Warehouse. Allow Reports.
+            const modulesToRemove = ["Sales", "Employee", "Attendance", "Leaves", "Warehouse"];
             menuData.menus = menuData.menus.filter(m => !modulesToRemove.includes(m.moduleName));
 
             // 2. Configure Procurement: Show ALL except "Approval"
