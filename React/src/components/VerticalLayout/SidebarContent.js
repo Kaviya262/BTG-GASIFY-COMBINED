@@ -54,12 +54,12 @@ class SidebarContent extends Component {
                 { screenId: 99908, screenName: "Cash Book Entry", url: "/cash-book-entry", icon: "bx bx-money" },
                 { screenId: 99910, screenName: "AR Book", url: "/ARBookReport", icon: "bx bx-file" },
                 { screenId: 99903, screenName: "AR Book DO", url: "/ar-book-do", icon: "bx bx-file" },
-                { screenId: 99911, screenName: "Asset Register", url: "/AssetRegister", icon: "bx bx-building" },
+                //{ screenId: 99911, screenName: "Asset Register", url: "/AssetRegister", icon: "bx bx-building" },
                 { screenId: 99912, screenName: "Bank Book", url: "/BankBook", icon: "bx bx-book-open" },
                 { screenId: 99913, screenName: "Cash Book", url: "/CashBook", icon: "bx bx-wallet" },
-                { screenId: 99914, screenName: "Other Revenues", url: "/ManageRevenues", icon: "bx bx-chart" },
-                { screenId: 99915, screenName: "Outstanding Pos", url: "/Pendingpo", icon: "bx bx-list-check" },
-                { screenId: 99916, screenName: "Over Draft", url: "/ManageOverDraft", icon: "bx bx-transfer" },
+                //{ screenId: 99914, screenName: "Other Revenues", url: "/ManageRevenues", icon: "bx bx-chart" },
+                //{ screenId: 99915, screenName: "Outstanding Pos", url: "/Pendingpo", icon: "bx bx-list-check" },
+                //{ screenId: 99916, screenName: "Over Draft", url: "/ManageOverDraft", icon: "bx bx-transfer" },
                 { screenId: 99917, screenName: "Petty Cash", url: "/pettyCash", icon: "bx bx-coin-stack" },
                 // --- NEW AP SCREEN ADDED HERE ---
                 //{ screenId: 99919, screenName: "AP", url: "/AP", icon: "bx bx-file" }
@@ -472,6 +472,91 @@ class SidebarContent extends Component {
             menuData.menus.push(claimModule);
         }
 
+        // ---------------------------------------------------------
+        // 4.1. Warehouse Menu
+        // ---------------------------------------------------------
+        const warehouseMenu = {
+            moduleId: 10000,
+            moduleName: "Warehouse",
+            icon: "bx bx-building",
+            screen: [
+                {
+                    screenId: 100001,
+                    screenName: "Dashboard",
+                    url: "/warehouse-dashboard",
+                    icon: "bx bx-bar-chart",
+                    module: []
+                },
+                {
+                    screenId: 100002,
+                    screenName: "Opening",
+                    url: "/warehouse-opening",
+                    icon: "bx bx-folder-open",
+                    module: []
+                },
+                {
+                    screenId: 100003,
+                    screenName: "GRN's",
+                    url: "/warehouse-grn",
+                    icon: "bx bx-receipt",
+                    module: []
+                },
+                {
+                    screenId: 100004,
+                    screenName: "In Stock",
+                    url: "/warehouse-in-stock",
+                    icon: "bx bx-package",
+                    module: []
+                },
+                {
+                    screenId: 100005,
+                    screenName: "Direct",
+                    url: "/warehouse-direct",
+                    icon: "bx bx-arrow-to-right",
+                    module: []
+                },
+                {
+                    screenId: 100006,
+                    screenName: "Project",
+                    url: "/warehouse-project",
+                    icon: "bx bx-project-diagram",
+                    module: []
+                },
+                {
+                    screenId: 100007,
+                    screenName: "Issue",
+                    url: "/warehouse-issue",
+                    icon: "bx bx-error-circle",
+                    module: []
+                },
+                {
+                    screenId: 100007.1,
+                    screenName: "Direct Request",
+                    url: "/warehouse-direct-issue",
+                    icon: "bx bx-arrow-to-right",
+                    module: []
+                },
+                {
+                    screenId: 100008,
+                    screenName: "Request",
+                    url: "/warehouse-request",
+                    icon: "bx bx-paper-plane",
+                    module: []
+                },
+                {
+                    screenId: 100009,
+                    screenName: "Report",
+                    url: "/warehouse-report",
+                    icon: "bx bx-file-blank",
+                    module: []
+                }
+            ]
+        };
+
+        if (!menuData.menus.find(m => m.moduleId === 10000)) {
+            menuData.menus.push(warehouseMenu);
+        }
+
         // Remove old "Employee" or "Procurement & Claims" if they exist from previous injection
         menuData.menus = menuData.menus.filter(m => m.moduleName !== "Employee" && m.moduleName !== "Procurement & Claims");
 
@@ -532,6 +617,11 @@ class SidebarContent extends Component {
             if (currentUserIdFilter === 135) {
                 allowedModules.push("Masters");
             }
+            // Special Case: User 138 NOT allowed Procurement
+            if (currentUserIdFilter === 138) {
+                const procIndex = allowedModules.indexOf("Procurement");
+                if (procIndex > -1) allowedModules.splice(procIndex, 1);
+            }
 
             menuData.menus = menuData.menus.filter(m => allowedModules.includes(m.moduleName));
 
@@ -587,6 +677,9 @@ class SidebarContent extends Component {
             }
 
             const allowedModules = ["Procurement", "Claim", "Claims"];
+            if (currentUserIdFilter === 135) {
+                allowedModules.push("Warehouse");
+            }
             // Special Case: User 135 gets Masters + New Users 137,168,169,170,184
             const masterAccessUsers = [135, 137, 168, 169, 170, 184];
             if (masterAccessUsers.includes(currentUserIdFilter) || currentUserIdFilter === 1) {
@@ -634,7 +727,7 @@ class SidebarContent extends Component {
         // DEFINE RESTRICTED USER LIST (New Group)
         // ---------------------------------------------------------
         // Users: 161, 172, 145, 171, 160, 152, 154, 174, 147, 151, 163, 159, 185, 133, 168, 150, 143, 186, 155, 166, 164, 142, 148, 146, 153, 141, 165, 157, 144, 162, 187, 149, 173, 167, 190
-        const claimOnlyUsers = [161, 172, 145, 171, 160, 152, 154, 174, 147, 151, 163, 159, 185, 133, 168, 150, 143, 186, 155, 166, 164, 142, 148, 146, 153, 141, 165, 157, 144, 162, 187, 149, 173, 167, 190];
+        const claimOnlyUsers = [191, 161, 172, 145, 171, 160, 152, 154, 174, 147, 151, 163, 159, 185, 133, 168, 150, 143, 186, 155, 166, 164, 142, 148, 146, 153, 141, 165, 157, 144, 162, 187, 149, 173, 167, 190];
 
         // ---------------------------------------------------------
         // 13. SPECIAL RESTRICTION: USERS 175 & 176
@@ -704,6 +797,12 @@ class SidebarContent extends Component {
                 claimMod.screen = claimMod.screen.filter(s => {
                     const isClaimAndPayment = s.screenName === "Claim & Payment" || s.url === "/Manageclaim&Payment";
                     const isApproval = s.screenName === "Approval" || s.url === "/Manageapproval";
+                    const isPPP = s.screenName === "PPP" || s.url === "/PPP";
+
+                    // Users 161, 160, 165, 163: Allow Claim & Payment AND PPP
+                    if ([161, 160, 165, 163].includes(currentUserIdFilter)) {
+                        return isClaimAndPayment || isPPP;
+                    }
 
                     // Users 142 & 145: Allow Claim & Payment AND Approval
                     if ([142, 145].includes(currentUserIdFilter)) {
@@ -827,6 +926,66 @@ class SidebarContent extends Component {
                     module: []
                 }));
             }
+        }
+
+        // ---------------------------------------------------------
+        // FINAL OVERRIDE FOR USERS 162 & 191 (Finance & Invoices)
+        // ---------------------------------------------------------
+        if ([162, 191].includes(currentUserIdFilter)) {
+            console.log("=== FINAL OVERRIDE (162/191): AR Book + Direct Sales Invoice ===");
+
+            // --- 1. FINANCE ---
+            let financeMod = menuData.menus.find(m => m.moduleName === "Finance");
+            if (!financeMod) {
+                financeMod = {
+                    moduleId: 99990,
+                    moduleName: "Finance",
+                    icon: "bx bx-money",
+                    screen: [],
+                    menuOrder: 99
+                };
+                menuData.menus.push(financeMod);
+            }
+
+            // Set Finance Screens: ONLY "AR Book" and "AR Book DO"
+            const specificFinanceScreens = [
+                { screenName: "AR Book", url: "/ARBookReport", icon: "bx bx-file" },
+                { screenName: "AR Book DO", url: "/ar-book-do", icon: "bx bx-file" }
+            ];
+
+            financeMod.screen = specificFinanceScreens.map((item, idx) => ({
+                screenId: 99975 + idx,
+                screenName: item.screenName,
+                url: item.url,
+                icon: item.icon,
+                module: []
+            }));
+
+            // --- 2. INVOICES ---
+            let invoiceMod = menuData.menus.find(m => m.moduleName === "Invoices" || m.moduleName === "Invoice" || m.moduleName === "Sales");
+            if (!invoiceMod) {
+                invoiceMod = {
+                    moduleId: 99995,
+                    moduleName: "Invoices",
+                    icon: "bx bx-file",
+                    screen: [],
+                    menuOrder: 5
+                };
+                menuData.menus.push(invoiceMod);
+            }
+
+            // Set Invoice Screens: ONLY "Direct Sales Invoice"
+            const specificInvoiceScreens = [
+                { screenName: "Direct Sales Invoice", url: "/manual-invoices", icon: "bx bx-file-blank" }
+            ];
+
+            invoiceMod.screen = specificInvoiceScreens.map((item, idx) => ({
+                screenId: 99985 + idx,
+                screenName: item.screenName,
+                url: item.url,
+                icon: item.icon,
+                module: []
+            }));
         }
 
         // 11. Update State

@@ -52,16 +52,18 @@ const PaymentHistory = ({ irnId, poNo, supplierName }) => {
   };
 
   return (
-    <div className="container mt-3">
+    <div className="container mt-0">
       {/* Info Box */}
-      <div className="p-3 mb-3" style={{ backgroundColor: "#f8f9fa", borderRadius: "5px", border: "1px solid #dee2e6" }}>
+      <div className="p-2 mb-1" style={{ backgroundColor: "#f8f9fa", borderRadius: "5px", border: "1px solid #dee2e6" }}>
         <Row>
           <Col md="6">
-            <strong>Supplier Name: </strong> <span className="text-muted">{supplierName || "N/A"}</span>
+            <strong>Supplier Name:</strong> <span className="ms-2" style={{ color: "firebrick", fontWeight: "bold" }}>{supplierName || "N/A"}</span>
           </Col>
-          <Col md="6">
-            <strong>PO Number: </strong> <span className="text-muted">{poNo || "N/A"}</span>
-          </Col>
+          {(poNo && poNo !== "N/A") && (
+            <Col md="6">
+              <strong>PO Number:</strong> <span className="ms-2" style={{ color: "firebrick", fontWeight: "bold" }}>{poNo}</span>
+            </Col>
+          )}
         </Row>
       </div>
 
@@ -70,9 +72,9 @@ const PaymentHistory = ({ irnId, poNo, supplierName }) => {
         header={null}
       >
         <Column header="#" body={(_, { rowIndex }) => rowIndex + 1} style={{ width: '50px' }} />
-        <Column field="receipt_no" header="IRN No." />
-        <Column field="voucherno" header="PV No." />
-        <Column field="paymentmethod" header="Mode of Payment" />
+        <Column field="receipt_no" header="CLAIM NUMBER" />
+        <Column field="voucherno" header="PV NUMBER" />
+        <Column field="paymentmethod" header="MODE OF PAYMENT" />
       </DataTable>
     </div>
   );

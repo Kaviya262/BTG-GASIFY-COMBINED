@@ -624,15 +624,20 @@ word-break: break-word;
     const grouped = {};
     otherData.forEach(row => {
       debugger;
-      const nameKeyid = `supplier-${row.SupplierId ?? 'none'}_applicant-${row.ApplicantId ?? 'none'}`;
+      const summaryId = row.SummaryId || "-";
+      const method = (row.PaymentMethod || "-").trim();
+      const bank = (row.BankName || "-").trim();
 
+      // Defined these for use in grouped object below
       const nameKey = row.SupplierId || row.ApplicantId;
       const groupId = row.SupplierName || row.ApplicantName;
-      const summaryId = row.SummaryId || "-";
-      const method = row.PaymentMethod || "-";
-      const bank = row.BankName || "-";
-      // const key = `${summaryId}||${method}||${bank}||${nameKey}`;
-      const key = `${summaryId}||${method}||${bank}||${nameKey} || ${nameKeyid}`;
+
+      // Robust Grouping Key:
+      // 1. Prefer SupplierId if available, else ApplicantId.
+      // 2. Normalize ID (so 0 and null don't split).
+      // 3. Exclude nameKeyid which caused issues.
+      const normalizedId = row.SupplierId ? `sup-${row.SupplierId}` : `app-${row.ApplicantId}`;
+      const key = `${method}||${bank}||${normalizedId}`;
 
 
       if (!grouped[key]) grouped[key] = {

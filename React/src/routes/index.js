@@ -4,6 +4,31 @@ import { Redirect } from "react-router-dom";
 // Pages Component
 import Chat from "../pages/Chat/Chat";
 
+// Warehouse Pages
+import WarehouseDashboard from "pages/Warehouse/Dashboard";
+import WarehouseOpening from "pages/Warehouse/Opening/opening-allocation";
+import AddOpeningAllocation from "pages/Warehouse/Opening/add-opening-allocation";
+import EditOpeningAllocation from "pages/Warehouse/Opening/edit-opening-allocation";
+import WarehouseGRN from "pages/Warehouse/GRN";
+import InStockAllocation from "pages/Warehouse/InStock/in-stock-allocation";
+import AddInStockAllocation from "pages/Warehouse/InStock/add-in-stock-allocation";
+import EditInStockAllocation from "pages/Warehouse/InStock/edit-in-stock-allocation";
+import RequestAllocation from "pages/Warehouse/Request/request-allocation";
+import AddRequestAllocation from "pages/Warehouse/Request/add-request-allocation";
+import EditRequestAllocation from "pages/Warehouse/Request/edit-request-allocation";
+import WarehouseDirect from "pages/Warehouse/Direct/warehouse-direct";
+import AddWarehouseDirect from "pages/Warehouse/Direct/add-warehouse-direct";
+import EditWarehouseDirect from "pages/Warehouse/Direct/edit-warehouse-direct";
+import WarehouseProject from "pages/Warehouse/Project/warehouse-project";
+import AddWarehouseProject from "pages/Warehouse/Project/add-warehouse-project";
+import EditWarehouseProject from "pages/Warehouse/Project/edit-warehouse-project";
+import WarehouseIssue from "pages/Warehouse/Issue";
+import DirectRequestAllocation from "pages/Warehouse/DirectRequest";
+import AddDirectRequestAllocation from "pages/Warehouse/DirectRequest/add-direct-issue-allocation";
+import EditDirectRequestAllocation from "pages/Warehouse/DirectRequest/edit-direct-issue-allocation";
+import WarehouseReport from "pages/Warehouse/Report";
+
+
 // Pages File Manager
 import FileManager from "../pages/FileManager/index";
 
@@ -351,6 +376,31 @@ const authProtectedRoutes = [
 
     { path: "/revenue/add", component: OtherRevenues },
     { path: "/revenue/edit/:id", component: OtherRevenues },
+
+
+    // Warehouse Routes
+    { path: "/warehouse-dashboard", component: WarehouseDashboard },
+    { path: "/warehouse-opening", component: WarehouseOpening },
+    { path: "/warehouse/opening/add", component: AddOpeningAllocation },
+    { path: "/warehouse/opening/edit/:id", component: EditOpeningAllocation },
+    { path: "/warehouse-grn", component: WarehouseGRN },
+    { path: "/warehouse-in-stock", component: InStockAllocation },
+    { path: "/warehouse/in-stock/add", component: AddInStockAllocation },
+    { path: "/warehouse/in-stock/edit/:id", component: EditInStockAllocation },
+    { path: "/warehouse-request", component: RequestAllocation },
+    { path: "/warehouse/request/add", component: AddRequestAllocation },
+    { path: "/warehouse/request/edit/:id", component: EditRequestAllocation },
+    { path: "/warehouse-direct", component: WarehouseDirect },
+    { path: "/warehouse-direct/add", component: AddWarehouseDirect },
+    { path: "/warehouse-direct/edit/:id", component: EditWarehouseDirect },
+    { path: "/warehouse-project", component: WarehouseProject },
+    { path: "/warehouse-project/add", component: AddWarehouseProject },
+    { path: "/warehouse-project/edit/:id", component: EditWarehouseProject },
+    { path: "/warehouse-issue", component: WarehouseIssue },
+    { path: "/warehouse-direct-issue", component: DirectRequestAllocation },
+    { path: "/warehouse-direct-issue/add", component: AddDirectRequestAllocation },
+    { path: "/warehouse-direct-issue/edit/:id", component: EditDirectRequestAllocation },
+    { path: "/warehouse-report", component: WarehouseReport },
 
 
 
