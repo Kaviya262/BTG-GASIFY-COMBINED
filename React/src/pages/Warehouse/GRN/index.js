@@ -20,7 +20,7 @@ import { toast } from "react-toastify";
 import "primereact/resources/themes/bootstrap4-light-blue/theme.css";
 
 const Breadcrumbs = ({ title, breadcrumbItem }) => (
-  <div className="page-title-box d-sm-flex align-items-center justify-content-between">
+  <div className="page-title-box d-sm-flex align-items-center justify-content-between mb-3">
     <h4 className="mb-sm-0 font-size-18">{breadcrumbItem}</h4>
     <div className="page-title-right">
       <ol className="breadcrumb m-0">
@@ -42,6 +42,8 @@ const WarehouseGRN = () => {
   const [keywordSearch, setKeywordSearch] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [bulkGas, setBulkGas] = useState(false);
+  const [factorMap, setFactorMap] = useState({});
   const [editingAllocation, setEditingAllocation] = useState({});
   const [selectedRows, setSelectedRows] = useState({});
 
@@ -296,6 +298,37 @@ const WarehouseGRN = () => {
     });
   };
 
+  const handleFactorChange = (rowId, value) => {
+    setFactorMap(prev => ({
+      ...prev,
+      [rowId]: value
+    }));
+  };
+
+  const factorBodyTemplate = (rowData) => {
+    const val = factorMap[rowData.id] !== undefined ? factorMap[rowData.id] : "";
+    return (
+      <input
+        type="number"
+        className="form-control form-control-sm"
+        value={val}
+        onChange={(e) => handleFactorChange(rowData.id, e.target.value)}
+        style={{ width: "100%", padding: "0.25rem 0.4rem", fontSize: "0.85rem" }}
+      />
+    );
+  };
+
+  const m3BodyTemplate = (rowData) => {
+    const factor = parseFloat(factorMap[rowData.id]) || 0;
+    const qty = parseFloat(rowData.quantity) || 0;
+    const m3 = factor * qty;
+    return (
+      <span style={{ display: "inline-block", width: "100%", textAlign: "center", fontSize: "0.85rem" }}>
+        {isNaN(m3) ? "" : m3.toFixed(3)}
+      </span>
+    );
+  };
+
   const handleSelectRow = (rowId) => {
     setSelectedRows((prevSelected) => ({
       ...prevSelected,
@@ -351,7 +384,7 @@ const WarehouseGRN = () => {
 
           <Row>
             <Card className="search-top" style={{ padding: "0.5rem" }}>
-              <div className="row align-items-end g-2 quotation-mid mb-1">
+              <div className="row align-items-end g-2 quotation-mid mb-4">
                 {/* From Date and To Date */}
                 <div className="col-lg-5">
                   <div className="d-flex align-items-center gap-2">
@@ -376,6 +409,17 @@ const WarehouseGRN = () => {
                         value={toDate}
                         onChange={(e) => setToDate(e.target.value)}
                       />
+                    </div>
+                    <div className="d-flex align-items-center gap-2" style={{ minWidth: "150px" }}>
+                      <input
+                        type="checkbox"
+                        id="bulkGas"
+                        className="form-check-input"
+                        checked={bulkGas}
+                        onChange={(e) => setBulkGas(e.target.checked)}
+                        style={{ cursor: "pointer", width: "18px", height: "18px", marginTop: "0" }}
+                      />
+                      <label htmlFor="bulkGas" className="form-check-label mb-0 text-nowrap" style={{ fontSize: "0.85rem", cursor: "pointer" }}>Bulk Gas</label>
                     </div>
                   </div>
                 </div>
@@ -426,7 +470,7 @@ const WarehouseGRN = () => {
               </div>
 
               {/* Second Row: Clear, Status Badges, Keyword Search */}
-              <div className="row align-items-center g-2 quotation-mid mt-1 mb-0">
+              <div className="row align-items-center g-2 quotation-mid mb-3">
                 <div className="col-lg-3">
                   <Button 
                     className="btn btn-danger" 
@@ -515,7 +559,13 @@ const WarehouseGRN = () => {
                       field="itemName"
                       header="Item Name"
                       sortable
-                      style={{ width: "22%", textAlign: "center", whiteSpace: "nowrap" }}
+                      style={{ width: "22%", textAlign: "left", whiteSpace: "nowrap" }}
+                      className="text-left"
+                    />
+                    <Column
+                      field="uom"
+                      header="UOM"
+                      style={{ width: "8%", textAlign: "center", whiteSpace: "nowrap" }}
                       className="text-center"
                     />
                     <Column
@@ -525,6 +575,23 @@ const WarehouseGRN = () => {
                       style={{ width: "10%", textAlign: "center", whiteSpace: "nowrap" }}
                       className="text-center"
                     />
+                    {bulkGas && (
+                      <Column
+                        header="Factor"
+                        body={factorBodyTemplate}
+                        style={{ width: "8%", textAlign: "center", whiteSpace: "nowrap" }}
+                        className="text-center"
+                      />
+                    )}
+                    {bulkGas && (
+                      <Column
+                        header="m3 Qty"
+                        body={m3BodyTemplate}
+                        sortable
+                        style={{ width: "10%", textAlign: "center", whiteSpace: "nowrap" }}
+                        className="text-center"
+                      />
+                    )}
                     <Column
                       field="allocationType"
                       header="Allocation Type"

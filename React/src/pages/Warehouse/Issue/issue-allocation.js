@@ -25,7 +25,7 @@ import { toast } from "react-toastify";
 import "primereact/resources/themes/bootstrap4-light-blue/theme.css";
 
 const Breadcrumbs = ({ title, breadcrumbItem }) => (
-  <div className="page-title-box d-sm-flex align-items-center justify-content-between">
+  <div className="page-title-box d-sm-flex align-items-center justify-content-between mb-3">
     <h4 className="mb-sm-0 font-size-18">{breadcrumbItem}</h4>
     <div className="page-title-right">
       <ol className="breadcrumb m-0">
@@ -331,7 +331,7 @@ const IssueAllocation = () => {
 
           <Row>
             <Card className="search-top">
-              <div className="row align-items-end g-1 quotation-mid mb-2">
+              <div className="row align-items-end g-1 quotation-mid mb-4">
                 {/* From Date and To Date */}
                 <div className="col-12 col-lg-5 mt-1">
                   <div className="d-flex align-items-center gap-3">
@@ -389,7 +389,7 @@ const IssueAllocation = () => {
               </div>
 
               {/* Second Row: Clear, Status Badges, Keyword Search */}
-              <div className="row align-items-center g-1 quotation-mid mt-3 mb-2">
+              <div className="row align-items-center g-1 quotation-mid mb-3">
                 <div className="col-12 col-lg-3">
                   <Button className="btn btn-danger btn-label" onClick={handleClear} style={{ padding: "0.48rem 0.96rem", fontSize: "0.8rem", height: "32px", display: "flex", alignItems: "center" }}>
                     <i className="mdi mdi-filter-off label-icon me-2" style={{ fontSize: "1rem" }} /> Clear

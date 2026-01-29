@@ -233,7 +233,7 @@ const AddInStockAllocation = () => {
                   {!loading && (
                     <Form>
                       {/* Row 1: Auto-Number, Date, GRN Number */}
-                      <Row className="mb-1">
+                      <Row className="mb-3">
                         <Col lg="4">
                           <FormGroup>
                             <Label htmlFor="autoNumber" className="form-label">
@@ -292,7 +292,7 @@ const AddInStockAllocation = () => {
                       </Row>
 
                       {/* Row 2: Items, Floor, Position Rack */}
-                      <Row className="mb-1">
+                      <Row className="mb-3">
                         <Col lg="4">
                           <FormGroup>
                             <Label htmlFor="items" className="form-label">
@@ -359,7 +359,7 @@ const AddInStockAllocation = () => {
                       </Row>
 
                       {/* Row 3: Rack Number, Height, Description */}
-                      <Row className="mb-1">
+                      <Row className="mb-3">
                         <Col lg="4">
                           <FormGroup>
                             <Label htmlFor="rackNumber" className="form-label">
@@ -419,7 +419,7 @@ const AddInStockAllocation = () => {
                       </Row>
 
                       {/* Row 4: Quantity, Shelf Number, Final Name */}
-                      <Row className="mb-1">
+                      <Row className="mb-3">
                         <Col lg="4">
                           <FormGroup className="mb-0">
                             <Label htmlFor="quantity" className="form-label">

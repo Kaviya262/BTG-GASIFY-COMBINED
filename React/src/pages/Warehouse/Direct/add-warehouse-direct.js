@@ -146,7 +146,7 @@ const AddWarehouseDirect = () => {
                                     {!loading && (
                                         <Form>
                                             {/* Row 1: Auto-Number, GRN Number, Items (Multi), Quantity */}
-                                            <Row className="mb-2">
+                                            <Row className="mb-3">
                                                 <Col lg="3">
                                                     <FormGroup className="mb-0">
                                                         <Label htmlFor="autoNumber" className="form-label">
@@ -214,7 +214,7 @@ const AddWarehouseDirect = () => {
                                             </Row>
 
                                             {/* Row 2: Date, Department, Consumer, Description */}
-                                            <Row className="mb-2">
+                                            <Row className="mb-3">
                                                 <Col lg="3">
                                                     <FormGroup className="mb-0">
                                                         <Label htmlFor="date" className="form-label">

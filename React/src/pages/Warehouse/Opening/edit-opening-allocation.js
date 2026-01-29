@@ -261,7 +261,7 @@ const EditOpeningAllocation = () => {
                                     {!loading && (
                                         <Form>
                                             {/* Row 1: Auto-Number, Date, Items */}
-                                            <Row className="mb-1">
+                                            <Row className="mb-3">
                                                 <Col lg="4">
                                                     <FormGroup>
                                                         <Label htmlFor="autoNumber" className="form-label">
@@ -320,7 +320,7 @@ const EditOpeningAllocation = () => {
                                             </Row>
 
                                             {/* Row 2: Floor, Position Rack, Rack Number */}
-                                            <Row className="mb-1">
+                                            <Row className="mb-3">
                                                 <Col lg="4">
                                                     <FormGroup>
                                                         <Label htmlFor="floor" className="form-label">
@@ -382,7 +382,7 @@ const EditOpeningAllocation = () => {
                                             </Row>
 
                                             {/* Row 3: Height, Description, Quantity */}
-                                            <Row className="mb-1">
+                                            <Row className="mb-3">
                                                 <Col lg="4">
                                                     <FormGroup>
                                                         <Label htmlFor="height" className="form-label">
