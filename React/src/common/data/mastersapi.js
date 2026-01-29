@@ -3534,11 +3534,11 @@ export const GetByIdBarcodepackingList = async (
 export const GetAllPurchaseOrderList = async (id, branchId, supplierId, orgId, userid, poid = 0) => {
     try {
         debugger
-        let url = `/PurchaseOrder/GetALL?branchid=${branchId}&supplierid=${supplierId}&orgid=${orgId}&userid=${userid}`;
+        let url = `/PurchaseOrder/GetALL?BranchId=${branchId}&SupplierId=${supplierId}&OrgId=${orgId}&UserId=${userid}`;
 
         if (id) {
             // url += `&requestorid=${id}`;
-            url += `&poid=${id}`;
+            url += `&POId=${id}`;
         }
 
         const res = await get(url);

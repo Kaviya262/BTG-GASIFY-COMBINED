@@ -544,9 +544,10 @@ class SidebarContent extends Component {
                             return true;
                         }
 
-                        // Special Case: User 156 gets Approval Discussions
-                        if (currentUserIdFilter === 156 && (item.screenName === "Approval Discussions" || item.url === "/approval-discussions")) {
-                            return true;
+                        // Special Case: User 156 gets Approval Discussions and Master Payment Plan
+                        if (currentUserIdFilter === 156) {
+                            if (item.screenName === "Approval Discussions" || item.url === "/approval-discussions") return true;
+                            if (item.screenName === "Master Payment Plan" || item.url === "/paymentplanapproval") return true;
                         }
 
                         const isApprovalLink = item.url && item.url.toLowerCase().includes("approval");
@@ -607,9 +608,10 @@ class SidebarContent extends Component {
                             return true;
                         }
 
-                        // Special Case: User 156 gets Approval Discussions
-                        if (currentUserIdFilter === 156 && (item.screenName === "Approval Discussions" || item.url === "/approval-discussions")) {
-                            return true;
+                        // Special Case: User 156 gets Approval Discussions and Master Payment Plan
+                        if (currentUserIdFilter === 156) {
+                            if (item.screenName === "Approval Discussions" || item.url === "/approval-discussions") return true;
+                            if (item.screenName === "Master Payment Plan" || item.url === "/paymentplanapproval") return true;
                         }
 
                         // Special Case: Users 142 & 145 get Approval
@@ -768,6 +770,57 @@ class SidebarContent extends Component {
                 // Rebuild Claim Screens
                 claimMod.screen = specificScreens.map((item, idx) => ({
                     screenId: 99950 + idx, // arbitrary unique ID for this session
+                    screenName: item.screenName,
+                    url: item.url,
+                    icon: item.icon,
+                    module: []
+                }));
+            }
+        }
+
+        // ---------------------------------------------------------
+        // FINAL OVERRIDE FOR USER 159 (Custom Fix)
+        // ---------------------------------------------------------
+        if (currentUserIdFilter === 159) {
+            console.log("=== FINAL OVERRIDE (159): Custom Configuration ===");
+
+            // 1. Restore Procurement Module (it might have been deleted by claimOnlyUsers block)
+            let procurementMod = menuData.menus.find(m => m.moduleName === "Procurement");
+            if (!procurementMod) {
+                procurementMod = {
+                    moduleId: 99992,
+                    moduleName: "Procurement",
+                    icon: "bx bx-shopping-bag",
+                    screen: [],
+                    menuOrder: 3
+                };
+                menuData.menus.push(procurementMod);
+            }
+
+            // 2. Configure Procurement: Show ONLY "Purchase Requisition" and "Purchase Order"
+            const specificProcurementScreens = [
+                { screenName: "Purchase Requisition", url: "/procurementspurchase-requisition", icon: "bx bx-file" },
+                { screenName: "Purchase Order", url: "/procurementspurchase-order", icon: "bx bx-cart" }
+            ];
+
+            procurementMod.screen = specificProcurementScreens.map((item, idx) => ({
+                screenId: 99960 + idx,
+                screenName: item.screenName,
+                url: item.url,
+                icon: item.icon,
+                module: []
+            }));
+
+            // 3. Configure Claim: Show "Claim & Payment" and "PPP"
+            const claimMod = menuData.menus.find(m => m.moduleName === "Claim" || m.moduleName === "Claims");
+            if (claimMod) {
+                const specificClaimScreens = [
+                    { screenName: "Claim & Payment", url: "/Manageclaim&Payment", icon: "bx bx-detail" },
+                    { screenName: "PPP", url: "/PPP", icon: "bx bx-file" }
+                ];
+
+                claimMod.screen = specificClaimScreens.map((item, idx) => ({
+                    screenId: 99965 + idx,
                     screenName: item.screenName,
                     url: item.url,
                     icon: item.icon,

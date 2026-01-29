@@ -617,7 +617,8 @@ word-break: break-word;
 
     // split data
     const cashWithdrawalData = data.filter(r => r.PaymentMethod === "Cash Withdrawal");
-    const otherData = data.filter(r => r.PaymentMethod !== "Cash Withdrawal");
+    const cashAloneData = data.filter(r => r.PaymentMethod === "Cash");
+    const otherData = data.filter(r => r.PaymentMethod !== "Cash Withdrawal" && r.PaymentMethod !== "Cash");
 
     // normal grouping (for non-cash-withdrawal)
     const grouped = {};
@@ -728,6 +729,44 @@ word-break: break-word;
                 </tr>
               );
             })}
+
+            {/* Cash Alone Row - Only show if there's data */}
+            {(() => {
+              if (!cashAloneData || cashAloneData.length === 0) return null;
+
+              const cashTotals = currencies.reduce((acc, curr) => {
+                acc[curr] = cashAloneData
+                  .filter(r => r.curr === curr)
+                  .reduce((sum, r) => sum + parseFloat(r.amount || 0), 0);
+                return acc;
+              }, {});
+
+              // Check if all amounts are zero
+              const hasNonZeroAmount = currencies.some(curr => cashTotals[curr] > 0);
+              if (!hasNonZeroAmount) return null;
+
+              return (
+                <tr key="cash-alone-row">
+                  <td style={{ textAlign: "left" }}>Cash</td>
+                  <td style={{ textAlign: "left" }}>-</td>
+                  <td className="linkcolor"
+                    style={{ textAlign: "left", cursor: "pointer" }}
+                    onClick={() =>
+                      openPopup(cashAloneData[0]?.SummaryId || 0, 0, "Party", 0, 0, cashAloneData[0]?.ModeOfPaymentId || 0, 0, cashAloneData)
+                    }
+                  >
+                    Multiple
+                  </td>
+                  {currencies.map(curr => (
+                    <td style={{ textAlign: "right" }} key={curr}>
+                      {cashTotals[curr]
+                        ? cashTotals[curr].toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        : "0.00"}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })()}
 
             {/* Cash Withdrawal rows - only show if at least one currency has non-zero amount */}
             {cashGrouped.map((cg, i) => {
