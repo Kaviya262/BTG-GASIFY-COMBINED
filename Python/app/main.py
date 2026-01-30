@@ -4,7 +4,7 @@ from .database import engine, Base
 
 # 1. IMPORT THE ROUTERS
 from .routers import finance, invoice_api, bankbook, procurement, ppp, claim_payment, cashbook
-
+from .routers import procurement_memo
 app = FastAPI(title="Finance API (Python)")
 
 # Allow CORS
@@ -47,7 +47,9 @@ app.include_router(claim_payment.router)
 
 
 from .routers import pr_attachment
-app.include_router(pr_attachment.router) 
+app.include_router(pr_attachment.router)
+
+app.include_router(procurement_memo.router)
 
 
 @app.get("/")

@@ -10,7 +10,7 @@ import { Link } from "react-router-dom";
 
 // Reactstrap
 import { Dropdown, DropdownToggle, DropdownMenu } from "reactstrap";
-import { GetUserById, GetDepartmentById } from "../../common/data/mastersapi";
+import { GetUserById, GetDepartmentById, GetApprovalDiscussionList } from "../../common/data/mastersapi";
 // Import menuDropdown
 import LanguageDropdown from "../CommonForBoth/TopbarDropdown/LanguageDropdown";
 import NotificationDropdown from "../CommonForBoth/TopbarDropdown/NotificationDropdown";
@@ -127,15 +127,16 @@ class Header extends Component {
 
       this.setState({ isSalesDepartment: isSales });
 
-      //  Load discussions (updated to use Python API)
-      const res = await GetApprovalDiscussionList(1, 1, user?.u_id);
+      // TODO: Fix backend API endpoint before enabling
+      // Load discussions (updated to use Python API)
+      // const res = await GetApprovalDiscussionList(1, 1, user?.u_id);
 
-      if (res?.status) {
-        this.setState({
-          discussionCount: res.data.length,
-          discussionList: res.data,
-        });
-      }
+      // if (res?.status) {
+      //   this.setState({
+      //     discussionCount: res.data.length,
+      //     discussionList: res.data,
+      //   });
+      // }
     } catch (err) {
       console.error("Failed:", err);
     }

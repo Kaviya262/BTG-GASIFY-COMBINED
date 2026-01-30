@@ -121,14 +121,28 @@ const ManagePurchaseMemo = () => {
 
     const fetchAllProcurementMemos = async (id, orgId, branchId, pmnumber) => {
         const userData = getUserDetails();
+        console.log('🔍 Purchase Memo Debug:', {
+            requesterid: id,
+            orgId,
+            branchId,
+            pmnumber,
+            userid: userData?.u_id,
+            userDetails: userData
+        });
+
         const res = await GetAllProcurementMemos(id, orgId, branchId, pmnumber, userData?.u_id);
+
+        console.log('📦 Purchase Memo API Response:', res);
+
         if (res.status) {
             setpurchasememo(res.data)
+            console.log('✅ Purchase Memos loaded:', res.data.length, 'records');
         } else {
+            console.error('❌ Purchase Memo API Error:', res.message);
             Swal.fire({
                 icon: 'error',
                 title: 'Initial Load Failed',
-                text: res.message || 'Unable to fetch default claim and payment data.',
+                text: res.message || 'Unable to fetch purchase memo data. Please check console for details.',
             });
         }
     };

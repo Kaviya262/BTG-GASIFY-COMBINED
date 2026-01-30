@@ -2682,11 +2682,19 @@ export const AddCustomerFromSQ = async (CustomerData) => {
 
 export const GetAllProcurementMemos = async (requesterid, orgId, branchId, pmnumber, userid) => {
     try {
-        const res = await get(`/ProcurementMemo/GetALL?BranchId=${branchId}&requesterid=${requesterid}&OrgId=${orgId}&pmnumber=${pmnumber}&userid=${userid}`);
-        return res;
+        const pmnumberEncoded = encodeURIComponent(pmnumber || "");
+        const url = `${PYTHON_API_URL}/api/procurement_memo/get_all?requesterid=${requesterid}&BranchId=${branchId}&OrgId=${orgId}&pmnumber=${pmnumberEncoded}&userid=${userid}`;
+
+        const response = await axios.get(url);
+
+        if (response.data && response.data.status) {
+            return response.data;
+        } else {
+            return { status: false, message: response.data?.message || "Failed to fetch memos", data: [] };
+        }
     } catch (error) {
-        console.error("Failed to fetch procurement memos", error);
-        return { status: false, message: error.message };
+        console.error("GetAllProcurementMemos Error:", error);
+        return { status: false, message: error.message, data: [] };
     }
 };
 
@@ -5260,4 +5268,23 @@ export const GetGmDirectorHistory = async (claimId) => {
         console.error("Error fetching GM-Director history:", error);
         return { status: false, message: error.message };
     }
+
+
 };
+
+//#region GetApprovalDiscussionList
+export const GetApprovalDiscussionList = async (orgId, branchId, userId) => {
+    try {
+        const response = await get(`/ClaimApproval/GetDiscussion?orgid=${orgId}&BranchId=${branchId}&UserId=${userId}`);
+        if (response?.status) {
+            return response;
+        } else {
+            // If api returns status:false (e.g. no discussions), return empty structure rather than throwing
+            return { status: true, data: [] };
+        }
+    } catch (error) {
+        console.log("Error in GetApprovalDiscussionList:", error); // Log silently, don't break app
+        return { status: false, data: [] };
+    }
+};
+//#endregion

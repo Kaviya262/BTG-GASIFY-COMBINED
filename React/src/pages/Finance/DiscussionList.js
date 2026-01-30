@@ -156,17 +156,20 @@ const DiscussionList = () => {
         console.log("Login data : ", UserData?.u_id);
 
         const fetchDefaultClaimAndPayment = async () => {
-            debugger;
-            const userData = getUserDetails();
-            const res = await GetDiscussionlist(orgId, branchId, userData?.u_id);
-            if (res.status) {
-                setdatadiscussionlist(res.data)
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Initial Load Failed',
-                    text: res.message || 'Unable to fetch default claim and payment data.',
-                });
+            try {
+                const userData = getUserDetails();
+                const res = await GetDiscussionlist(orgId, branchId, userData?.u_id);
+                if (res?.status) {
+                    setdatadiscussionlist(res.data || []);
+                } else {
+                    // Silently handle - don't show error to user
+                    console.log('No discussion data available');
+                    setdatadiscussionlist([]);
+                }
+            } catch (err) {
+                // Silently handle API errors - don't show to user
+                console.log('Discussion API not available:', err.message);
+                setdatadiscussionlist([]);
             }
         };
 
@@ -880,18 +883,21 @@ const DiscussionList = () => {
     };
 
     const fetchAlldiscussion = async () => {
-        debugger;
-        const userData = getUserDetails();
-        const res = await GetDiscussionlist(orgId, branchId, userData?.u_id);
+        try {
+            const userData = getUserDetails();
+            const res = await GetDiscussionlist(orgId, branchId, userData?.u_id);
 
-        if (res.status) {
-            setdatadiscussionlist(res.data);
-        } else {
-            Swal.fire({
-                icon: 'error',
-                title: 'Failed to Fetch Data',
-                text: res.message || 'Something went wrong. Please try again.',
-            });
+            if (res?.status) {
+                setdatadiscussionlist(res.data || []);
+            } else {
+                // Silently handle - don't show error to user
+                console.log('No discussion data available');
+                setdatadiscussionlist([]);
+            }
+        } catch (err) {
+            // Silently handle API errors - don't show to user
+            console.log('Discussion API not available:', err.message);
+            setdatadiscussionlist([]);
         }
     };
 

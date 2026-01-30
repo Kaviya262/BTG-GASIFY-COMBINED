@@ -107,28 +107,53 @@ def save_applicant_reply(req: ApplicantReplyRequest):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         reply_entry = f"[{req.applicant_name} at {timestamp}]: {req.reply}"
         
-        # Fetch existing comment
-        cursor.execute("SELECT applicant_hod_comment FROM tbl_claimAndpayment_header WHERE Claim_ID = %s", (req.claim_id,))
+        # Fetch existing comment and Department
+        cursor.execute("SELECT applicant_hod_comment, applicant_gm_comment, Department_ID FROM tbl_claimAndpayment_header WHERE Claim_ID = %s", (req.claim_id,))
         row = cursor.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Claim not found")
             
-        existing_comment = row[0] or ""
-        new_comment = existing_comment + "\n" + reply_entry if existing_comment else reply_entry
+        existing_hod_comment = row[0] or ""
+        existing_gm_comment = row[1] or ""
+        department_id = row[2] or 0
         
-        # Update: IsSubmitted=1 (Sent back to HOD), Status="Posted", claim_hod_isdiscussed=0
-        update_query = """
-            UPDATE tbl_claimAndpayment_header 
-            SET applicant_hod_comment = %s, 
-                IsSubmitted = 1,
-                claim_hod_isdiscussed = 0
-            WHERE Claim_ID = %s
-        """
+        final_comment = ""
+        msg = ""
+
+        if department_id != 9:
+            # Dept != 9: Discussion between Claimant <-> GM
+            new_comment = existing_gm_comment + "\n" + reply_entry if existing_gm_comment else reply_entry
+            
+            # Sent back to GM (Applicant replies)
+            # update applicant_gm_comment, IsSubmitted=1 (sent), claim_gm_isdiscussed=0 (pending GM view)
+            update_query = """
+                UPDATE tbl_claimAndpayment_header 
+                SET applicant_gm_comment = %s, 
+                    IsSubmitted = 1,
+                    claim_gm_isdiscussed = 0
+                WHERE Claim_ID = %s
+            """
+            cursor.execute(update_query, (new_comment, req.claim_id))
+            final_comment = new_comment
+            msg = "Reply sent to GM"
+        else:
+            # Dept = 9: Existing logic (Claimant <-> HOD)
+            new_comment = existing_hod_comment + "\n" + reply_entry if existing_hod_comment else reply_entry
+            
+            update_query = """
+                UPDATE tbl_claimAndpayment_header 
+                SET applicant_hod_comment = %s, 
+                    IsSubmitted = 1,
+                    claim_hod_isdiscussed = 0
+                WHERE Claim_ID = %s
+            """
+            cursor.execute(update_query, (new_comment, req.claim_id))
+            final_comment = new_comment
+            msg = "Reply sent to HOD"
         
-        cursor.execute(update_query, (new_comment, req.claim_id))
         conn.commit()
         
-        return {"status": True, "message": "Reply sent to HOD", "data": new_comment}
+        return {"status": True, "message": msg, "data": final_comment}
     except Exception as e:
         print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -144,13 +169,21 @@ def get_history(claim_id: int):
         conn = get_db_connection_sync()
         cursor = conn.cursor()
         
-        cursor.execute("SELECT applicant_hod_comment FROM tbl_claimAndpayment_header WHERE Claim_ID = %s", (claim_id,))
+        cursor.execute("SELECT applicant_hod_comment, applicant_gm_comment, Department_ID FROM tbl_claimAndpayment_header WHERE Claim_ID = %s", (claim_id,))
         row = cursor.fetchone()
         
         if not row:
             return {"status": False, "message": "Claim not found"}
             
-        return {"status": True, "data": row[0] or ""}
+        department_id = row[2] or 0
+        if department_id != 9:
+             # Dept != 9: Show applicant_gm_comment
+             comment_data = row[1] or ""
+        else:
+             # Dept = 9: Show applicant_hod_comment
+             comment_data = row[0] or ""
+            
+        return {"status": True, "data": comment_data}
     except Exception as e:
         print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -176,7 +209,7 @@ def save_hod_gm_discussion(req: DiscussionRequest):
         
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        cursor.execute("SELECT hod_gm_comment, gm_discussed_count FROM tbl_claimAndpayment_header WHERE Claim_ID = %s", (req.claim_id,))
+        cursor.execute("SELECT hod_gm_comment, gm_discussed_count, applicant_gm_comment, Department_ID FROM tbl_claimAndpayment_header WHERE Claim_ID = %s", (req.claim_id,))
         row = cursor.fetchone()
         
         # Close cursor to ensure clean slate
@@ -185,8 +218,10 @@ def save_hod_gm_discussion(req: DiscussionRequest):
         if not row:
             raise HTTPException(status_code=404, detail="Claim not found")
         
-        existing_comment = row[0] or ""
+        existing_hod_gm_comment = row[0] or ""
         current_gm_title = row[1] or 0
+        existing_applicant_gm_comment = row[2] or ""
+        department_id = row[3] or 0
         
         is_third_count = False
         if req.sender_role == "GM" and (current_gm_title + 1) == 3:
@@ -196,39 +231,64 @@ def save_hod_gm_discussion(req: DiscussionRequest):
              comment_entry = f"[{req.user_name} at {timestamp}]: Please cancel the transaction"
         else:
              comment_entry = f"[{req.user_name} at {timestamp}]: {req.comment}"
-
-        new_comment = existing_comment + "\n" + comment_entry if existing_comment else comment_entry
+        
+        new_comment = ""
         
         # Re-open cursor for Update
         cursor = conn.cursor()
         
-        update_parts = ["hod_gm_comment = %s"]
-        params = [new_comment]
+        update_parts = []
+        params = []
         
-        if req.sender_role == "GM":
-            if is_third_count:
-                # 3rd time logic
-                update_parts.append("claim_gm_isdiscussed = 1")
-                update_parts.append("gm_discussed_count = %s")
-                params.append(current_gm_title + 1)
-                
-                # Reset everything
-                update_parts.append("claim_hod_isapproved = 0")
-                update_parts.append("claim_gm_isapproved = 0")
-                update_parts.append("claim_director_isapproved = 0")
-                update_parts.append("IsSubmitted = 0")
-                update_parts.append("is_delete_required = 1")
-                
-            else:
-                update_parts.append("claim_gm_isdiscussed = 1")
-                update_parts.append("gm_discussed_count = %s")
-                params.append(current_gm_title + 1)
-                update_parts.append("claim_hod_isapproved = 0")
+        if department_id != 9:
+             # Dept != 9: GM talks to Applicant (skip HOD)
+             # Use applicant_gm_comment
+             new_comment = existing_applicant_gm_comment + "\n" + comment_entry if existing_applicant_gm_comment else comment_entry
+             update_parts = ["applicant_gm_comment = %s"]
+             params.append(new_comment)
+             
+             if req.sender_role == "GM":
+                 update_parts.append("claim_gm_isdiscussed = 1")
+                 update_parts.append("gm_discussed_count = %s")
+                 params.append(current_gm_title + 1)
+                 
+                 # Send to Applicant
+                 update_parts.append("IsSubmitted = 0")
+                 
+                 if is_third_count:
+                    update_parts.append("is_delete_required = 1")
+                    # Do not reset HOD approval as HOD is skipped/auto-approved
+                    update_parts.append("claim_director_isapproved = 0")
+        else:
+             # Dept = 9: HOD <-> GM
+             new_comment = existing_hod_gm_comment + "\n" + comment_entry if existing_hod_gm_comment else comment_entry
+             update_parts = ["hod_gm_comment = %s"]
+             params.append(new_comment)
+             
+             if req.sender_role == "GM":
+                if is_third_count:
+                    # 3rd time logic
+                    update_parts.append("claim_gm_isdiscussed = 1")
+                    update_parts.append("gm_discussed_count = %s")
+                    params.append(current_gm_title + 1)
+                    
+                    # Reset everything
+                    update_parts.append("claim_hod_isapproved = 0")
+                    update_parts.append("claim_gm_isapproved = 0")
+                    update_parts.append("claim_director_isapproved = 0")
+                    update_parts.append("IsSubmitted = 0")
+                    update_parts.append("is_delete_required = 1")
+                    
+                else:
+                    update_parts.append("claim_gm_isdiscussed = 1")
+                    update_parts.append("gm_discussed_count = %s")
+                    params.append(current_gm_title + 1)
+                    update_parts.append("claim_hod_isapproved = 0") # Send back to HOD
 
-        elif req.sender_role == "HOD":
-            update_parts.append("claim_gm_isdiscussed = 0")
-            update_parts.append("claim_hod_isapproved = 1")
-            
+             elif req.sender_role == "HOD":
+                update_parts.append("claim_gm_isdiscussed = 0")
+                update_parts.append("claim_hod_isapproved = 1")
+
         update_query = f"UPDATE tbl_claimAndpayment_header SET {', '.join(update_parts)} WHERE Claim_ID = %s"
         params.append(req.claim_id)
         
@@ -256,14 +316,22 @@ def get_hod_gm_history(claim_id: int):
         conn = get_db_connection_sync()
         cursor = conn.cursor()
         
-        cursor.execute("SELECT hod_gm_comment FROM tbl_claimAndpayment_header WHERE Claim_ID = %s", (claim_id,))
+        cursor.execute("SELECT hod_gm_comment, applicant_gm_comment, Department_ID FROM tbl_claimAndpayment_header WHERE Claim_ID = %s", (claim_id,))
         row = cursor.fetchone()
         cursor.fetchall() # clear any remaining
         
         if not row:
             return {"status": False, "message": "Claim not found"}
         
-        return {"status": True, "data": row[0] or ""}
+        department_id = row[2] or 0
+        if department_id != 9:
+             # Dept != 9: Show applicant_gm_comment for GM
+             comment_data = row[1] or ""
+        else:
+             # Dept = 9: Show hod_gm_comment
+             comment_data = row[0] or ""
+        
+        return {"status": True, "data": comment_data}
     except Exception as e:
         print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -372,4 +440,3 @@ def get_gm_director_history(claim_id: int):
     finally:
         if cursor: cursor.close()
         if conn: conn.close()
-
