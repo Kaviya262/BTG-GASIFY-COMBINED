@@ -6,7 +6,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from .. import schemas
 from .. import crud 
-from ..database import get_db, DB_NAME_USER, DB_NAME_FINANCE, DB_NAME_MASTER, DB_NAME_OLD,DB_NAME_USER_NEW
+from ..database import get_db, DB_NAME_USER, DB_NAME_FINANCE, DB_NAME_MASTER, DB_NAME_OLD, DB_NAME_USER_NEW
 from ..models.finance import ARReceipt
 
 router = APIRouter(
@@ -232,13 +232,23 @@ async def update_receipt(receipt_id: int, payload: CreateReceiptRequest, db: Asy
 @router.get("/get-sales-persons")
 async def get_sales_persons(db: AsyncSession = Depends(get_db)):
     try:
+        # Queries Live DB (users table)
+        # 1. Users in Department '9' (Sales)
+        # 2. OR Users who are assigned as a Sales Person in master_customer (regardless of department)
         query = text(f"""
             SELECT 
                 Id as value, 
                 CONCAT(FirstName, ' ', IFNULL(LastName, '')) as label 
             FROM {DB_NAME_USER}.users 
             WHERE IsActive = 1 
-              AND Department = '4'
+              AND (
+                  Department = '9' 
+                  OR Id IN (
+                      SELECT DISTINCT SalesPersonId 
+                      FROM {DB_NAME_USER_NEW}.master_customer 
+                      WHERE SalesPersonId IS NOT NULL
+                  )
+              )
             ORDER BY FirstName ASC
         """)
         
@@ -253,19 +263,37 @@ async def get_sales_persons(db: AsyncSession = Depends(get_db)):
 
 @router.get("/get-customer-defaults")
 async def get_customer_defaults(db: AsyncSession = Depends(get_db)):
+    """
+    🔧 FIXED VERSION
+    Returns customer defaults with proper integer keys for reliable frontend lookups
+    """
     try:
+        # We fetch Id and SalesPersonId from the Customer Master table
         query = text(f"""
             SELECT Id, SalesPersonId 
             FROM {DB_NAME_USER_NEW}.master_customer 
-            WHERE IsActive = 1
+            WHERE IsActive = 1 AND SalesPersonId IS NOT NULL
         """)
         
         result = await db.execute(query)
         rows = result.mappings().all()
-        defaults = {row.Id: row.SalesPersonId for row in rows}
+        
+        # 🔧 FIX: Explicitly convert to integers to ensure consistent types
+        # This prevents string/number mismatch in JavaScript lookups
+        defaults = {}
+        
+        for row in rows:
+            customer_id = int(row['Id'])  # Force to int
+            sales_person_id = int(row['SalesPersonId']) if row['SalesPersonId'] else None
+            
+            if sales_person_id is not None:  # Only add if there's a sales person assigned
+                defaults[customer_id] = sales_person_id
+        
+        print(f"✅ Loaded {len(defaults)} customer defaults with integer keys")
+        print(f"Sample defaults: {dict(list(defaults.items())[:5])}")
         
         return {"status": "success", "data": defaults}
 
     except Exception as e:
-        print(f"Error fetching customer defaults: {e}")
+        print(f"❌ Error fetching customer defaults: {e}")
         return {"status": "error", "detail": str(e)}

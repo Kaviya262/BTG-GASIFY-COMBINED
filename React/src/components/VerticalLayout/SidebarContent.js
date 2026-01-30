@@ -77,8 +77,40 @@ class SidebarContent extends Component {
                 }
             });
 
+            // DEBUG: Log Finance screens BEFORE override
+            console.log(`[DEBUG FINANCE] Screens after injection (before override):`, financeModule.screen.map(s => s.screenName));
+
+            // SPECIAL: Force ALL Finance screens for users 160, 161, 162, 163, 165, 191
+            const authUserFinance = JSON.parse(localStorage.getItem("authUser"));
+            const financeFullAccessUsers = [160, 161, 162, 163, 165, 191];
+            const currentUserIdFinance = authUserFinance ? (parseInt(authUserFinance.u_id) || 0) : 0;
+
+            console.log(`[DEBUG FINANCE] Current User ID: ${currentUserIdFinance}`);
+            console.log(`[DEBUG FINANCE] Is in financeFullAccessUsers? ${financeFullAccessUsers.includes(currentUserIdFinance)}`);
+
+            if (financeFullAccessUsers.includes(currentUserIdFinance)) {
+                console.log(`[FINANCE OVERRIDE] Forcing all Finance screens for user ${currentUserIdFinance}`);
+                console.log(`[FINANCE OVERRIDE] Screens BEFORE clear:`, financeModule.screen.map(s => s.screenName));
+
+                // Clear existing screens and add ALL screens
+                financeModule.screen = [];
+                missingScreens.forEach(item => {
+                    financeModule.screen.push({
+                        screenId: item.screenId,
+                        screenName: item.screenName,
+                        url: item.url,
+                        icon: item.icon,
+                        module: []
+                    });
+                });
+
+                console.log(`[FINANCE OVERRIDE] Screens AFTER rebuild:`, financeModule.screen.map(s => s.screenName));
+            }
+
             // Sort them alphabetically to look nice
             financeModule.screen.sort((a, b) => a.screenName.localeCompare(b.screenName));
+
+            console.log(`[DEBUG FINANCE] Final screens after sort:`, financeModule.screen.map(s => s.screenName));
         }
 
         // ---------------------------------------------------------
@@ -593,12 +625,60 @@ class SidebarContent extends Component {
         // UNIVERSAL SECURITY FILTERS
         // ---------------------------------------------------------
 
-        // Universal Security Filters
-
-        // 1. GM, Director, CEO & Restricted Users: ONLY APPROVAL PAGES (Strict Priority)
+        // Declare variables needed for all security filters
         const role = authUser && authUser.roleName ? authUser.roleName.trim().toLowerCase() : "";
         const restrictedApprovalUsers = [138, 139, 140];
         const currentUserIdFilter = authUser ? (parseInt(authUser.u_id) || 0) : 0;
+
+        // PRIORITY FILTER: FINANCE/INVOICE/REPORTS USERS (160, 161, 162, 163, 165, 191)
+        // This runs FIRST to bypass default restrictions
+        const financeInvoiceReportsUsers = [160, 161, 162, 163, 165, 191];
+        let skipUniversalFilters = false;
+
+        if (financeInvoiceReportsUsers.includes(currentUserIdFilter)) {
+            console.log(`--- FINANCE/INVOICE/REPORTS USER (${currentUserIdFilter}): Full Finance/Invoice/Reports Access, Claim & Payment Only ---`);
+
+            // DEBUG: Log Finance screens BEFORE filtering
+            const financeModDebug = menuData.menus.find(m => m.moduleName === "Finance");
+            if (financeModDebug) {
+                console.log(`[DEBUG] Finance screens BEFORE filtering:`, financeModDebug.screen.map(s => s.screenName));
+            } else {
+                console.log(`[DEBUG] Finance module NOT FOUND before filtering`);
+            }
+
+            // 1. Filter menus to show ONLY Finance, Invoice, Reports, and Claim
+            const allowedModules = ["Finance", "Invoice", "Invoices", "Reports", "Report", "Claim", "Claims"];
+            menuData.menus = menuData.menus.filter(m => allowedModules.includes(m.moduleName));
+            console.log(`[RESTRICTION APPLIED] Filtered to Finance/Invoice/Reports/Claim for user ${currentUserIdFilter}`);
+
+            // DEBUG: Log Finance screens AFTER module filtering
+            const financeModDebug2 = menuData.menus.find(m => m.moduleName === "Finance");
+            if (financeModDebug2) {
+                console.log(`[DEBUG] Finance screens AFTER module filtering:`, financeModDebug2.screen.map(s => s.screenName));
+            } else {
+                console.log(`[DEBUG] Finance module NOT FOUND after module filtering`);
+            }
+
+            // 2. Filter Claim module to show ONLY "Claim & Payment"
+            const claimMod = menuData.menus.find(m => m.moduleName === "Claim" || m.moduleName === "Claims");
+            if (claimMod && claimMod.screen) {
+                const originalScreenCount = claimMod.screen.length;
+                claimMod.screen = claimMod.screen.filter(s =>
+                    s.screenName === "Claim & Payment" || s.url === "/Manageclaim&Payment"
+                );
+                console.log(`[RESTRICTION APPLIED] Claim screens filtered from ${originalScreenCount} to ${claimMod.screen.length} for user ${currentUserIdFilter}`);
+            }
+
+            // 3. Finance, Invoice, and Reports modules keep ALL their screens (no filtering needed)
+            console.log(`[INFO] Finance, Invoice, and Reports modules retain all screens for user ${currentUserIdFilter}`);
+
+            // Skip the universal security filters below
+            skipUniversalFilters = true;
+        }
+
+        // Universal Security Filters (Skip if already handled above)
+
+        // 1. GM, Director, CEO & Restricted Users: ONLY APPROVAL PAGES (Strict Priority)
 
 
         // DEBUGGING FOR USER 158
@@ -608,7 +688,7 @@ class SidebarContent extends Component {
             console.log("Is 158 a Director/GM/CEO?", role === "gm" || role === "director" || role === "ceo" || role === "general manager");
         }
 
-        if (role === "gm" || role === "director" || role === "ceo" || role === "general manager" || restrictedApprovalUsers.includes(currentUserIdFilter)) {
+        if (!skipUniversalFilters && (role === "gm" || role === "director" || role === "ceo" || role === "general manager" || restrictedApprovalUsers.includes(currentUserIdFilter))) {
             if (currentUserIdFilter === 158) console.log("=== DEBUG 158: Entered GM/Director Block (Line 518) ===");
             console.log("--- GM/DIRECTOR/CEO: Approval Pages Only (Restriction Applied) ---");
 
@@ -667,7 +747,7 @@ class SidebarContent extends Component {
         }
 
         // EVERYONE ELSE: Procurement + Claim WITHOUT approvals
-        else if (authUser) {
+        else if (!skipUniversalFilters && authUser) {
             if (currentUserIdFilter === 158) console.log("=== DEBUG 158: Entered DEFAULT USER Block (Line 569) ===");
             console.log("--- DEFAULT USER: Procurement + Claim (No Approvals) ---");
 
@@ -721,16 +801,19 @@ class SidebarContent extends Component {
             });
         }
 
-        // Hide Finance from non-SuperAdmin
-        if (authUser && !authUser.superAdmin) {
+        // Hide Finance from non-SuperAdmin (except financeInvoiceReportsUsers)
+        if (!skipUniversalFilters && authUser && !authUser.superAdmin) {
             menuData.menus = menuData.menus.filter(m => m.moduleName !== "Finance");
         }
 
         // ---------------------------------------------------------
         // DEFINE RESTRICTED USER LIST (New Group)
         // ---------------------------------------------------------
-        // Users: 161, 172, 145, 171, 160, 152, 154, 174, 147, 151, 163, 159, 185, 133, 168, 150, 143, 186, 155, 166, 164, 142, 148, 146, 153, 141, 165, 157, 144, 162, 187, 149, 173, 167, 190
-        const claimOnlyUsers = [191, 161, 172, 145, 171, 160, 152, 154, 174, 147, 151, 163, 159, 133, 168, 150, 143, 155, 166, 164, 142, 148, 146, 153, 141, 165, 157, 144, 162, 149, 173, 167, 190];
+        // Users: 172, 145, 171, 152, 154, 174, 147, 151, 159, 185, 133, 168, 150, 143, 186, 155, 166, 164, 142, 148, 146, 153, 141, 157, 144, 149, 173, 167, 190
+        // NOTE: Removed 160, 161, 162, 163, 165, 191 as they are handled by financeInvoiceReportsUsers
+        const claimOnlyUsers = [172, 145, 171, 152, 154, 174, 147, 151, 159, 133, 168, 150, 143, 155, 166, 164, 142, 148, 146, 153, 141, 157, 144, 149, 173, 167, 190];
+
+
 
         // ---------------------------------------------------------
         // 13. SPECIAL RESTRICTION: USERS 175 & 176
@@ -781,7 +864,7 @@ class SidebarContent extends Component {
         }
 
         // ---------------------------------------------------------
-        // 14.1. SPECIAL RESTRICTION: GROUP 3 (185, 186, 187)
+        // 15. SPECIAL RESTRICTION: GROUP 3 (185, 186, 187)
         // ---------------------------------------------------------
         // Requirement:
         // 1. Procurement: Show ONLY "Purchase Memo"
@@ -809,7 +892,7 @@ class SidebarContent extends Component {
         }
 
         // ---------------------------------------------------------
-        // 15. SPECIAL RESTRICTION: CLAIM ONLY USERS (35 Users)
+        // 16. SPECIAL RESTRICTION: CLAIM ONLY USERS
         // ---------------------------------------------------------
         // Requirement:
         // 1. Hide Procurement module completely
@@ -957,66 +1040,6 @@ class SidebarContent extends Component {
                     module: []
                 }));
             }
-        }
-
-        // ---------------------------------------------------------
-        // FINAL OVERRIDE FOR USERS 162 & 191 (Finance & Invoices)
-        // ---------------------------------------------------------
-        if ([162, 191].includes(currentUserIdFilter)) {
-            console.log("=== FINAL OVERRIDE (162/191): AR Book + Direct Sales Invoice ===");
-
-            // --- 1. FINANCE ---
-            let financeMod = menuData.menus.find(m => m.moduleName === "Finance");
-            if (!financeMod) {
-                financeMod = {
-                    moduleId: 99990,
-                    moduleName: "Finance",
-                    icon: "bx bx-money",
-                    screen: [],
-                    menuOrder: 99
-                };
-                menuData.menus.push(financeMod);
-            }
-
-            // Set Finance Screens: ONLY "AR Book" and "AR Book DO"
-            const specificFinanceScreens = [
-                { screenName: "AR Book", url: "/ARBookReport", icon: "bx bx-file" },
-                { screenName: "AR Book DO", url: "/ar-book-do", icon: "bx bx-file" }
-            ];
-
-            financeMod.screen = specificFinanceScreens.map((item, idx) => ({
-                screenId: 99975 + idx,
-                screenName: item.screenName,
-                url: item.url,
-                icon: item.icon,
-                module: []
-            }));
-
-            // --- 2. INVOICES ---
-            let invoiceMod = menuData.menus.find(m => m.moduleName === "Invoices" || m.moduleName === "Invoice" || m.moduleName === "Sales");
-            if (!invoiceMod) {
-                invoiceMod = {
-                    moduleId: 99995,
-                    moduleName: "Invoices",
-                    icon: "bx bx-file",
-                    screen: [],
-                    menuOrder: 5
-                };
-                menuData.menus.push(invoiceMod);
-            }
-
-            // Set Invoice Screens: ONLY "Direct Sales Invoice"
-            const specificInvoiceScreens = [
-                { screenName: "Direct Sales Invoice", url: "/manual-invoices", icon: "bx bx-file-blank" }
-            ];
-
-            invoiceMod.screen = specificInvoiceScreens.map((item, idx) => ({
-                screenId: 99985 + idx,
-                screenName: item.screenName,
-                url: item.url,
-                icon: item.icon,
-                module: []
-            }));
         }
 
         // 11. Update State
