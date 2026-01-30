@@ -3676,13 +3676,14 @@ export const PurchaseRequisitionDownloadFileById = async (fileId, filePath) => {
 
         const encodedPath = encodeURIComponent(filePath);
 
-        // Fetch file as a blob
-        const res = await get(
-            `/CommonProcurementData/download-file?file_id=${fileId}&file_path=${encodedPath}`,
-            { responseType: 'blob' }
-        );
+        // Call new Python Download API
+        const apiUrl = `${PYTHON_API_URL}/api/download_file/download?file_id=${fileId}&file_path=${encodedPath}`;
 
-        const blob = res;
+        const res = await axios.get(apiUrl, { responseType: 'blob' });
+
+        const blob = res.data;
+
+
 
         if (!blob || typeof blob.size !== 'number' || typeof blob.type !== 'string') {
             throw new Error("Invalid file response");
@@ -5268,23 +5269,4 @@ export const GetGmDirectorHistory = async (claimId) => {
         console.error("Error fetching GM-Director history:", error);
         return { status: false, message: error.message };
     }
-
-
 };
-
-//#region GetApprovalDiscussionList
-export const GetApprovalDiscussionList = async (orgId, branchId, userId) => {
-    try {
-        const response = await get(`/ClaimApproval/GetDiscussion?orgid=${orgId}&BranchId=${branchId}&UserId=${userId}`);
-        if (response?.status) {
-            return response;
-        } else {
-            // If api returns status:false (e.g. no discussions), return empty structure rather than throwing
-            return { status: true, data: [] };
-        }
-    } catch (error) {
-        console.log("Error in GetApprovalDiscussionList:", error); // Log silently, don't break app
-        return { status: false, data: [] };
-    }
-};
-//#endregion

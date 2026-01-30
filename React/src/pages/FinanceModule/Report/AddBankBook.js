@@ -63,23 +63,11 @@ const AddBankBook = () => {
 
             const customers = await GetCustomerFilter(1, "%");
 
-            // 🔍 DEBUG: Log the raw customer data
-            console.log("=== RAW CUSTOMER DATA ===");
-            console.log("First customer object:", customers[0]);
-            console.log("Customer keys:", customers[0] ? Object.keys(customers[0]) : "No customers");
-
-            // Handle both 'Id' and 'CustomerID' keys
-            const mappedCustomers = Array.isArray(customers) ? customers.map(c => {
-                const customerId = Number(c.Id || c.CustomerID);
-                console.log(`Customer: ${c.CustomerName}, ID: ${customerId}, Type: ${typeof customerId}`);
-                return {
-                    value: customerId,
-                    label: c.CustomerName
-                };
-            }) : [];
-
-            setCustomerList(mappedCustomers);
-            console.log("=== MAPPED CUSTOMER LIST ===", mappedCustomers.slice(0, 3));
+            // --- FIX: Handle both 'Id' and 'CustomerID' keys to be safe ---
+            setCustomerList(Array.isArray(customers) ? customers.map(c => ({
+                value: Number(c.Id || c.CustomerID), // Try c.Id first, then c.CustomerID
+                label: c.CustomerName
+            })) : []);
 
             loadSalesPersons();
             loadCustomerDefaults();
@@ -108,32 +96,19 @@ const AddBankBook = () => {
         try {
             const response = await axios.get(`${PYTHON_API_URL}/AR/get-sales-persons`);
             if (response.data?.status === "success") {
-                console.log("=== SALES PERSONS LOADED ===", response.data.data);
                 setSalesList(response.data.data);
             }
-        } catch (err) {
-            console.error("Error loading sales persons:", err);
-        }
+        } catch (err) { console.error(err); }
     };
 
     const loadCustomerDefaults = async () => {
         try {
             const response = await axios.get(`${PYTHON_API_URL}/AR/get-customer-defaults`);
             if (response.data?.status === "success") {
-                console.log("=== CUSTOMER DEFAULTS LOADED ===");
-                console.log("Raw defaults:", response.data.data);
-                console.log("Sample entries:", Object.entries(response.data.data).slice(0, 5));
-
-                // 🔍 DEBUG: Check the types of keys and values
-                const firstKey = Object.keys(response.data.data)[0];
-                console.log(`First key: ${firstKey}, Type: ${typeof firstKey}`);
-                console.log(`First value: ${response.data.data[firstKey]}, Type: ${typeof response.data.data[firstKey]}`);
-
+                console.log("Loaded Customer Defaults:", response.data.data); // Debug Log
                 setCustomerDefaults(response.data.data);
             }
-        } catch (err) {
-            console.error("Failed to load customer defaults", err);
-        }
+        } catch (err) { console.error("Failed to load customer defaults", err); }
     };
 
     const loadEntryList = async () => {
@@ -181,53 +156,29 @@ const AddBankBook = () => {
         const newRows = [...rows];
         newRows[index][field] = value;
 
-        // --- AUTO-FILL SALES PERSON LOGIC (FIXED) ---
         if (field === 'customerId') {
-            console.log("\n=== CUSTOMER SELECTED ===");
-            console.log("Selected Customer ID:", value, "Type:", typeof value);
-            console.log("CustomerDefaults object:", customerDefaults);
-            console.log("CustomerDefaults keys:", Object.keys(customerDefaults).slice(0, 10));
+            console.log("Selected Customer ID:", value);
 
-            // Check if defaults exist
-            if (customerDefaults && Object.keys(customerDefaults).length > 0) {
-                // 🔧 FIX: Try multiple lookup strategies
-                let defaultSP = null;
+            // 1. Get the assigned SP ID from the map (e.g., 100)
+            const defaultSP = customerDefaults[value] || customerDefaults[String(value)];
+            console.log("Found SalesPerson ID:", defaultSP);
 
-                // Strategy 1: Direct number lookup
-                defaultSP = customerDefaults[value];
-                console.log(`Strategy 1 (Direct ${typeof value}):`, defaultSP);
+            if (defaultSP) {
+                const spID = Number(defaultSP);
 
-                // Strategy 2: Convert to number explicitly
-                if (!defaultSP) {
-                    const numericKey = Number(value);
-                    defaultSP = customerDefaults[numericKey];
-                    console.log(`Strategy 2 (Number ${numericKey}):`, defaultSP);
+                // 2. Check if this SP exists in our dropdown list
+                const exists = salesList.find(s => s.value === spID);
+
+                if (!exists) {
+                    // 3. OPTION A: If missing, create a temp option so the UI doesn't break
+                    const tempOption = { value: spID, label: `Unknown User (${spID})` };
+                    setSalesList(prev => [...prev, tempOption]); // Add to list dynamically
                 }
 
-                // Strategy 3: Convert to string
-                if (!defaultSP) {
-                    const stringKey = String(value);
-                    defaultSP = customerDefaults[stringKey];
-                    console.log(`Strategy 3 (String "${stringKey}"):`, defaultSP);
-                }
-
-                console.log("Final SalesPerson ID found:", defaultSP);
-
-                if (defaultSP) {
-                    // Ensure it's a number for the dropdown
-                    const salesPersonId = Number(defaultSP);
-                    console.log("Setting salesPersonId to:", salesPersonId);
-                    newRows[index]['salesPersonId'] = salesPersonId;
-
-                    // 🔍 Verify the sales person exists in the list
-                    const salesPerson = salesList.find(s => Number(s.value) === salesPersonId);
-                    console.log("Sales person found in list:", salesPerson);
-                } else {
-                    console.log("No default found - clearing field");
-                    newRows[index]['salesPersonId'] = "";
-                }
+                // 4. Set the value
+                newRows[index]['salesPersonId'] = spID;
             } else {
-                console.log("CustomerDefaults is empty or not loaded");
+                newRows[index]['salesPersonId'] = "";
             }
         }
 
@@ -319,9 +270,18 @@ const AddBankBook = () => {
                 header: headerPayload
             };
 
-            const endpoint = editMode ? `${PYTHON_API_URL}/AR/update` : `${PYTHON_API_URL}/AR/create`;
-            if (editMode) await axios.put(endpoint, payload);
-            else await axios.post(endpoint, payload);
+            // --- FIX: Correct URL construction for Updates ---
+            if (editMode) {
+                // For updates, we need to append the Receipt ID to the URL
+                // In edit mode, we typically edit one row at a time or the first row's ID handles the transaction
+                const idToUpdate = rows[0].rowId;
+                const endpoint = `${PYTHON_API_URL}/AR/update/${idToUpdate}`;
+                await axios.put(endpoint, payload);
+            } else {
+                // For create
+                const endpoint = `${PYTHON_API_URL}/AR/create`;
+                await axios.post(endpoint, payload);
+            }
 
             toast.success(`${rows.length} Entries ${isPosted ? 'Posted' : 'Saved'} Successfully`);
             setIsModalOpen(false);
@@ -479,6 +439,7 @@ const AddBankBook = () => {
                     <CardBody>
                         <DataTable value={entryList} paginator rows={10} loading={loading} globalFilter={globalFilter} className="p-datatable-modern" responsiveLayout="scroll">
                             <Column field="displayDate" header="Date" sortable filter style={{ width: '10%' }} />
+                            {/* REMOVED COA COLUMN HERE */}
                             <Column field="customerName" header="Party" sortable filter style={{ width: '25%' }} />
                             <Column field="reference_no" header="Reference" sortable filter style={{ width: '10%' }} />
                             <Column field="bank_amount" header="Amount" textAlign="right" body={(d) => parseFloat(d.bank_amount || 0).toLocaleString()} style={{ width: '10%' }} />
@@ -584,7 +545,7 @@ const AddBankBook = () => {
                                         <td>
                                             <Select
                                                 options={salesList}
-                                                value={salesList.find(c => Number(c.value) === Number(row.salesPersonId))}
+                                                value={salesList.find(c => String(c.value) === String(row.salesPersonId))}
                                                 onChange={(opt) => handleRowChange(index, 'salesPersonId', opt?.value)}
                                                 styles={customSelectStyles}
                                                 menuPortalTarget={document.body}

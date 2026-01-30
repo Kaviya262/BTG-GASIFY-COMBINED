@@ -47,10 +47,15 @@ app.include_router(claim_payment.router)
 
 
 from .routers import pr_attachment
-app.include_router(pr_attachment.router)
+app.include_router(pr_attachment.router) 
 
 app.include_router(procurement_memo.router)
 
+
+
+# Include Download File Router
+from .routers import download_file
+app.include_router(download_file.router)
 
 @app.get("/")
 def read_root():
