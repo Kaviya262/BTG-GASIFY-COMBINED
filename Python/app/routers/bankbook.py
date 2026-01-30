@@ -6,7 +6,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from .. import schemas
 from .. import crud 
-from ..database import get_db, DB_NAME_USER, DB_NAME_FINANCE, DB_NAME_MASTER, DB_NAME_OLD
+from ..database import get_db, DB_NAME_USER, DB_NAME_FINANCE, DB_NAME_MASTER, DB_NAME_OLD,DB_NAME_USER_NEW
 from ..models.finance import ARReceipt
 
 router = APIRouter(

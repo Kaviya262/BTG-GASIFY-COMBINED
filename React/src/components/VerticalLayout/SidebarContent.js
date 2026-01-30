@@ -730,7 +730,7 @@ class SidebarContent extends Component {
         // DEFINE RESTRICTED USER LIST (New Group)
         // ---------------------------------------------------------
         // Users: 161, 172, 145, 171, 160, 152, 154, 174, 147, 151, 163, 159, 185, 133, 168, 150, 143, 186, 155, 166, 164, 142, 148, 146, 153, 141, 165, 157, 144, 162, 187, 149, 173, 167, 190
-        const claimOnlyUsers = [191, 161, 172, 145, 171, 160, 152, 154, 174, 147, 151, 163, 159, 185, 133, 168, 150, 143, 186, 155, 166, 164, 142, 148, 146, 153, 141, 165, 157, 144, 162, 187, 149, 173, 167, 190];
+        const claimOnlyUsers = [191, 161, 172, 145, 171, 160, 152, 154, 174, 147, 151, 163, 159, 133, 168, 150, 143, 155, 166, 164, 142, 148, 146, 153, 141, 165, 157, 144, 162, 149, 173, 167, 190];
 
         // ---------------------------------------------------------
         // 13. SPECIAL RESTRICTION: USERS 175 & 176
@@ -778,6 +778,34 @@ class SidebarContent extends Component {
 
             // 2. Hide Claim
             menuData.menus = menuData.menus.filter(m => m.moduleName !== "Claim" && m.moduleName !== "Claims");
+        }
+
+        // ---------------------------------------------------------
+        // 14.1. SPECIAL RESTRICTION: GROUP 3 (185, 186, 187)
+        // ---------------------------------------------------------
+        // Requirement:
+        // 1. Procurement: Show ONLY "Purchase Memo"
+        // 2. Claim: Show ONLY "Claim & Payment"
+        const restrictedGroup3Users = [185, 186, 187];
+        if (restrictedGroup3Users.includes(currentUserIdFilter)) {
+            console.log("--- RESTRICTED GROUP 3 (185-187): Purchase Memo Only + Claim & Payment Only ---");
+
+            // 1. Filter Procurement to show ONLY "Purchase Memo"
+            const procurementMod = menuData.menus.find(m => m.moduleName === "Procurement");
+            if (procurementMod && procurementMod.screen) {
+                const allowedProcurementScreens = ["Purchase Memo"];
+                procurementMod.screen = procurementMod.screen.filter(s =>
+                    allowedProcurementScreens.includes(s.screenName)
+                );
+            }
+
+            // 2. Filter Claim to show ONLY "Claim & Payment"
+            const claimMod = menuData.menus.find(m => m.moduleName === "Claim" || m.moduleName === "Claims");
+            if (claimMod && claimMod.screen) {
+                claimMod.screen = claimMod.screen.filter(s =>
+                    s.screenName === "Claim & Payment" || s.url === "/Manageclaim&Payment"
+                );
+            }
         }
 
         // ---------------------------------------------------------
