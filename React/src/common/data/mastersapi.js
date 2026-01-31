@@ -649,7 +649,7 @@ export const GetUserById = async (userId, branchId) => {
 
 
 
-//#endregion 
+//#endregion
 //#region UpdateStatus
 export const UpdateStatus = async (payload) => {
     try {
@@ -848,7 +848,7 @@ export const GetDriversList = async (branchId) => {
 };
 
 //#endregion
-//#region 
+//#region
 export const GetAllSqHistory = async (filter) => {
 
     try {
@@ -1176,7 +1176,7 @@ export const GetContactList = async (customerid, sq_Id) => {
         const response = await get(`/OrderMngMaster/GetCustomerContact?customerid=${customerid}&Sqid=${sq_Id}`);
         if (response?.status) {
             return transformData(response.data, 'CustomerContactId', 'CustomerContact');
-            //return response.data; 
+            //return response.data;
         } else {
             throw new Error(response?.message || "Failed to fetch gas codes");
         }
@@ -1659,7 +1659,7 @@ export const UpdateSO = async (soData) => {
 };
 
 
-// Production Order 
+// Production Order
 
 export const getGasTypes = async (branchId) => {
     try {
@@ -2217,7 +2217,7 @@ export const UpdateCurrencyStatus = async (payload) => {
 
 //#endregion
 
-//#region 
+//#region
 export const GetCurrencyById = async (id) => {
     try {
         const response = await get(`/currency/id/${id}`);
@@ -2606,11 +2606,15 @@ export const DiscussClaimAndPayment = async (payload) => {
 
 export const DeleteMemo = async (payload) => {
     try {
-        const response = await post("/ProcurementMemo/Delete", payload);
-        if (response?.status === true) {
-            return response;
+        const response = await axios.post(`${PYTHON_API_URL}/api/procurement_memo/Delete`, payload);
+        if (response?.data?.Status === true) {
+            return {
+                status: response.data.Status,
+                message: response.data.Message,
+                data: response.data.Data
+            };
         } else {
-            throw new Error(response?.message || "Failed to delete memo");
+            throw new Error(response?.data?.Message || "Failed to delete memo");
         }
     } catch (error) {
         console.error("DeleteMemo Error:", error);
@@ -2711,8 +2715,15 @@ export const GetCommonProcurementUserDetails = async (id, orgId, branchId, searc
 
 export const GetCommonProcurementPurchaseMemoSeqNo = async (orgId, branchId) => {
     try {
-        const res = await get(`/ProcurementMemo/GetPurchaseMemoSeqNo?orgid=${orgId}&BranchId=${branchId}`);
-        return res;
+        const res = await axios.get(`${PYTHON_API_URL}/api/procurement_memo/GetPurchaseMemoSeqNo?orgid=${orgId}&BranchId=${branchId}`);
+        if (res.data?.Status === true) {
+            return {
+                status: res.data.Status,
+                message: res.data.Message,
+                data: res.data.Data
+            };
+        }
+        return res.data;
     } catch (error) {
         console.error("Failed to fetch Purchase Memo Sequence Number", error);
         return { status: false, message: error.message };
@@ -2788,17 +2799,21 @@ export const GetCommonProcurementProjectsDetails = async (orgId, branchId, PR_Id
 export const SaveProcurementMemo = async (isEditMode, payload) => {
     try {
         const endpoint = isEditMode
-            ? `/ProcurementMemo/Update`
-            : `/ProcurementMemo/Create`;
+            ? `${PYTHON_API_URL}/api/procurement_memo/Update`
+            : `${PYTHON_API_URL}/api/procurement_memo/Create`;
 
-        const method = isEditMode ? put : post;
+        const method = isEditMode ? axios.put : axios.post;
 
         const response = await method(endpoint, payload);
 
-        if (response?.status === true) {
-            return response;
+        if (response?.data?.Status === true) {
+            return {
+                status: response.data.Status,
+                message: response.data.Message,
+                data: response.data.Data
+            };
         } else {
-            throw new Error(response?.message || "Failed to save procurement memo");
+            throw new Error(response?.data?.Message || "Failed to save procurement memo");
         }
     } catch (error) {
         console.error("SaveProcurementMemo Error:", error);
@@ -2808,7 +2823,7 @@ export const SaveProcurementMemo = async (isEditMode, payload) => {
 
 export const ProcurementMemoGetById = async (memoId, orgId = 1, branchId = 1) => {
     try {
-        const response = await get("/ProcurementMemo/GetById", {
+        const response = await axios.get(`${PYTHON_API_URL}/api/procurement_memo/GetById`, {
             params: {
                 pmid: memoId,
                 orgId: orgId,
@@ -2816,10 +2831,23 @@ export const ProcurementMemoGetById = async (memoId, orgId = 1, branchId = 1) =>
             },
         });
 
-        if (response?.status === true) {
-            return response;
+        if (response?.data?.Status === true) {
+            const apiResult = response.data;
+            // Python returns 'Data' (Capitalized), but frontend expects 'data' (lowercase)
+            if (apiResult.Data && !apiResult.data) {
+                apiResult.data = apiResult.Data;
+            }
+            // Normalize Status and Message
+            if (apiResult.Status !== undefined && apiResult.status === undefined) {
+                apiResult.status = apiResult.Status;
+            }
+            if (apiResult.Message !== undefined && apiResult.message === undefined) {
+                apiResult.message = apiResult.Message;
+            }
+
+            return apiResult;
         } else {
-            throw new Error(response?.data?.message || "Failed to fetch procurement memo details");
+            throw new Error(response?.data?.Message || "Failed to fetch procurement memo details");
         }
     } catch (error) {
         console.error("ProcurementMemoGetById Error:", error);
@@ -2862,7 +2890,7 @@ export const GetSupplierCurrency = async (supId, orgId) => {
         return { status: false, message: err.message };
     }
 };
-// #region GetByIdPurchaseRequisition 
+// #region GetByIdPurchaseRequisition
 export const GetByIdPurchaseRequisition = async (
     prId,
     branchId,
@@ -2886,7 +2914,7 @@ export const GetByIdPurchaseRequisition = async (
 };
 //#endregion
 // #region DownloadFileById
-// #region 
+// #region
 export const DownloadFileById = async (fileId, filePath) => {
     try {
         const encodedPath = encodeURIComponent(filePath);
@@ -2936,6 +2964,7 @@ export const DownloadFileById = async (fileId, filePath) => {
         });
     }
 };
+
 
 // The API functions for the Purchase Requisition
 export const GetPurchaseRequisitionList = async (filterType, filterValue, orgId, branchId, userid) => {
@@ -3904,17 +3933,18 @@ export const GetPurchaseRequisitionItemDetails = async (id, orgId, branchId) => 
 
 //#endregion
 // #region DownloadMemoFileById
-// #region 
+// #region
 export const DownloadMemoFileById = async (fileId, filePath) => {
     try {
         const encodedPath = encodeURIComponent(filePath);
+        // Using Python API for download
+        const apiUrl = `${PYTHON_API_URL}/api/procurement_memo/download-file?file_id=${fileId}&file_path=${encodedPath}`;
 
-        const res = await get(
-            `/ProcurementMemo/download-file?file_id=${fileId}&file_path=${encodedPath}`,
-            { responseType: 'blob' }
-        );
+        console.log("Downloading from:", apiUrl);
 
-        const blob = res;
+        const res = await axios.get(apiUrl, { responseType: 'blob' });
+
+        const blob = res.data;
 
         if (!blob || typeof blob.size !== 'number' || typeof blob.type !== 'string') {
             throw new Error("Invalid file response");
@@ -3950,7 +3980,7 @@ export const DownloadMemoFileById = async (fileId, filePath) => {
         Swal.fire({
             icon: 'error',
             title: 'Download Failed',
-            text: 'Could not download the file.',
+            text: 'Could not download the file. ' + (error.message || ''),
         });
     }
 };
@@ -3973,13 +4003,18 @@ export const ProcurementMemouploadFileToServer = async (files, memoId, branchId,
     formData.append('UserId', userId);
 
     try {
-        const res = await post('/ProcurementMemo/upload-doc', formData, {
+        const res = await axios.post(`${PYTHON_API_URL}/api/procurement_memo/upload-doc`, formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
                 accept: '*/*',
             },
         });
-        return res?.status;
+
+        if (res?.data?.Status) {
+            return res.data;
+        } else {
+            return { status: false, message: res.data?.Message || "File upload failed" };
+        }
     } catch (err) {
         console.error('File Upload Failed:', err);
         return false;
@@ -3987,19 +4022,23 @@ export const ProcurementMemouploadFileToServer = async (files, memoId, branchId,
 };
 
 export const DownloadPurchaseRequisitionFileById = async (fileId, filePath) => {
+    console.log("DEBUG: Calling DownloadPurchaseRequisitionFileById", { fileId, filePath, PYTHON_API_URL });
     try {
         const encodedPath = encodeURIComponent(filePath);
 
-        const res = await get(
-            `/PurchaseRequisition/download-file?file_id=${fileId}&file_path=${encodedPath}`,
-            { responseType: 'blob' }
-        );
+        // Call new Python Download API
+        const apiUrl = `${PYTHON_API_URL}/api/download_file/download?file_id=${fileId}&file_path=${encodedPath}`;
+        console.log("DEBUG: Constructed API URL:", apiUrl);
 
-        const blob = res;
+        const res = await axios.get(apiUrl, { responseType: 'blob' });
+        console.log("DEBUG: File download response received:", res);
+
+        const blob = res.data;
 
         if (!blob || typeof blob.size !== 'number' || typeof blob.type !== 'string') {
             throw new Error("Invalid file response");
         }
+
 
         // Extract filename from content-disposition header
         let filename = 'downloaded-file';
@@ -4031,7 +4070,7 @@ export const DownloadPurchaseRequisitionFileById = async (fileId, filePath) => {
         Swal.fire({
             icon: 'error',
             title: 'Download Failed',
-            text: 'Could not download the file.',
+            text: 'Could not download the file. ' + (error.message || ''),
         });
     }
 };
@@ -5270,3 +5309,19 @@ export const GetGmDirectorHistory = async (claimId) => {
         return { status: false, message: error.message };
     }
 };
+//#region GetApprovalDiscussionList
+export const GetApprovalDiscussionList = async (orgId, branchId, userId) => {
+    try {
+        const response = await get(`/ClaimApproval/GetDiscussion?orgid=${orgId}&BranchId=${branchId}&UserId=${userId}`);
+        if (response?.status) {
+            return response;
+        } else {
+            // If api returns status:false (e.g. no discussions), return empty structure rather than throwing
+            return { status: true, data: [] };
+        }
+    } catch (error) {
+        console.log("Error in GetApprovalDiscussionList:", error); // Log silently, don't break app
+        return { status: false, data: [] };
+    }
+};
+//#endregion
