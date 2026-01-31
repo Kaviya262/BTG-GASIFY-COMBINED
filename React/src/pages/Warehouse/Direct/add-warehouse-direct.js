@@ -36,17 +36,18 @@ const AddWarehouseDirect = () => {
     const history = useHistory();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
-        autoNumber: "DR000001",
-        grnNumber: "",
+        drNumber: "DR000001",
+        grnNumber: [],
         date: "",
         items: [],
         department: "",
         consumer: "",
         description: "",
     });
+    const [gridRows, setGridRows] = useState([]);
 
     useEffect(() => {
-        document.title = "Add Direct Allocation | BTG Gas & Dashboard Template";
+        document.title = "Direct Allocation | BTG Gas & Dashboard Template";
     }, []);
 
     const handleInputChange = (e) => {
@@ -75,12 +76,12 @@ const AddWarehouseDirect = () => {
     };
 
     const validateAndSubmit = (status) => {
-        if (!formData.grnNumber) {
-            toast.error("GRN Number is required");
+        if (!formData.grnNumber || formData.grnNumber.length === 0) {
+            toast.error("At least one GRN Number is required");
             return;
         }
-        if (!formData.items || formData.items.length === 0) {
-            toast.error("Items are required");
+        if (gridRows.length === 0) {
+            toast.error("Please add at least one GRN-item row in the grid");
             return;
         }
         if (!formData.department) {
@@ -107,6 +108,45 @@ const AddWarehouseDirect = () => {
         }
     };
 
+    const addToGrid = () => {
+        const selectedGrns = Array.isArray(formData.grnNumber) ? formData.grnNumber : (formData.grnNumber ? [formData.grnNumber] : []);
+        const selectedItems = Array.isArray(formData.items) ? formData.items : (formData.items ? [formData.items] : []);
+        if (selectedGrns.length === 0) {
+            toast.error("Select at least one GRN to add");
+            return;
+        }
+        if (selectedItems.length === 0) {
+            toast.error("Select at least one Item to add");
+            return;
+        }
+
+        const newRows = [];
+        selectedGrns.forEach((g) => {
+            selectedItems.forEach((it) => {
+                newRows.push({ id: `${g}__${it}`, grnNumber: g, item: it, qty: 1 });
+            });
+        });
+
+        // Merge with existing but avoid duplicate keys
+        setGridRows((prev) => {
+            const map = {};
+            prev.forEach(r => { map[r.id] = r; });
+            newRows.forEach(r => { map[r.id] = r; });
+            return Object.values(map);
+        });
+
+        // clear item selection
+        setFormData(prev => ({ ...prev, items: [] }));
+    };
+
+    const removeGridRow = (id) => {
+        setGridRows(prev => prev.filter(r => r.id !== id));
+    };
+
+    const updateGridQty = (id, value) => {
+        setGridRows(prev => prev.map(r => r.id === id ? { ...r, qty: value } : r));
+    };
+
     const handleClose = () => {
         history.push("/warehouse-direct");
     };
@@ -115,7 +155,7 @@ const AddWarehouseDirect = () => {
         <React.Fragment>
             <div className="page-content">
                 <Container fluid>
-                    <Breadcrumbs title="Warehouse" breadcrumbItem="Add Direct Allocation" />
+                    <Breadcrumbs title="Warehouse" breadcrumbItem="Direct Allocation" />
 
                     <Row>
                         <Col lg="12">
@@ -145,18 +185,18 @@ const AddWarehouseDirect = () => {
 
                                     {!loading && (
                                         <Form>
-                                            {/* Row 1: Auto-Number, GRN Number, Items (Multi), Quantity */}
+                                            {/* Row 1: Auto-Number, Date, Department, Consumer */}
                                             <Row className="mb-3">
                                                 <Col lg="3">
                                                     <FormGroup className="mb-0">
-                                                        <Label htmlFor="autoNumber" className="form-label">
-                                                            Auto-Number <span className="text-danger">*</span>
+                                                        <Label htmlFor="drNumber" className="form-label">
+                                                            DR Number <span className="text-danger">*</span>
                                                         </Label>
                                                         <Input
                                                             type="text"
-                                                            id="autoNumber"
-                                                            name="autoNumber"
-                                                            value={formData.autoNumber}
+                                                            id="drNumber"
+                                                            name="drNumber"
+                                                            value={formData.drNumber}
                                                             readOnly
                                                             className="form-control bg-light"
                                                             placeholder="DR000001"
@@ -164,57 +204,6 @@ const AddWarehouseDirect = () => {
                                                         />
                                                     </FormGroup>
                                                 </Col>
-                                                <Col lg="3">
-                                                    <FormGroup className="mb-0">
-                                                        <Label htmlFor="grnNumber" className="form-label">
-                                                            GRN Number <span className="text-danger">*</span>
-                                                        </Label>
-                                                        <Input
-                                                            type="select"
-                                                            id="grnNumber"
-                                                            name="grnNumber"
-                                                            value={formData.grnNumber}
-                                                            onChange={handleInputChange}
-                                                            className="form-control"
-                                                            style={{ height: "38px", fontSize: "0.95rem" }}
-                                                        >
-                                                            <option value="">Select GRN Number</option>
-                                                            <option value="GRN0000001">GRN0000001</option>
-                                                            <option value="GRN0000002">GRN0000002</option>
-                                                            <option value="GRN0000003">GRN0000003</option>
-                                                            <option value="GRN0000004">GRN0000004</option>
-                                                        </Input>
-                                                    </FormGroup>
-                                                </Col>
-                                                <Col lg="6">
-                                                    <FormGroup className="mb-0">
-                                                        <Label htmlFor="items" className="form-label">
-                                                            Items-Quantity <span className="text-danger">*</span>
-                                                        </Label>
-                                                        <Input
-                                                            type="select"
-                                                            id="items"
-                                                            name="items"
-                                                            value={formData.items}
-                                                            onChange={(e) => {
-                                                                const values = Array.from(e.target.selectedOptions, option => option.value);
-                                                                setFormData(prev => ({ ...prev, items: values }));
-                                                            }}
-                                                            multiple
-                                                            className="form-control"
-                                                            style={{ height: "100px", fontSize: "0.95rem" }}
-                                                        >
-                                                            <option value="GL-10001 Cylinder Type A - 10">GL-10001 Cylinder Type A - 10</option>
-                                                            <option value="GL-10002 Cylinder Type B - 20">GL-10002 Cylinder Type B - 20</option>
-                                                            <option value="GL-10003 Safety Valve - 15">GL-10003 Safety Valve - 15</option>
-                                                            <option value="GL-10004 Pressure Gauge - 5">GL-10004 Pressure Gauge - 5</option>
-                                                        </Input>
-                                                    </FormGroup>
-                                                </Col>
-                                            </Row>
-
-                                            {/* Row 2: Date, Department, Consumer, Description */}
-                                            <Row className="mb-3">
                                                 <Col lg="3">
                                                     <FormGroup className="mb-0">
                                                         <Label htmlFor="date" className="form-label">
@@ -273,7 +262,11 @@ const AddWarehouseDirect = () => {
                                                         </Input>
                                                     </FormGroup>
                                                 </Col>
-                                                <Col lg="3">
+                                            </Row>
+
+                                            {/* Row 2: Description only */}
+                                            <Row className="mb-3">
+                                                <Col lg="12">
                                                     <FormGroup className="mb-0">
                                                         <Label htmlFor="description" className="form-label">
                                                             Description
@@ -286,14 +279,108 @@ const AddWarehouseDirect = () => {
                                                             onChange={handleInputChange}
                                                             className="form-control"
                                                             placeholder="Usage / consumption remarks"
-                                                            rows="1"
-                                                            style={{ height: "38px", fontSize: "0.95rem", resize: "none" }}
+                                                            rows="2"
+                                                            style={{ fontSize: "0.95rem", resize: "none" }}
                                                         />
                                                     </FormGroup>
                                                 </Col>
                                             </Row>
 
-                                            <hr className="my-4" />
+                                            {/* Row 3: GRN (multi), Items (multi), Qty + Add */}
+                                            <Row className="mb-3">
+                                                <Col lg="4">
+                                                    <FormGroup className="mb-0">
+                                                        <Label htmlFor="grnNumber" className="form-label">
+                                                            GRN Number <span className="text-danger">*</span>
+                                                        </Label>
+                                                        <Input
+                                                            type="select"
+                                                            id="grnNumber"
+                                                            name="grnNumber"
+                                                            value={formData.grnNumber}
+                                                            onChange={handleInputChange}
+                                                            multiple
+                                                            className="form-control"
+                                                            style={{ height: "100px", fontSize: "0.95rem" }}
+                                                        >
+                                                            <option value="GRN0000001">GRN0000001</option>
+                                                            <option value="GRN0000002">GRN0000002</option>
+                                                            <option value="GRN0000003">GRN0000003</option>
+                                                            <option value="GRN0000004">GRN0000004</option>
+                                                        </Input>
+                                                    </FormGroup>
+                                                </Col>
+                                                <Col lg="4">
+                                                    <FormGroup className="mb-0">
+                                                        <Label htmlFor="items" className="form-label">
+                                                            Items <span className="text-danger">*</span>
+                                                        </Label>
+                                                        <Input
+                                                            type="select"
+                                                            id="items"
+                                                            name="items"
+                                                            value={formData.items}
+                                                            onChange={(e) => {
+                                                                const values = Array.from(e.target.selectedOptions, option => option.value);
+                                                                setFormData(prev => ({ ...prev, items: values }));
+                                                            }}
+                                                            multiple
+                                                            className="form-control"
+                                                            style={{ height: "100px", fontSize: "0.95rem" }}
+                                                        >
+                                                            <option value="GL-10001 Bolt">GL-10001 Bolt</option>
+                                                            <option value="GL-10002 Safety Valve">GL-10002 Safety Valve</option>
+                                                            <option value="GL-10003 Pressure Gauge">GL-10003 Pressure Gauge</option>
+                                                        </Input>
+                                                    </FormGroup>
+                                                </Col>
+                                                <Col lg="2" className="d-flex align-items-center">
+                                                    <Button color="secondary" onClick={addToGrid} style={{ height: "38px", width: "50%" }}>
+                                                        Add
+                                                    </Button>
+                                                </Col>
+                                            </Row>
+
+                                            {/* Grid: GRN | Item | Qty */}
+                                            <Row className="mb-3">
+                                                <Col lg="12">
+                                                    <div className="table-responsive">
+                                                        <table className="table table-bordered">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>GRN Number</th>
+                                                                    <th>Item</th>
+                                                                    <th style={{ width: "140px" }}>Quantity</th>
+                                                                    <th style={{ width: "80px" }}></th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {gridRows.length === 0 ? (
+                                                                    <tr>
+                                                                        <td colSpan="4" className="text-center text-muted">No items added yet</td>
+                                                                    </tr>
+                                                                ) : (
+                                                                    gridRows.map((r) => (
+                                                                        <tr key={r.id}>
+                                                                            <td>{r.grnNumber}</td>
+                                                                            <td>{r.item}</td>
+                                                                            <td>
+                                                                                <Input type="number" value={r.qty} onChange={(e) => updateGridQty(r.id, e.target.value)} style={{ height: "36px" }} />
+                                                                            </td>
+                                                                            <td className="text-center">
+                                                                                <span onClick={() => removeGridRow(r.id)} style={{ cursor: "pointer", color: "#dc3545" }} title="Delete">
+                                                                                    <i className="bx bx-trash" style={{ fontSize: "1.3rem" }}></i>
+                                                                                </span>
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))
+                                                                )}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </Col>
+                                            </Row>
+
                                         </Form>
                                     )}
                                 </CardBody>

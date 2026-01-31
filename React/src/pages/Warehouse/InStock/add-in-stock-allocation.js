@@ -38,7 +38,7 @@ const AddInStockAllocation = () => {
   const [formData, setFormData] = useState({
     grnNumber: "",
     items: "",
-    autoNumber: "IS000001",
+    isNumber: "IS000001",
     date: "",
     description: "",
     floor: "",
@@ -54,7 +54,7 @@ const AddInStockAllocation = () => {
   // Initialize with auto-generated values
   useEffect(() => {
     generateBarcode();
-    document.title = "Add In Stock Allocation | BTG Gas & Dashboard Template";
+    document.title = "In Stock Allocation | BTG Gas & Dashboard Template";
   }, []);
 
   const generateShelfNumber = (floor, position, rack, height) => {
@@ -190,7 +190,7 @@ const AddInStockAllocation = () => {
     <React.Fragment>
       <div className="page-content">
         <Container fluid>
-          <Breadcrumbs title="Warehouse" breadcrumbItem="Add In Stock Allocation" />
+          <Breadcrumbs title="Warehouse" breadcrumbItem="In Stock Allocation" />
 
           <Row>
             <Col lg="12">
@@ -236,14 +236,14 @@ const AddInStockAllocation = () => {
                       <Row className="mb-3">
                         <Col lg="4">
                           <FormGroup>
-                            <Label htmlFor="autoNumber" className="form-label">
-                              Auto-Number <span className="text-danger">*</span>
+                            <Label htmlFor="isNumber" className="form-label">
+                              IS Number <span className="text-danger">*</span>
                             </Label>
                             <Input
                               type="text"
-                              id="autoNumber"
-                              name="autoNumber"
-                              value={formData.autoNumber}
+                              id="isNumber"
+                              name="isNumber"
+                              value={formData.isNumber}
                               disabled
                               className="form-control bg-light"
                               placeholder="IS000001"

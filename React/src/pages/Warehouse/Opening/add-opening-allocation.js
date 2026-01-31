@@ -53,7 +53,7 @@ const AddOpeningAllocation = () => {
     // Initialize with auto-generated values
     useEffect(() => {
         generateBarcode();
-        document.title = "Add Opening Allocation | BTG Gas & Dashboard Template";
+        document.title = "Opening Allocation | BTG Gas & Dashboard Template";
     }, []);
 
     const generateShelfNumber = (floor, position, rack, height) => {
@@ -198,7 +198,7 @@ const AddOpeningAllocation = () => {
         <React.Fragment>
             <div className="page-content">
                 <Container fluid>
-                    <Breadcrumbs title="Warehouse" breadcrumbItem="Add Opening Allocation" />
+                    <Breadcrumbs title="Warehouse" breadcrumbItem="Opening Allocation" />
 
                     <Row>
                         <Col lg="12">

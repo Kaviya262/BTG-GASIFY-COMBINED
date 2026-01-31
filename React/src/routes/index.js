@@ -23,9 +23,9 @@ import WarehouseProject from "pages/Warehouse/Project/warehouse-project";
 import AddWarehouseProject from "pages/Warehouse/Project/add-warehouse-project";
 import EditWarehouseProject from "pages/Warehouse/Project/edit-warehouse-project";
 import WarehouseIssue from "pages/Warehouse/Issue";
-import DirectRequestAllocation from "pages/Warehouse/DirectRequest";
-import AddDirectRequestAllocation from "pages/Warehouse/DirectRequest/add-direct-issue-allocation";
-import EditDirectRequestAllocation from "pages/Warehouse/DirectRequest/edit-direct-issue-allocation";
+import DirectIssueAllocation from "pages/Warehouse/DirectIssue/direct-issue-allocation";
+import AddDirectIssueAllocation from "pages/Warehouse/DirectIssue/add-direct-issue-allocation";
+import EditDirectIssueAllocation from "pages/Warehouse/DirectIssue/edit-direct-issue-allocation";
 import WarehouseReport from "pages/Warehouse/Report";
 
 
@@ -397,9 +397,9 @@ const authProtectedRoutes = [
     { path: "/warehouse-project/add", component: AddWarehouseProject },
     { path: "/warehouse-project/edit/:id", component: EditWarehouseProject },
     { path: "/warehouse-issue", component: WarehouseIssue },
-    { path: "/warehouse-direct-issue", component: DirectRequestAllocation },
-    { path: "/warehouse-direct-issue/add", component: AddDirectRequestAllocation },
-    { path: "/warehouse-direct-issue/edit/:id", component: EditDirectRequestAllocation },
+    { path: "/warehouse-direct-issue", component: DirectIssueAllocation },
+    { path: "/warehouse-direct-issue/add", component: AddDirectIssueAllocation },
+    { path: "/warehouse-direct-issue/edit/:id", component: EditDirectIssueAllocation },
     { path: "/warehouse-report", component: WarehouseReport },
 
 

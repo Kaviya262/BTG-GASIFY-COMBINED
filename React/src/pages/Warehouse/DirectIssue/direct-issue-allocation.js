@@ -41,7 +41,7 @@ const Breadcrumbs = ({ title, breadcrumbItem }) => (
   </div>
 );
 
-const DirectRequestAllocation = () => {
+const DirectIssueAllocation = () => {
   const history = useHistory();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -86,11 +86,11 @@ const DirectRequestAllocation = () => {
   const requestedDateBodyTemplate = (rowData) => formatDateDisplay(rowData.requestedDate);
 
   const handleNew = () => {
-    history.push("/warehouse-direct-request/add");
+    history.push("/warehouse-direct-issue/add");
   };
 
   const handleEdit = (rowData) => {
-    history.push("/warehouse-direct-request/edit/" + rowData.id, { directData: rowData });
+    history.push("/warehouse-direct-issue/edit/" + rowData.id, { directData: rowData });
   };
 
   const loadIssueData = async (from, to) => {
@@ -100,7 +100,7 @@ const DirectRequestAllocation = () => {
       const mockData = [
         {
           id: 1,
-          irNumber: "IR000001",
+          diNumber: "DI000001",
           date: "2024-01-15",
           requestedDate: "2024-01-15",
           department: "Warehouse",
@@ -110,13 +110,13 @@ const DirectRequestAllocation = () => {
           status: "Pending",
           issueStatus: "Issued",
           itemsData: [
-            { itemName: "GL-10001 Cylinder Type A", barcode: "BC001001", scanStatus: "Success" },
+            { itemName: "GL-10001 Bolt", barcode: "BC001001", scanStatus: "Success" },
             { itemName: "GL-10002 Cylinder Type B", barcode: "BC001002", scanStatus: "Success" },
           ],
         },
         {
           id: 2,
-          irNumber: "IR000002",
+          diNumber: "DI000002",
           date: "2024-01-16",
           requestedDate: "2024-01-16",
           department: "Production",
@@ -131,7 +131,7 @@ const DirectRequestAllocation = () => {
         },
         {
           id: 3,
-          irNumber: "IR000003",
+          diNumber: "DI000003",
           date: "2024-01-17",
           requestedDate: "2024-01-17",
           department: "Sales",
@@ -146,7 +146,7 @@ const DirectRequestAllocation = () => {
         },
         {
           id: 4,
-          irNumber: "IR000004",
+          diNumber: "DI000004",
           date: "2024-01-18",
           requestedDate: "2024-01-18",
           department: "Maintenance",
@@ -204,7 +204,7 @@ const DirectRequestAllocation = () => {
 
     try {
       const exportData = rows.map((row) => ({
-        "IR Number": row.irNumber,
+        "DI Number": row.diNumber,
         "Department": row.department,
         "User": row.user,
         "Items": row.items,
@@ -244,13 +244,13 @@ const DirectRequestAllocation = () => {
   };
 
   const handlePrint = (rowData) => {
-    console.log("Printing:", rowData.irNumber);
-    toast.info(`Printing ${rowData.irNumber}...`);
+    console.log("Printing:", rowData.diNumber);
+    toast.info(`Printing ${rowData.diNumber}...`);
   };
 
   const handleIssueClick = (rowData) => {
-    console.log("Issue action clicked for:", rowData.irNumber);
-    toast.info(`Issue action for ${rowData.irNumber}`);
+    console.log("Issue action clicked for:", rowData.diNumber);
+    toast.info(`Issue action for ${rowData.diNumber}`);
   };
 
   const statusTemplate = (rowData) => {
@@ -264,13 +264,13 @@ const DirectRequestAllocation = () => {
     );
   };
 
-  const irNumberBodyTemplate = (rowData) => {
+  const diNumberBodyTemplate = (rowData) => {
     return (
       <span
         style={{ cursor: "pointer", color: "blue", textDecoration: "underline" }}
         onClick={() => handleShowDetails(rowData)}
       >
-        {rowData.irNumber}
+        {rowData.diNumber}
       </span>
     );
   };
@@ -503,9 +503,9 @@ const DirectRequestAllocation = () => {
                       style={{ width: "100%" }}
                     >
                       <Column
-                        field="irNumber"
-                        header="IR Number"
-                        body={irNumberBodyTemplate}
+                        field="diNumber"
+                        header="DI Number"
+                        body={diNumberBodyTemplate}
                         sortable
                         style={{ width: "12%", whiteSpace: "nowrap" }}
                         className="text-center"
@@ -523,14 +523,14 @@ const DirectRequestAllocation = () => {
                         header="Dept"
                         sortable
                         style={{ width: "10%", whiteSpace: "nowrap" }}
-                        className="text-center"
+                        className="text-left"
                       />
                       <Column
                         field="user"
                         header="User"
                         sortable
                         style={{ width: "10%", whiteSpace: "nowrap" }}
-                        className="text-center"
+                        className="text-left"
                       />
                       <Column
                         header="Items"
@@ -591,8 +591,8 @@ const DirectRequestAllocation = () => {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.95rem" }}>
                 <tbody>
                   <tr style={{ borderBottom: "1px solid #e9ecef" }}>
-                    <td style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", width: "20%", backgroundColor: "#f8f9fa" }}>IR Number</td>
-                    <td style={{ padding: "0.6rem 0.8rem" }}>{selectedDetail.irNumber}</td>
+                    <td style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", width: "20%", backgroundColor: "#f8f9fa" }}>DI Number</td>
+                    <td style={{ padding: "0.6rem 0.8rem" }}>{selectedDetail.diNumber}</td>
                   </tr>
                   <tr style={{ borderBottom: "1px solid #e9ecef" }}>
                     <td style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", backgroundColor: "#f8f9fa" }}>Department</td>
@@ -652,4 +652,4 @@ const DirectRequestAllocation = () => {
   );
 };
 
-export default DirectRequestAllocation;
+export default DirectIssueAllocation;

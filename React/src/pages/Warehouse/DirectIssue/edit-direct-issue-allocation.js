@@ -14,7 +14,7 @@ import {
   Spinner,
 } from "reactstrap";
 import { toast } from "react-toastify";
-import { useHistory } from "react-router-dom";
+import { useHistory, useParams, useLocation } from "react-router-dom";
 
 const Breadcrumbs = ({ title, breadcrumbItem }) => (
   <div className="page-title-box d-sm-flex align-items-center justify-content-between">
@@ -32,23 +32,38 @@ const Breadcrumbs = ({ title, breadcrumbItem }) => (
   </div>
 );
 
-const AddDirectRequestAllocation = () => {
+const EditDirectIssueAllocation  = () => {
   const history = useHistory();
+  const { id } = useParams();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     drNumber: "DR000001",
-    department: "Warehouse", // Auto-filled with default value
+    department: "Warehouse",
     user: "Current User",
     date: "",
     selectedItems: [],
-    itemsData: [], // Store selected items with qty, purpose
+    itemsData: [],
     notes: "",
   });
 
   // Initialize with auto-generated values
   useEffect(() => {
-    document.title = "Add Direct Issue | BTG Gas & Dashboard Template";
-  }, []);
+    document.title = "Direct Issue | BTG Gas & Dashboard Template";
+    
+    // Load data from location.state if available
+    if (location.state && location.state.directData) {
+      const existingData = location.state.directData;
+      setFormData((prev) => ({
+        ...prev,
+        drNumber: existingData.drNumber || "DR000001",
+        department: existingData.department || "Warehouse",
+        user: existingData.user || "Current User",
+        date: existingData.requestedDate || "",
+        requiredDate: existingData.requiredDate || "",
+      }));
+    }
+  }, [location]);
 
   const handleDepartmentChange = (e) => {
     const { value } = e.target;
@@ -111,10 +126,6 @@ const AddDirectRequestAllocation = () => {
       toast.error("Department is required");
       return;
     }
-    if (!formData.requiredDate) {
-      toast.error("Required Date is required");
-      return;
-    }
     if (formData.itemsData.length === 0) {
       toast.error("Please add at least one item");
       return;
@@ -137,7 +148,7 @@ const AddDirectRequestAllocation = () => {
       console.log("Saving Direct Issue:", formData);
       toast.success("Direct Issue saved successfully");
       setTimeout(() => {
-        history.push("/warehouse-direct-request");
+        history.push("/warehouse-direct-issue");
       }, 1000);
     } catch (error) {
       console.error("Error saving data:", error);
@@ -151,10 +162,6 @@ const AddDirectRequestAllocation = () => {
     // Validate required fields
     if (!formData.department) {
       toast.error("Department is required");
-      return;
-    }
-    if (!formData.requiredDate) {
-      toast.error("Required Date is required");
       return;
     }
     if (formData.itemsData.length === 0) {
@@ -179,7 +186,7 @@ const AddDirectRequestAllocation = () => {
       console.log("Posting Direct Issue:", formData);
       toast.success("Direct Issue posted successfully");
       setTimeout(() => {
-        history.push("/warehouse-direct-request");
+        history.push("/warehouse-direct-issue");
       }, 1000);
     } catch (error) {
       console.error("Error posting data:", error);
@@ -190,14 +197,14 @@ const AddDirectRequestAllocation = () => {
   };
 
   const handleClose = () => {
-    history.push("/warehouse-direct-request");
+    history.push("/warehouse-direct-issue");
   };
 
   return (
     <React.Fragment>
       <div className="page-content">
         <Container fluid>
-          <Breadcrumbs title="Warehouse" breadcrumbItem="Add Direct Issue" />
+          <Breadcrumbs title="Warehouse" breadcrumbItem="Direct Issue" />
 
           <Row>
             <Col lg="12">
@@ -426,4 +433,4 @@ const AddDirectRequestAllocation = () => {
   );
 };
 
-export default AddDirectRequestAllocation;
+export default EditDirectIssueAllocation ;

@@ -89,7 +89,7 @@ const WarehouseProject = () => {
                     autoNumber: "PJ000001",
                     date: "2023-10-25",
                     grnNumber: "GRN0000001",
-                    items: "GL-10001 Cylinder Type A",
+                    items: "GL-10001 Bolt",
                     quantity: 50,
                     projectNumber: "PROJ-2023-001",
                     description: "Site A Construction",
@@ -100,7 +100,7 @@ const WarehouseProject = () => {
                     autoNumber: "PJ000002",
                     date: "2023-10-26",
                     grnNumber: "GRN0000002",
-                    items: "GL-10003 Safety Valve",
+                    items: "GL-10002 Safety Valve",
                     quantity: 20,
                     projectNumber: "PROJ-2023-002",
                     description: "Maintenance Refit",
@@ -111,7 +111,7 @@ const WarehouseProject = () => {
                     autoNumber: "PJ000003",
                     date: "2023-10-27",
                     grnNumber: "GRN0000003",
-                    items: "GL-10004 Pressure Gauge",
+                    items: "GL-10003 Pressure Gauge",
                     quantity: 15,
                     projectNumber: "PROJ-2023-003",
                     description: "Lab Setup",
@@ -122,7 +122,7 @@ const WarehouseProject = () => {
                     autoNumber: "PJ000004",
                     date: "2023-10-28",
                     grnNumber: "GRN0000004",
-                    items: "GL-10002 Cylinder Type B",
+                    items: "GL-10002 Safety Valve",
                     quantity: 30,
                     projectNumber: "PROJ-2023-001",
                     description: "Site A Expansion",
@@ -227,6 +227,28 @@ const WarehouseProject = () => {
         );
     };
 
+    const printBodyTemplate = (rowData) => {
+        return (
+            <div className="d-flex align-items-center justify-content-center">
+                <Button
+                    size="sm"
+                    onClick={() => handleExport()}
+                    title="Print"
+                    style={{
+                        padding: "0.4rem 0.5rem",
+                        border: "1px solid #dee2e6",
+                        backgroundColor: "white",
+                        color: "#495057",
+                        cursor: "pointer",
+                        borderRadius: "4px"
+                    }}
+                >
+                    <i className="mdi mdi-printer" style={{ fontSize: "1.2rem", color: "#495057" }}></i>
+                </Button>
+            </div>
+        );
+    };
+
     document.title = "Warehouse Project | BTG Gas & Dashboard Template";
 
     return (
@@ -291,7 +313,7 @@ const WarehouseProject = () => {
                                     <Button className="btn btn-danger btn-label" onClick={handleClear} style={{ padding: "0.48rem 0.96rem", fontSize: "0.8rem", height: "32px", display: "flex", alignItems: "center" }}>
                                         <i className="mdi mdi-filter-off label-icon me-2" style={{ fontSize: "1rem" }} /> Clear
                                     </Button>
-                                </div>3
+                                </div>
                                 <div className="col-12 col-lg-3"></div>
                                 <div className="col-12 col-lg-3 text-end d-flex align-items-center justify-content-end gap-3">
                                     <span className="d-inline-flex align-items-center gap-2">
@@ -349,7 +371,7 @@ const WarehouseProject = () => {
                                         >
                                             <Column
                                                 field="autoNumber"
-                                                header="Auto-Number"
+                                                header="PJ Number"
                                                 body={autoNumberBodyTemplate}
                                                 sortable
                                                 style={{ width: "11%", whiteSpace: "nowrap" }}
@@ -411,6 +433,12 @@ const WarehouseProject = () => {
                                                 header="Action"
                                                 body={actionBodyTemplate}
                                                 style={{ width: "8%", whiteSpace: "nowrap" }}
+                                                className="text-center"
+                                            />
+                                            <Column
+                                                header="Print"
+                                                body={printBodyTemplate}
+                                                style={{ width: "6%", whiteSpace: "nowrap" }}
                                                 className="text-center"
                                             />
                                         </DataTable>

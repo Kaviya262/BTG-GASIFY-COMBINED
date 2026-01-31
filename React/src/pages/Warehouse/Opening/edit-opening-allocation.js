@@ -73,7 +73,7 @@ const EditOpeningAllocation = () => {
                 finalName: openingData.finalName || "",
             });
         }
-        document.title = "Edit Opening Allocation | BTG Gas & Dashboard Template";
+        document.title = "Opening Allocation | BTG Gas & Dashboard Template";
     }, [location]);
 
     const generateShelfNumber = (floor, position, rack, height) => {
@@ -218,7 +218,7 @@ const EditOpeningAllocation = () => {
         <React.Fragment>
             <div className="page-content">
                 <Container fluid>
-                    <Breadcrumbs title="Warehouse" breadcrumbItem="Edit Opening Allocation" />
+                    <Breadcrumbs title="Warehouse" breadcrumbItem="Opening Allocation" />
 
                     <Row>
                         <Col lg="12">

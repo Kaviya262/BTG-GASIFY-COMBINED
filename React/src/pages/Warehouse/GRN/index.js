@@ -99,6 +99,8 @@ const WarehouseGRN = () => {
           id: 1,
           grnNumber: "GRN0000001",
           poNumber: "PO0000001",
+          pmNumber: "PM0000001",
+          pmUser: "John Smith",
           itemName: "Cylinder Type A",
           quantity: 50,
           allocationType: "In Stock",
@@ -111,6 +113,8 @@ const WarehouseGRN = () => {
           id: 2,
           grnNumber: "GRN0000002",
           poNumber: "PO0000002",
+          pmNumber: "PM0000002",
+          pmUser: "Jane Doe",
           itemName: "Cylinder Type B",
           quantity: 30,
           allocationType: "In Stock",
@@ -123,6 +127,8 @@ const WarehouseGRN = () => {
           id: 3,
           grnNumber: "GRN0000003",
           poNumber: "PO0000003",
+          pmNumber: "PM0000003",
+          pmUser: "Mike Johnson",
           itemName: "Safety Valve",
           quantity: 100,
           allocationType: "In Stock",
@@ -135,6 +141,8 @@ const WarehouseGRN = () => {
           id: 4,
           grnNumber: "GRN0000004",
           poNumber: "PO0000004",
+          pmNumber: "PM0000004",
+          pmUser: "Sarah Wilson",
           itemName: "Pressure Gauge",
           quantity: 25,
           allocationType: "In Stock",
@@ -380,129 +388,111 @@ const WarehouseGRN = () => {
     <React.Fragment>
       <div className="page-content">
         <Container fluid>
-          <Breadcrumbs title="Warehouse" breadcrumbItem="GRN&apos;s" />
+          <Breadcrumbs title="Warehouse" breadcrumbItem="GOODS RECEIPT NOTE" />
 
           <Row>
-            <Card className="search-top" style={{ padding: "0.5rem" }}>
-              <div className="row align-items-end g-2 quotation-mid mb-4">
+            <Card className="search-top">
+              <div className="row align-items-end g-1 quotation-mid mb-4">
                 {/* From Date and To Date */}
-                <div className="col-lg-5">
-                  <div className="d-flex align-items-center gap-2">
-                    <div className="flex-grow-1 d-flex align-items-center gap-1">
-                      <label htmlFor="fromDate" className="form-label mb-0 text-nowrap" style={{ fontSize: "0.85rem" }}>From:</label>
+                <div className="col-12 col-lg-5 mt-1">
+                  <div className="d-flex align-items-center gap-3">
+                    <div className="d-flex align-items-center gap-2" style={{ flex: 1 }}>
+                      <label htmlFor="fromDate" className="form-label mb-0 text-nowrap">From:</label>
                       <input
                         type="date"
                         id="fromDate"
                         className="form-control form-control-sm"
-                        style={{ height: "32px", fontSize: "0.85rem", flex: 1 }}
+                        style={{ height: "33px", fontSize: "0.9rem" }}
                         value={fromDate}
                         onChange={(e) => setFromDate(e.target.value)}
                       />
                     </div>
-                    <div className="flex-grow-1 d-flex align-items-center gap-1">
-                      <label htmlFor="toDate" className="form-label mb-0 text-nowrap" style={{ fontSize: "0.85rem" }}>To:</label>
+                    <div className="d-flex align-items-center gap-2" style={{ flex: 1 }}>
+                      <label htmlFor="toDate" className="form-label mb-0 text-nowrap">To:</label>
                       <input
                         type="date"
                         id="toDate"
                         className="form-control form-control-sm"
-                        style={{ height: "32px", fontSize: "0.85rem", flex: 1 }}
+                        style={{ height: "33px", fontSize: "0.9rem" }}
                         value={toDate}
                         onChange={(e) => setToDate(e.target.value)}
                       />
-                    </div>
-                    <div className="d-flex align-items-center gap-2" style={{ minWidth: "150px" }}>
-                      <input
-                        type="checkbox"
-                        id="bulkGas"
-                        className="form-check-input"
-                        checked={bulkGas}
-                        onChange={(e) => setBulkGas(e.target.checked)}
-                        style={{ cursor: "pointer", width: "18px", height: "18px", marginTop: "0" }}
-                      />
-                      <label htmlFor="bulkGas" className="form-check-label mb-0 text-nowrap" style={{ fontSize: "0.85rem", cursor: "pointer" }}>Bulk Gas</label>
                     </div>
                   </div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="col-lg-7 d-flex justify-content-end flex-wrap gap-1 align-items-center">
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={handleSearch}
-                    style={{ height: "32px", fontSize: "0.85rem", padding: "0.3rem 0.6rem" }}
-                  >
-                    <i className="bx bx-search-alt me-2"></i>Search
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-danger"
-                    onClick={handleClear}
-                    style={{ height: "32px", fontSize: "0.85rem", padding: "0.3rem 0.6rem" }}
-                  >
-                    <i className="bx bx-window-close me-2"></i>Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={handleExport}
-                    style={{ height: "32px", fontSize: "0.85rem", padding: "0.3rem 0.6rem" }}
-                  >
-                    <i className="bx bx-export me-2"></i>Export
-                  </button>
-                  <button 
-                    type="button" 
-                    className="btn btn-primary" 
-                    onClick={handleSave}
-                    style={{ height: "32px", fontSize: "0.85rem", padding: "0.3rem 0.6rem" }}
-                  >
-                    <i className="bx bx-check me-2"></i>Save
-                  </button>
-                  <button 
-                    type="button" 
-                    className="btn btn-success" 
-                    onClick={handlePost}
-                    style={{ height: "32px", fontSize: "0.85rem", padding: "0.3rem 0.6rem" }}
-                  >
-                    <i className="bx bxs-save me-2"></i>Post
-                  </button>
+                <div className="col-12 col-lg-7 d-flex justify-content-end flex-wrap gap-2">
+                  <div className="d-flex justify-content-end gap-2 align-items-center h-100">
+                    <button
+                      type="button"
+                      className="btn btn-info"
+                      onClick={handleSearch}
+                    >
+                      <i className="bx bx-search-alt label-icon font-size-16 align-middle me-2"></i>Search
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-danger"
+                      onClick={handleClear}
+                    >
+                      <i className="bx bx-window-close label-icon font-size-14 align-middle me-2"></i>Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleExport}
+                    >
+                      <i className="bx bx-export label-icon font-size-16 align-middle me-2"></i>Export
+                    </button>
+                    <button 
+                      type="button" 
+                      className="btn btn-primary" 
+                      onClick={handleSave}
+                    >
+                      <i className="bx bx-check label-icon font-size-16 align-middle me-2"></i>Save
+                    </button>
+                    <button 
+                      type="button" 
+                      className="btn btn-success" 
+                      onClick={handlePost}
+                    >
+                      <i className="bx bxs-save label-icon font-size-16 align-middle me-2"></i>Post
+                    </button>
+                  </div>
                 </div>
               </div>
 
               {/* Second Row: Clear, Status Badges, Keyword Search */}
-              <div className="row align-items-center g-2 quotation-mid mb-3">
-                <div className="col-lg-3">
-                  <Button 
-                    className="btn btn-danger" 
-                    onClick={handleClear} 
-                    style={{ padding: "0.3rem 0.6rem", fontSize: "0.85rem", height: "32px" }}
-                  >
-                    <i className="mdi mdi-filter-off me-2"></i>Clear
+              <div className="row align-items-center g-1 quotation-mid mb-3">
+                <div className="col-12 col-lg-3">
+                  <Button className="btn btn-danger btn-label" onClick={handleClear} style={{ padding: "0.48rem 0.96rem", fontSize: "0.8rem", height: "32px", display: "flex", alignItems: "center" }}>
+                    <i className="mdi mdi-filter-off label-icon me-2" style={{ fontSize: "1rem" }} /> Clear
                   </Button>
                 </div>
-                <div className="col-lg-3"></div>
-                <div className="col-lg-3 text-end d-flex align-items-center justify-content-end gap-2">
-                  <span className="d-inline-flex align-items-center gap-1">
-                    <Badge color="danger" style={{ fontSize: "0.75rem", fontWeight: "bold", minWidth: "20px", padding: "0.2rem 0.4rem" }}>
+                <div className="col-12 col-lg-3"></div>
+                <div className="col-12 col-lg-3 text-end d-flex align-items-center justify-content-end gap-3">
+                  <span className="d-inline-flex align-items-center gap-2">
+                    <Badge color="danger" style={{ fontSize: "0.9rem", fontWeight: "bold", minWidth: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       S
                     </Badge>
-                    <span style={{ fontSize: "0.8rem" }}>Saved</span>
+                    <span style={{ fontSize: "0.85rem" }}>Saved</span>
                   </span>
-                  <span className="d-inline-flex align-items-center gap-1">
-                    <Badge color="success" style={{ fontSize: "0.75rem", fontWeight: "bold", minWidth: "20px", padding: "0.2rem 0.4rem" }}>
+                  <span className="d-inline-flex align-items-center gap-2">
+                    <Badge color="success" style={{ fontSize: "0.9rem", fontWeight: "bold", minWidth: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       P
                     </Badge>
-                    <span style={{ fontSize: "0.8rem" }}>Posted</span>
+                    <span style={{ fontSize: "0.85rem" }}>Posted</span>
                   </span>
                 </div>
-                <div className="col-lg-3">
+                <div className="col-12 col-lg-3">
                   <input
                     className="form-control form-control-sm"
                     type="text"
                     value={keywordSearch}
                     onChange={(e) => setKeywordSearch(e.target.value)}
                     placeholder="Keyword Search"
-                    style={{ fontSize: "0.85rem", padding: "0.3rem 0.6rem", height: "32px" }}
+                    style={{ fontSize: "0.8rem", padding: "0.48rem 0.75rem", height: "32px" }}
                   />
                 </div>
               </div>
@@ -520,16 +510,23 @@ const WarehouseGRN = () => {
                     <div className="mt-2 text-muted" style={{ fontSize: "0.85rem" }}>Loading GRN data...</div>
                   </div>
                 ) : rows.length > 0 ? (
-                  <DataTable
-                    value={rows}
-                    paginator
-                    showGridlines
-                    rows={15}
-                    loading={loading}
-                    dataKey="id"
-                    emptyMessage="No GRN records found."
-                    style={{ width: "100%", fontSize: "0.85rem" }}
-                  >
+                  <>
+                    <style>{`
+                      .blue-bg .p-datatable-thead > tr > th {
+                        padding: 1.00rem !important;
+                      }
+                    `}</style>
+                    <DataTable
+                      value={rows}
+                      paginator
+                      showGridlines
+                      rows={20}
+                      loading={loading}
+                      dataKey="id"
+                      emptyMessage="No GRN records found."
+                      className="blue-bg"
+                      style={{ width: "100%" }}
+                    >
                     <Column
                       header="Select"
                       body={selectTemplate}
@@ -537,35 +534,43 @@ const WarehouseGRN = () => {
                       className="text-center"
                     />
                     <Column
+                      field="pmNumber"
+                      header="PM Number"
+                      sortable
+                      style={{ width: "12%", textAlign: "center", whiteSpace: "nowrap" }}
+                      className="text-center"
+                    />
+                    <Column
+                      field="pmUser"
+                      header="PM User"
+                      sortable
+                      style={{ width: "14%", textAlign: "left", whiteSpace: "nowrap" }}
+                      className="text-left"
+                    />
+                    <Column
                       field="grnNumber"
                       header="GRN Number"
                       sortable
-                      style={{ width: "18%", textAlign: "center", whiteSpace: "nowrap" }}
+                      style={{ width: "16%", textAlign: "center", whiteSpace: "nowrap" }}
                       body={(rowData) => (
                         <span style={{ cursor: "pointer", color: "#0066cc", fontWeight: "bold" }}>
                           {rowData.grnNumber}
                         </span>
                       )}
-                      className="text-center"
+                      className="text-left"
                     />
                     <Column
                       field="poNumber"
                       header="PO Number"
                       sortable
-                      style={{ width: "14%", textAlign: "center", whiteSpace: "nowrap" }}
+                      style={{ width: "12%", textAlign: "center", whiteSpace: "nowrap" }}
                       className="text-center"
                     />
                     <Column
                       field="itemName"
                       header="Item Name"
                       sortable
-                      style={{ width: "22%", textAlign: "left", whiteSpace: "nowrap" }}
-                      className="text-left"
-                    />
-                    <Column
-                      field="uom"
-                      header="UOM"
-                      style={{ width: "8%", textAlign: "center", whiteSpace: "nowrap" }}
+                      style={{ width: "20%", textAlign: "left", whiteSpace: "nowrap" }}
                       className="text-center"
                     />
                     <Column
@@ -573,6 +578,12 @@ const WarehouseGRN = () => {
                       header="Quantity"
                       sortable
                       style={{ width: "10%", textAlign: "center", whiteSpace: "nowrap" }}
+                      className="text-center"
+                    />
+                    <Column
+                      field="uom"
+                      header="UOM"
+                      style={{ width: "8%", textAlign: "center", whiteSpace: "nowrap" }}
                       className="text-center"
                     />
                     {bulkGas && (
@@ -607,7 +618,9 @@ const WarehouseGRN = () => {
                       style={{ width: "10%", textAlign: "center", whiteSpace: "nowrap" }}
                       className="text-center"
                     />
-                  </DataTable>
+                    </DataTable>
+                  </>
+
                 ) : (
                   <div className="alert alert-info mt-2 text-center" style={{ fontSize: "0.85rem", padding: "0.5rem" }}>
                     <p className="mb-0">No GRN records found. Please use the search filter to view data.</p>

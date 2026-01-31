@@ -90,10 +90,10 @@ const WarehouseDirect = () => {
                     date: "2023-10-25",
                     grnNumber: "GRN0000001",
                     items: [
-                        "GL-10001 Cylinder Type A",
-                        "GL-10003 Safety Valve",
-                        "GL-10004 Pressure Gauge",
-                        "GL-10002 Cylinder Type B"
+                        "GL-10001 Bolt",
+                        "GL-10002 Safety Valve",
+                        "GL-10003 Pressure Gauge",
+                        "GL-10002 Safety Valve"
                     ],
                     quantity: 50,
                     department: "Production",
@@ -107,9 +107,9 @@ const WarehouseDirect = () => {
                     date: "2023-10-26",
                     grnNumber: "GRN0000002",
                     items: [
-                        "GL-10003 Safety Valve",
-                        "GL-10004 Pressure Gauge",
-                        "GL-10001 Cylinder Type A"
+                        "GL-10002 Safety Valve",
+                        "GL-10003 Pressure Gauge",
+                        "GL-10001 Bolt"
                     ],
                     quantity: 20,
                     department: "Maintenance",
@@ -123,10 +123,10 @@ const WarehouseDirect = () => {
                     date: "2023-10-27",
                     grnNumber: "GRN0000003",
                     items: [
-                        "GL-10004 Pressure Gauge",
-                        "GL-10002 Cylinder Type B",
-                        "GL-10003 Safety Valve",
-                        "GL-10001 Cylinder Type A"
+                        "GL-10003 Pressure Gauge",
+                        "GL-10002 Safety Valve",
+                        "GL-10002 Safety Valve",
+                        "GL-10001 Bolt"
                     ],
                     quantity: 15,
                     department: "Quality Control",
@@ -140,9 +140,9 @@ const WarehouseDirect = () => {
                     date: "2023-10-28",
                     grnNumber: "GRN0000004",
                     items: [
-                        "GL-10002 Cylinder Type B",
-                        "GL-10001 Cylinder Type A",
-                        "GL-10003 Safety Valve"
+                        "GL-10002 Safety Valve",
+                        "GL-10001 Bolt",
+                        "GL-10002 Safety Valve"
                     ],
                     quantity: 30,
                     department: "Production",
@@ -263,13 +263,35 @@ const WarehouseDirect = () => {
         );
     };
 
+    const printBodyTemplate = (rowData) => {
+        return (
+            <div className="d-flex align-items-center justify-content-center">
+                <Button
+                    size="sm"
+                    onClick={() => handleExport()}
+                    title="Print"
+                    style={{
+                        padding: "0.4rem 0.5rem",
+                        border: "1px solid #dee2e6",
+                        backgroundColor: "white",
+                        color: "#495057",
+                        cursor: "pointer",
+                        borderRadius: "4px"
+                    }}
+                >
+                    <i className="mdi mdi-printer" style={{ fontSize: "1.2rem", color: "#495057" }}></i>
+                </Button>
+            </div>
+        );
+    };
+
     document.title = "Warehouse Direct | BTG Gas & Dashboard Template";
 
     return (
         <React.Fragment>
             <div className="page-content">
                 <Container fluid>
-                    <Breadcrumbs title="Warehouse" breadcrumbItem="Direct Allocation" />
+                    <Breadcrumbs title="Warehouse" breadcrumbItem="Direct Use Allocation" />
 
                     <Row>
                         <Card className="search-top">
@@ -385,7 +407,7 @@ const WarehouseDirect = () => {
                                         >
                                             <Column
                                                 field="autoNumber"
-                                                header="Auto-Number"
+                                                header="DR Number"
                                                 body={autoNumberBodyTemplate}
                                                 sortable
                                                 style={{ width: "12%", whiteSpace: "nowrap" }}
@@ -412,7 +434,7 @@ const WarehouseDirect = () => {
                                                 body={itemsBodyTemplate}
                                                 sortable
                                                 style={{ width: "12%", whiteSpace: "nowrap" }}
-                                                className="text-left"
+                                                className="text-center"
                                             />
                                             <Column
                                                 field="quantity"
@@ -426,14 +448,14 @@ const WarehouseDirect = () => {
                                                 header="Department"
                                                 sortable
                                                 style={{ width: "14%", whiteSpace: "nowrap" }}
-                                                className="text-center"
+                                                className="text-left"
                                             />
                                             <Column
                                                 field="consumer"
                                                 header="Consumer"
                                                 sortable
                                                 style={{ width: "14%", whiteSpace: "nowrap" }}
-                                                className="text-center"
+                                                className="text-left"
                                             />
                                             <Column
                                                 field="description"
@@ -456,6 +478,12 @@ const WarehouseDirect = () => {
                                                 style={{ width: "6%", whiteSpace: "nowrap" }}
                                                 className="text-center"
                                             />
+                                            <Column
+                                                header="Print"
+                                                body={printBodyTemplate}
+                                                style={{ width: "6%", whiteSpace: "nowrap" }}
+                                                className="text-center"
+                                            />
                                         </DataTable>
                                     </>
                                 ) : (
@@ -472,7 +500,7 @@ const WarehouseDirect = () => {
             {/* Detail Modal */}
             <Modal isOpen={detailVisible} toggle={() => setDetailVisible(false)} size="lg">
                 <ModalHeader toggle={() => setDetailVisible(false)}>
-                    Direct Allocation Details
+                    Direct Use Allocation Details
                 </ModalHeader>
                 <ModalBody style={{ padding: "1rem" }}>
                     <div style={{ overflowX: "auto" }}>
