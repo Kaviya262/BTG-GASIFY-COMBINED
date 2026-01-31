@@ -468,12 +468,16 @@ class SidebarContent extends Component {
                 module: []
             });
 
+
             // Hide PPP for specific users
             const authUserPPP = JSON.parse(localStorage.getItem("authUser"));
             const restrictedPPPUsers = [136, 137, 184, 170, 169];
             const currentUserId = authUserPPP ? (parseInt(authUserPPP.u_id) || 0) : 0;
 
-            if (!restrictedPPPUsers.includes(currentUserId)) {
+            // Users who MUST have PPP
+            const pppRequiredUsers = [161, 160, 165, 163];
+
+            if (!restrictedPPPUsers.includes(currentUserId) || pppRequiredUsers.includes(currentUserId)) {
                 claimModule.screen.push({
                     screenId: 99932,
                     screenName: "PPP",
@@ -482,6 +486,7 @@ class SidebarContent extends Component {
                     module: []
                 });
             }
+
 
             // -- NEW INJECTION from Step 463 --
             // Restored Approval for GM/Director
@@ -503,6 +508,35 @@ class SidebarContent extends Component {
 
             menuData.menus.push(claimModule);
         }
+
+        // ---------------------------------------------------------
+        // D.1. ENSURE PPP IS ADDED TO CLAIM MODULE (for all users)
+        // ---------------------------------------------------------
+        // This runs AFTER Claim module creation/retrieval to ensure PPP is available
+        if (claimModule) {
+            const authUserPPP = JSON.parse(localStorage.getItem("authUser"));
+            const restrictedPPPUsers = [136, 137, 184, 170, 169];
+            const currentUserId = authUserPPP ? (parseInt(authUserPPP.u_id) || 0) : 0;
+
+            // Users who MUST have PPP
+            const pppRequiredUsers = [161, 160, 165, 163];
+
+            // Check if PPP already exists in the Claim module
+            const pppExists = claimModule.screen.find(s => s.screenName === "PPP" || s.url === "/PPP");
+
+            // Add PPP if it doesn't exist and user should have it
+            if (!pppExists && (!restrictedPPPUsers.includes(currentUserId) || pppRequiredUsers.includes(currentUserId))) {
+                console.log(`[PPP INJECTION] Adding PPP for user ${currentUserId}`);
+                claimModule.screen.push({
+                    screenId: 99932,
+                    screenName: "PPP",
+                    url: "/PPP",
+                    icon: "bx bx-file",
+                    module: []
+                });
+            }
+        }
+
 
         // ---------------------------------------------------------
         // 4.1. Warehouse Menu
@@ -659,13 +693,26 @@ class SidebarContent extends Component {
                 console.log(`[DEBUG] Finance module NOT FOUND after module filtering`);
             }
 
-            // 2. Filter Claim module to show ONLY "Claim & Payment"
+            // 2. Filter Claim module to show ONLY "Claim & Payment" (and PPP for specific users)
             const claimMod = menuData.menus.find(m => m.moduleName === "Claim" || m.moduleName === "Claims");
             if (claimMod && claimMod.screen) {
                 const originalScreenCount = claimMod.screen.length;
-                claimMod.screen = claimMod.screen.filter(s =>
-                    s.screenName === "Claim & Payment" || s.url === "/Manageclaim&Payment"
-                );
+
+                // Users who get PPP in addition to Claim & Payment
+                const pppUsers = [161, 160, 165, 163];
+
+                claimMod.screen = claimMod.screen.filter(s => {
+                    const isClaimAndPayment = s.screenName === "Claim & Payment" || s.url === "/Manageclaim&Payment";
+                    const isPPP = s.screenName === "PPP" || s.url === "/PPP";
+
+                    // For PPP users: Allow both Claim & Payment AND PPP
+                    if (pppUsers.includes(currentUserIdFilter)) {
+                        return isClaimAndPayment || isPPP;
+                    }
+
+                    // For others: Only Claim & Payment
+                    return isClaimAndPayment;
+                });
                 console.log(`[RESTRICTION APPLIED] Claim screens filtered from ${originalScreenCount} to ${claimMod.screen.length} for user ${currentUserIdFilter}`);
             }
 
@@ -811,7 +858,7 @@ class SidebarContent extends Component {
         // ---------------------------------------------------------
         // Users: 172, 145, 171, 152, 154, 174, 147, 151, 159, 185, 133, 168, 150, 143, 186, 155, 166, 164, 142, 148, 146, 153, 141, 157, 144, 149, 173, 167, 190
         // NOTE: Removed 160, 161, 162, 163, 165, 191 as they are handled by financeInvoiceReportsUsers
-        const claimOnlyUsers = [172, 145, 171, 152, 154, 174, 147, 151, 159, 133, 168, 150, 143, 155, 166, 164, 142, 148, 146, 153, 141, 157, 144, 149, 173, 167, 190];
+        const claimOnlyUsers = [161, 160, 165, 163, 172, 145, 171, 152, 154, 174, 147, 151, 159, 133, 168, 150, 143, 155, 166, 164, 142, 148, 146, 153, 141, 157, 144, 149, 173, 167, 190];
 
 
 

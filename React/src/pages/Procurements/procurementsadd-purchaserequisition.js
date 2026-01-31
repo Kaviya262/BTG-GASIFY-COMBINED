@@ -31,6 +31,7 @@ import {
     GetPurchaseRequisitionSupplierList,
     GetSupplierTaxList, GetSupplierVATList, GetAllPO, GetPurchaseRequisitionRemarks, DeletePrAttachment
 } from "common/data/mastersapi";
+import { roundByCurrency, roundIDR } from "common/currencyUtils";
 import Swal from 'sweetalert2';
 import { useLocation } from "react-router-dom";
 import { head } from "lodash";
@@ -1125,7 +1126,7 @@ const AddPurchaseRequisition = () => {
     //     };
     // };
 
-    const calculateLineTotals = (item) => {
+    const calculateLineTotals = (item, currencyCode) => {
         const qty = parseFloat(item.qty) || 0;
         const unitPrice = parseFloat(item.unitPrice) || 0;
         const discount = parseFloat(item.discount) || 0;
@@ -1135,10 +1136,11 @@ const AddPurchaseRequisition = () => {
         const lineTotal = qty * unitPrice;
         const lineAfterDiscount = lineTotal - discount;
 
-        const taxAmount = Math.round((lineAfterDiscount * taxPercent) / 100);
-        const vatAmount = Math.round((lineAfterDiscount * vatPercent) / 100);
+        // Apply currency-specific rounding
+        const taxAmount = roundByCurrency((lineAfterDiscount * taxPercent) / 100, currencyCode);
+        const vatAmount = roundByCurrency((lineAfterDiscount * vatPercent) / 100, currencyCode);
 
-        const totalAmount = (lineAfterDiscount + vatAmount) - taxAmount;
+        const totalAmount = roundByCurrency((lineAfterDiscount + vatAmount) - taxAmount, currencyCode);
 
         return {
             taxAmount,
@@ -1403,6 +1405,9 @@ const AddPurchaseRequisition = () => {
                                                     return;
                                                 }
 
+                                                // Get currency code from form values
+                                                const currencyCode = values.currency?.label || values.currency?.code || "";
+
                                                 let subtotal = 0;
                                                 let totalDiscount = 0;
                                                 let totalTax = 0;
@@ -1410,7 +1415,7 @@ const AddPurchaseRequisition = () => {
                                                 let totalVAT = 0;
 
                                                 values.items.forEach((item, index) => {
-                                                    const { lineTotal, taxAmount, lineAfterDiscount } = calculateLineTotals(item);
+                                                    const { lineTotal, taxAmount, lineAfterDiscount } = calculateLineTotals(item, currencyCode);
 
                                                     subtotal += lineTotal;
                                                     totalDiscount += parseFloat(item.discount) || 0;
@@ -1427,36 +1432,48 @@ const AddPurchaseRequisition = () => {
                                                     const vatBase = lineAfterDiscount - signedTaxAmount;
                                                     let vatAmt = (lineAfterDiscount * (parseFloat(item.vatPercent) || 0)) / 100;
 
-                                                    // ✅ Apply rounding
-                                                    const roundedTaxAmount = Math.round(Math.abs(signedTaxAmount));
-                                                    const roundedVatAmount = Math.round(Math.abs(vatAmt));
+                                                    // ✅ Apply currency-specific rounding
+                                                    const roundedTaxAmount = roundByCurrency(Math.abs(signedTaxAmount), currencyCode);
+                                                    const roundedVatAmount = roundByCurrency(Math.abs(vatAmt), currencyCode);
 
                                                     totalVAT -= roundedVatAmount; // if VAT is deduction
 
-                                                    // ✅ Update row fields
-                                                    setFieldValue(`items[${index}].taxAmount`, roundedTaxAmount.toFixed(2));
-                                                    setFieldValue(`items[${index}].vatAmount`, roundedVatAmount.toFixed(2));
+                                                    // ✅ Update row fields with proper formatting
+                                                    if (currencyCode.toUpperCase() === 'IDR') {
+                                                        setFieldValue(`items[${index}].taxAmount`, roundedTaxAmount.toFixed(0));
+                                                        setFieldValue(`items[${index}].vatAmount`, roundedVatAmount.toFixed(0));
+                                                    } else {
+                                                        setFieldValue(`items[${index}].taxAmount`, roundedTaxAmount.toFixed(2));
+                                                        setFieldValue(`items[${index}].vatAmount`, roundedVatAmount.toFixed(2));
+                                                    }
 
                                                     // ✅ Row total: after tax sign, then minus VAT
-                                                    const adjustedAmount = vatBase + roundedVatAmount;
-                                                    setFieldValue(`items[${index}].amount`, adjustedAmount.toFixed(2));
+                                                    const adjustedAmount = roundByCurrency(vatBase + roundedVatAmount, currencyCode);
+                                                    if (currencyCode.toUpperCase() === 'IDR') {
+                                                        setFieldValue(`items[${index}].amount`, adjustedAmount.toFixed(0));
+                                                    } else {
+                                                        setFieldValue(`items[${index}].amount`, adjustedAmount.toFixed(2));
+                                                    }
                                                 });
 
-                                                const netTotal = subtotal - totalDiscount + Math.abs(totalVAT) - totalTaxFooter;
-                                                const roundedNetTotal = Math.round(netTotal).toFixed(2);
+                                                const netTotal = roundByCurrency(subtotal - totalDiscount + Math.abs(totalVAT) - totalTaxFooter, currencyCode);
 
-                                                // setSubTotal(subtotal.toFixed(2));
-                                                // setTotalDiscount(totalDiscount.toFixed(2));
-                                                // setTotalTax(totalTaxFooter.toFixed(2));
-                                                // setTotalVAT(Math.abs(totalVAT).toFixed(2));
-                                                // setNetTotal(roundedNetTotal);
-                                                setFieldValue("subTotal", subtotal.toFixed(2));
-                                                setFieldValue("discountValue", totalDiscount.toFixed(2));
-                                                setFieldValue("taxValue", totalTaxFooter.toFixed(2));
-                                                setFieldValue("vatValue", Math.abs(totalVAT).toFixed(2));
-                                                setFieldValue("netTotal", netTotal.toFixed(2));
+                                                // Format footer totals based on currency
+                                                if (currencyCode.toUpperCase() === 'IDR') {
+                                                    setFieldValue("subTotal", roundByCurrency(subtotal, currencyCode).toFixed(0));
+                                                    setFieldValue("discountValue", roundByCurrency(totalDiscount, currencyCode).toFixed(0));
+                                                    setFieldValue("taxValue", roundByCurrency(totalTaxFooter, currencyCode).toFixed(0));
+                                                    setFieldValue("vatValue", roundByCurrency(Math.abs(totalVAT), currencyCode).toFixed(0));
+                                                    setFieldValue("netTotal", netTotal.toFixed(0));
+                                                } else {
+                                                    setFieldValue("subTotal", subtotal.toFixed(2));
+                                                    setFieldValue("discountValue", totalDiscount.toFixed(2));
+                                                    setFieldValue("taxValue", totalTaxFooter.toFixed(2));
+                                                    setFieldValue("vatValue", Math.abs(totalVAT).toFixed(2));
+                                                    setFieldValue("netTotal", netTotal.toFixed(2));
+                                                }
 
-                                            }, [values.items]);
+                                            }, [values.items, values.currency]);
 
 
 
