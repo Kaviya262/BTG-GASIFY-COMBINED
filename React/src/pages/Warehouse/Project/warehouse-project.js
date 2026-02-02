@@ -89,7 +89,8 @@ const WarehouseProject = () => {
                     autoNumber: "PJ000001",
                     date: "2023-10-25",
                     grnNumber: "GRN0000001",
-                    items: "GL-10001 Bolt",
+                    glCode: "GL-10001",
+                    itemName: "Bolt",
                     quantity: 50,
                     projectNumber: "PROJ-2023-001",
                     description: "Site A Construction",
@@ -100,7 +101,8 @@ const WarehouseProject = () => {
                     autoNumber: "PJ000002",
                     date: "2023-10-26",
                     grnNumber: "GRN0000002",
-                    items: "GL-10002 Safety Valve",
+                    glCode: "GL-10002",
+                    itemName: "Safety Valve",
                     quantity: 20,
                     projectNumber: "PROJ-2023-002",
                     description: "Maintenance Refit",
@@ -111,7 +113,8 @@ const WarehouseProject = () => {
                     autoNumber: "PJ000003",
                     date: "2023-10-27",
                     grnNumber: "GRN0000003",
-                    items: "GL-10003 Pressure Gauge",
+                    glCode: "GL-10003",
+                    itemName: "Pressure Gauge",
                     quantity: 15,
                     projectNumber: "PROJ-2023-003",
                     description: "Lab Setup",
@@ -122,7 +125,8 @@ const WarehouseProject = () => {
                     autoNumber: "PJ000004",
                     date: "2023-10-28",
                     grnNumber: "GRN0000004",
-                    items: "GL-10002 Safety Valve",
+                    glCode: "GL-10002",
+                    itemName: "Safety Valve",
                     quantity: 30,
                     projectNumber: "PROJ-2023-001",
                     description: "Site A Expansion",
@@ -187,10 +191,7 @@ const WarehouseProject = () => {
 
     // Helper to display items as comma separated string
     const itemsBodyTemplate = (rowData) => {
-        if (Array.isArray(rowData.items)) {
-            return <span title={rowData.items.join(", ")}>{rowData.items.join(", ")}</span>;
-        }
-        return rowData.items;
+        return `${rowData.glCode} - ${rowData.itemName}`;
     };
 
     const handleShowDetails = (rowData) => {
@@ -400,11 +401,17 @@ const WarehouseProject = () => {
                                                 className="text-center"
                                             />
                                             <Column
-                                                field="items"
-                                                header="Items"
-                                                body={itemsBodyTemplate}
+                                                field="glCode"
+                                                header="GL Code"
                                                 sortable
-                                                style={{ width: "18%", whiteSpace: "nowrap" }}
+                                                style={{ width: "10%", whiteSpace: "nowrap" }}
+                                                className="text-left"
+                                            />
+                                            <Column
+                                                field="itemName"
+                                                header="Item"
+                                                sortable
+                                                style={{ width: "15%", whiteSpace: "nowrap" }}
                                                 className="text-left"
                                             />
                                             <Column
@@ -476,10 +483,14 @@ const WarehouseProject = () => {
                                     <td style={{ padding: "0.6rem 0.8rem" }}>{selectedDetail.quantity}</td>
                                 </tr>
                                 <tr style={{ borderBottom: "1px solid #e9ecef" }}>
-                                    <td style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", backgroundColor: "#f8f9fa" }}>Items</td>
-                                    <td style={{ padding: "0.6rem 0.8rem" }}>{selectedDetail.items}</td>
+                                    <td style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", backgroundColor: "#f8f9fa" }}>GL Code</td>
+                                    <td style={{ padding: "0.6rem 0.8rem" }}>{selectedDetail.glCode}</td>
+                                    <td style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", backgroundColor: "#f8f9fa" }}>Item</td>
+                                    <td style={{ padding: "0.6rem 0.8rem" }}>{selectedDetail.itemName}</td>
+                                </tr>
+                                <tr style={{ borderBottom: "1px solid #e9ecef" }}>
                                     <td style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", backgroundColor: "#f8f9fa" }}>Description</td>
-                                    <td style={{ padding: "0.6rem 0.8rem" }}>{selectedDetail.description}</td>
+                                    <td style={{ padding: "0.6rem 0.8rem" }} colSpan="3">{selectedDetail.description}</td>
                                 </tr>
                             </tbody>
                         </table>

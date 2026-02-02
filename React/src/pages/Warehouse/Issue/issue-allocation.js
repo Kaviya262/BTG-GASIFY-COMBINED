@@ -87,8 +87,8 @@ const IssueAllocation = () => {
           status: "Pending",
           issueStatus: "Issued",
           itemsData: [
-            { itemName: "GL-10001 Cylinder Type A", barcode: "BC001001", scanStatus: "Success" },
-            { itemName: "GL-10002 Cylinder Type B", barcode: "BC001002", scanStatus: "Success" },
+            { glCode: "GL-10001", itemName: "Cylinder Type A", barcode: "BC001001", scanStatus: "Success" },
+            { glCode: "GL-10002", itemName: "Cylinder Type B", barcode: "BC001002", scanStatus: "Success" },
           ],
         },
         {
@@ -102,7 +102,7 @@ const IssueAllocation = () => {
           status: "Issued",
           issueStatus: "Pending",
           itemsData: [
-            { itemName: "GL-10003 Safety Valve", barcode: "BC002001", scanStatus: "Pending" },
+            { glCode: "GL-10003", itemName: "Safety Valve", barcode: "BC002001", scanStatus: "Pending" },
           ],
         },
         {
@@ -116,7 +116,7 @@ const IssueAllocation = () => {
           status: "Pending",
           issueStatus: "Issued",
           itemsData: [
-            { itemName: "GL-10004 Pressure Gauge", barcode: "BC003001", scanStatus: "Success" },
+            { glCode: "GL-10004", itemName: "Pressure Gauge", barcode: "BC003001", scanStatus: "Success" },
           ],
         },
         {
@@ -130,7 +130,7 @@ const IssueAllocation = () => {
           status: "Issued",
           issueStatus: "Pending",
           itemsData: [
-            { itemName: "GL-10001 Cylinder Type A", barcode: "BC004001", scanStatus: "Pending" },
+            { glCode: "GL-10001", itemName: "Cylinder Type A", barcode: "BC004001", scanStatus: "Pending" },
           ],
         },
       ];
@@ -288,7 +288,11 @@ const IssueAllocation = () => {
       >
         Items
         <UncontrolledTooltip placement="top" target={`items-tooltip-${rowData.id}`}>
-          {rowData.items}
+          <div className="text-start">
+            {rowData.itemsData && rowData.itemsData.map((item, idx) => (
+              <div key={idx}>{item.glCode} - {item.itemName}</div>
+            ))}
+          </div>
         </UncontrolledTooltip>
       </span>
     );
@@ -586,6 +590,7 @@ const IssueAllocation = () => {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem", border: "1px solid #e9ecef" }}>
                 <thead>
                   <tr style={{ backgroundColor: "#f8f9fa" }}>
+                    <th style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", textAlign: "left", borderBottom: "2px solid #dee2e6" }}>GL Code</th>
                     <th style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", textAlign: "left", borderBottom: "2px solid #dee2e6" }}>Item Name</th>
                     <th style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", textAlign: "center", borderBottom: "2px solid #dee2e6" }}>Barcode</th>
                     <th style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", textAlign: "left", borderBottom: "2px solid #dee2e6" }}>Scan Status</th>
@@ -595,6 +600,7 @@ const IssueAllocation = () => {
                   {selectedDetail.itemsData && selectedDetail.itemsData.length > 0 ? (
                     selectedDetail.itemsData.map((item, index) => (
                       <tr key={index} style={{ borderBottom: "1px solid #e9ecef" }}>
+                        <td style={{ padding: "0.6rem 0.8rem" }}>{item.glCode}</td>
                         <td style={{ padding: "0.6rem 0.8rem" }}>{item.itemName}</td>
                         <td style={{ padding: "0.6rem 0.8rem", textAlign: "center" }}>{item.barcode}</td>
                         <td style={{ padding: "0.6rem 0.8rem" }}>{item.scanStatus}</td>
@@ -602,7 +608,7 @@ const IssueAllocation = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="3" style={{ padding: "1rem 0.8rem", textAlign: "center", color: "#6c757d" }}>
+                      <td colSpan="4" style={{ padding: "1rem 0.8rem", textAlign: "center", color: "#6c757d" }}>
                         No items found
                       </td>
                     </tr>
@@ -631,6 +637,7 @@ const IssueAllocation = () => {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem", border: "1px solid #e9ecef" }}>
                 <thead>
                   <tr style={{ backgroundColor: "#0066cc", color: "white" }}>
+                    <th style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", textAlign: "left", borderBottom: "2px solid #dee2e6" }}>GL Code</th>
                     <th style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", textAlign: "left", borderBottom: "2px solid #dee2e6" }}>Item Name</th>
                     <th style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", textAlign: "left", borderBottom: "2px solid #dee2e6" }}>Barcode</th>
                     <th style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", textAlign: "left", borderBottom: "2px solid #dee2e6" }}>Scan Status</th>
@@ -640,6 +647,7 @@ const IssueAllocation = () => {
                   {selectedIssueItem.itemsData && selectedIssueItem.itemsData.length > 0 ? (
                     selectedIssueItem.itemsData.map((item, index) => (
                       <tr key={index} style={{ borderBottom: "1px solid #e9ecef" }}>
+                        <td style={{ padding: "0.6rem 0.8rem" }}>{item.glCode}</td>
                         <td style={{ padding: "0.6rem 0.8rem" }}>{item.itemName}</td>
                         <td style={{ padding: "0.6rem 0.8rem" }}>{item.barcode}</td>
                         <td style={{ padding: "0.6rem 0.8rem" }}>
@@ -664,7 +672,7 @@ const IssueAllocation = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="3" style={{ padding: "1rem 0.8rem", textAlign: "center", color: "#6c757d" }}>
+                      <td colSpan="4" style={{ padding: "1rem 0.8rem", textAlign: "center", color: "#6c757d" }}>
                         No items found
                       </td>
                     </tr>

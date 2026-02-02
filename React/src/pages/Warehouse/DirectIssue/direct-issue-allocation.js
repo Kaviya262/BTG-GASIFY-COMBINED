@@ -110,8 +110,8 @@ const DirectIssueAllocation = () => {
           status: "Pending",
           issueStatus: "Issued",
           itemsData: [
-            { itemName: "GL-10001 Bolt", barcode: "BC001001", scanStatus: "Success" },
-            { itemName: "GL-10002 Cylinder Type B", barcode: "BC001002", scanStatus: "Success" },
+            { glCode: "GL10001", itemName: "Bolt", barcode: "BC001001", scanStatus: "Success" },
+            { glCode: "GL10002", itemName: "Cylinder Type B", barcode: "BC001002", scanStatus: "Success" },
           ],
         },
         {
@@ -126,7 +126,7 @@ const DirectIssueAllocation = () => {
           status: "Issued",
           issueStatus: "Pending",
           itemsData: [
-            { itemName: "GL-10003 Safety Valve", barcode: "BC002001", scanStatus: "Pending" },
+            { glCode: "GL10003", itemName: "Safety Valve", barcode: "BC002001", scanStatus: "Pending" },
           ],
         },
         {
@@ -141,7 +141,7 @@ const DirectIssueAllocation = () => {
           status: "Pending",
           issueStatus: "Issued",
           itemsData: [
-            { itemName: "GL-10004 Pressure Gauge", barcode: "BC003001", scanStatus: "Success" },
+            { glCode: "GL10004", itemName: "Pressure Gauge", barcode: "BC003001", scanStatus: "Success" },
           ],
         },
         {
@@ -156,7 +156,7 @@ const DirectIssueAllocation = () => {
           status: "Issued",
           issueStatus: "Pending",
           itemsData: [
-            { itemName: "GL-10001 Cylinder Type A", barcode: "BC004001", scanStatus: "Pending" },
+            { glCode: "GL10001", itemName: "Cylinder Type A", barcode: "BC004001", scanStatus: "Pending" },
           ],
         },
       ];
@@ -283,7 +283,13 @@ const DirectIssueAllocation = () => {
       >
         Items
         <UncontrolledTooltip placement="top" target={`items-tooltip-${rowData.id}`}>
-          {rowData.items}
+          {Array.isArray(rowData.itemsData) ? (
+            rowData.itemsData.map((it, idx) => (
+              <div key={idx}>{it.glCode} - {it.itemName}</div>
+            ))
+          ) : (
+            rowData.items
+          )}
         </UncontrolledTooltip>
       </span>
     );
@@ -616,7 +622,8 @@ const DirectIssueAllocation = () => {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem", border: "1px solid #e9ecef" }}>
                 <thead>
                   <tr style={{ backgroundColor: "#f8f9fa" }}>
-                    <th style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", textAlign: "left", borderBottom: "2px solid #dee2e6" }}>Item Name</th>
+                    <th style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", textAlign: "left", borderBottom: "2px solid #dee2e6" }}>GL Code</th>
+                    <th style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", textAlign: "left", borderBottom: "2px solid #dee2e6" }}>Item</th>
                     <th style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", textAlign: "center", borderBottom: "2px solid #dee2e6" }}>Barcode</th>
                     <th style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", textAlign: "left", borderBottom: "2px solid #dee2e6" }}>Scan Status</th>
                   </tr>
@@ -625,6 +632,7 @@ const DirectIssueAllocation = () => {
                   {selectedDetail.itemsData && selectedDetail.itemsData.length > 0 ? (
                     selectedDetail.itemsData.map((item, index) => (
                       <tr key={index} style={{ borderBottom: "1px solid #e9ecef" }}>
+                        <td style={{ padding: "0.6rem 0.8rem" }}>{item.glCode}</td>
                         <td style={{ padding: "0.6rem 0.8rem" }}>{item.itemName}</td>
                         <td style={{ padding: "0.6rem 0.8rem", textAlign: "center" }}>{item.barcode}</td>
                         <td style={{ padding: "0.6rem 0.8rem" }}>{item.scanStatus}</td>

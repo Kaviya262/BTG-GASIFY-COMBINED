@@ -40,9 +40,10 @@ const AddRequestAllocation = () => {
     department: "Warehouse", // Auto-filled with default value
     user: "Current User",
     date: "",
-    requiredDate: "", // Common field for all items
-    selectedItems: [],
-    itemsData: [], // Store selected items with qty, purpose
+    requiredDate: "",
+    glCode: "",
+    itemName: "",
+    itemsData: [], // Store selected items with glCode, itemName, qty, purpose
     notes: "",
   });
 
@@ -75,13 +76,18 @@ const AddRequestAllocation = () => {
     }));
   };
 
-  const handleItemSelection = (e) => {
-    const { value } = e.target;
-    const itemName = value;
-    
+  const handleAddItem = () => {
+    const { glCode, itemName } = formData;
+
+    if (!glCode || !itemName) {
+      toast.error("Please select both GL Code and Item");
+      return;
+    }
+
     // Add new item if not already selected
-    if (itemName && !formData.itemsData.find((item) => item.itemName === itemName)) {
+    if (!formData.itemsData.find((item) => item.glCode === glCode && item.itemName === itemName)) {
       const newItem = {
+        glCode: glCode,
         itemName: itemName,
         quantity: "",
         purpose: "",
@@ -89,7 +95,11 @@ const AddRequestAllocation = () => {
       setFormData((prev) => ({
         ...prev,
         itemsData: [...prev.itemsData, newItem],
+        glCode: "",
+        itemName: "",
       }));
+    } else {
+      toast.warning("Item already added");
     }
   };
 
@@ -128,15 +138,15 @@ const AddRequestAllocation = () => {
       toast.error("Please add at least one item");
       return;
     }
-    
+
     // Validate each item
     for (let item of formData.itemsData) {
       if (!item.quantity) {
-        toast.error(`Quantity is required for ${item.itemName}`);
+        toast.error(`Quantity is required for ${item.glCode}-${item.itemName}`);
         return;
       }
       if (!item.purpose) {
-        toast.error(`Purpose is required for ${item.itemName}`);
+        toast.error(`Purpose is required for ${item.glCode}-${item.itemName}`);
         return;
       }
     }
@@ -170,15 +180,15 @@ const AddRequestAllocation = () => {
       toast.error("Please add at least one item");
       return;
     }
-    
+
     // Validate each item
     for (let item of formData.itemsData) {
       if (!item.quantity) {
-        toast.error(`Quantity is required for ${item.itemName}`);
+        toast.error(`Quantity is required for ${item.glCode}-${item.itemName}`);
         return;
       }
       if (!item.purpose) {
-        toast.error(`Purpose is required for ${item.itemName}`);
+        toast.error(`Purpose is required for ${item.glCode}-${item.itemName}`);
         return;
       }
     }
@@ -338,30 +348,62 @@ const AddRequestAllocation = () => {
                         <h6 className="card-title mb-3">Items Details</h6>
                       </div>
 
-                      {/* Add Item Row */}
+                      {/* Add Item Section */}
                       <Row className="mb-3">
-                        <Col lg="12">
+                        <Col lg="5">
                           <FormGroup>
-                            <Label htmlFor="addItem" className="form-label">
-                              Select Item <span className="text-danger">*</span>
+                            <Label htmlFor="glCode" className="form-label">
+                              GL Code <span className="text-danger">*</span>
                             </Label>
                             <Input
                               type="select"
-                              id="addItem"
-                              onChange={handleItemSelection}
-                              defaultValue=""
+                              id="glCode"
+                              name="glCode"
+                              value={formData.glCode}
+                              onChange={handleInputChange}
                               className="form-control"
-                              style={{ height: "40px", fontSize: "0.95rem", padding: "0.5rem 0.75rem" }}
+                              style={{ height: "40px", fontSize: "0.95rem" }}
                             >
-                              <option value="">Select Item to Add</option>
-                              <option value="GL-10001 Cylinder Type A">GL-10001 Cylinder Type A</option>
-                              <option value="GL-10002 Cylinder Type B">GL-10002 Cylinder Type B</option>
-                              <option value="GL-10003 Safety Valve">GL-10003 Safety Valve</option>
-                              <option value="GL-10004 Pressure Gauge">GL-10004 Pressure Gauge</option>
+                              <option value="">Select GL Code</option>
+                              <option value="GL-10001">GL-10001</option>
+                              <option value="GL-10002">GL-10002</option>
+                              <option value="GL-10003">GL-10003</option>
+                              <option value="GL-10004">GL-10004</option>
                             </Input>
-                            <small style={{ color: "#6c757d", marginTop: "0.25rem", display: "block" }}>
-                              Please click the next item to add in list
-                            </small>
+                          </FormGroup>
+                        </Col>
+                        <Col lg="5">
+                          <FormGroup>
+                            <Label htmlFor="itemName" className="form-label">
+                              Item <span className="text-danger">*</span>
+                            </Label>
+                            <Input
+                              type="select"
+                              id="itemName"
+                              name="itemName"
+                              value={formData.itemName}
+                              onChange={handleInputChange}
+                              className="form-control"
+                              style={{ height: "40px", fontSize: "0.95rem" }}
+                            >
+                              <option value="">Select Item</option>
+                              <option value="Cylinder Type A">Cylinder Type A</option>
+                              <option value="Cylinder Type B">Cylinder Type B</option>
+                              <option value="Safety Valve">Safety Valve</option>
+                              <option value="Pressure Gauge">Pressure Gauge</option>
+                            </Input>
+                          </FormGroup>
+                        </Col>
+                        <Col lg="2" className="d-flex align-items-end">
+                          <FormGroup className="w-100">
+                            <Button
+                              color="info"
+                              onClick={handleAddItem}
+                              className="w-100"
+                              style={{ height: "40px" }}
+                            >
+                              <i className="bx bx-plus me-2"></i>Add
+                            </Button>
                           </FormGroup>
                         </Col>
                       </Row>
@@ -374,6 +416,7 @@ const AddRequestAllocation = () => {
                               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
                                 <thead>
                                   <tr style={{ backgroundColor: "#f8f9fa", borderBottom: "2px solid #dee2e6" }}>
+                                    <th style={{ padding: "0.75rem", textAlign: "left", fontWeight: "600" }}>GL Code</th>
                                     <th style={{ padding: "0.75rem", textAlign: "left", fontWeight: "600" }}>Item Name</th>
                                     <th style={{ padding: "0.75rem", textAlign: "left", fontWeight: "600" }}>Qty</th>
                                     <th style={{ padding: "0.75rem", textAlign: "left", fontWeight: "600" }}>Purpose</th>
@@ -383,6 +426,7 @@ const AddRequestAllocation = () => {
                                 <tbody>
                                   {formData.itemsData.map((item, index) => (
                                     <tr key={index} style={{ borderBottom: "1px solid #dee2e6" }}>
+                                      <td style={{ padding: "0.75rem" }}>{item.glCode}</td>
                                       <td style={{ padding: "0.75rem" }}>{item.itemName}</td>
                                       <td style={{ padding: "0.75rem" }}>
                                         <Input

@@ -40,7 +40,8 @@ const EditOpeningAllocation = () => {
     const [formData, setFormData] = useState({
         id: id,
         autoNumber: "00001",
-        items: "",
+        glCode: "",
+        itemName: "",
         date: "",
         description: "",
         floor: "",
@@ -60,7 +61,8 @@ const EditOpeningAllocation = () => {
             setFormData({
                 id: openingData.id,
                 autoNumber: openingData.autoNumber || "00001",
-                items: openingData.description || "",
+                glCode: openingData.glCode || "",
+                itemName: openingData.itemName || "",
                 date: openingData.date || "",
                 description: openingData.description || "",
                 floor: openingData.floor || "",
@@ -79,7 +81,7 @@ const EditOpeningAllocation = () => {
     const generateShelfNumber = (floor, position, rack, height) => {
         const positionMap = { Left: "L", Right: "R", Middle: "M" };
         const heightMap = { Bottom: "B", Middle: "M", Top: "T" };
-        
+
         if (floor && position && rack && height) {
             return `F${floor}${positionMap[position]}${rack}${heightMap[height]}`;
         }
@@ -95,8 +97,8 @@ const EditOpeningAllocation = () => {
             formData.rackNumber,
             formData.height
         );
-        const newFinalName = formData.items && newShelfNumber ? `${formData.items} - ${newShelfNumber}` : "";
-        
+        const newFinalName = formData.glCode && formData.itemName && newShelfNumber ? `${formData.glCode}-${formData.itemName} - ${newShelfNumber}` : "";
+
         setFormData((prev) => ({
             ...prev,
             barcode: barcode,
@@ -123,9 +125,9 @@ const EditOpeningAllocation = () => {
         }
 
         // Auto-generate final name when shelf number or items change
-        if (["items", "shelfNumber"].includes(name) || ["floor", "positionRack", "rackNumber", "height"].includes(name)) {
-            updatedData.finalName = updatedData.items && updatedData.shelfNumber
-                ? `${updatedData.items} - ${updatedData.shelfNumber}`
+        if (["glCode", "itemName", "shelfNumber"].includes(name) || ["floor", "positionRack", "rackNumber", "height"].includes(name)) {
+            updatedData.finalName = updatedData.glCode && updatedData.itemName && updatedData.shelfNumber
+                ? `${updatedData.glCode}-${updatedData.itemName} - ${updatedData.shelfNumber}`
                 : "";
         }
 
@@ -134,8 +136,12 @@ const EditOpeningAllocation = () => {
 
     const handleSave = () => {
         // Validate required fields
-        if (!formData.items) {
-            toast.error("Items is required");
+        if (!formData.glCode) {
+            toast.error("GL Code is required");
+            return;
+        }
+        if (!formData.itemName) {
+            toast.error("Item name is required");
             return;
         }
         if (!formData.floor) {
@@ -173,8 +179,12 @@ const EditOpeningAllocation = () => {
 
     const handlePost = () => {
         // Validate required fields
-        if (!formData.items) {
-            toast.error("Items is required");
+        if (!formData.glCode) {
+            toast.error("GL Code is required");
+            return;
+        }
+        if (!formData.itemName) {
+            toast.error("Item name is required");
             return;
         }
         if (!formData.floor) {
@@ -295,25 +305,47 @@ const EditOpeningAllocation = () => {
                                                         />
                                                     </FormGroup>
                                                 </Col>
-                                                <Col lg="4">
+                                                <Col lg="2">
                                                     <FormGroup>
-                                                        <Label htmlFor="items" className="form-label">
-                                                            Items <span className="text-danger">*</span>
+                                                        <Label htmlFor="glCode" className="form-label">
+                                                            GL Code <span className="text-danger">*</span>
                                                         </Label>
                                                         <Input
                                                             type="select"
-                                                            id="items"
-                                                            name="items"
-                                                            value={formData.items}
+                                                            id="glCode"
+                                                            name="glCode"
+                                                            value={formData.glCode}
                                                             onChange={handleInputChange}
                                                             className="form-control"
                                                             style={{ height: "38px", fontSize: "0.95rem" }}
                                                         >
-                                                            <option value="">Select Items</option>
-                                                            <option value="GL-10001 Cylinder Type A">GL-10001 Cylinder Type A</option>
-                                                            <option value="GL-10002 Cylinder Type B">GL-10002 Cylinder Type B</option>
-                                                            <option value="GL-10003 Safety Valve">GL-10003 Safety Valve</option>
-                                                            <option value="GL-10004 Pressure Gauge">GL-10004 Pressure Gauge</option>
+                                                            <option value="">Select GL Code</option>
+                                                            <option value="GL-10001">GL-10001</option>
+                                                            <option value="GL-10002">GL-10002</option>
+                                                            <option value="GL-10003">GL-10003</option>
+                                                            <option value="GL-10004">GL-10004</option>
+                                                        </Input>
+                                                    </FormGroup>
+                                                </Col>
+                                                <Col lg="2">
+                                                    <FormGroup>
+                                                        <Label htmlFor="itemName" className="form-label">
+                                                            Item <span className="text-danger">*</span>
+                                                        </Label>
+                                                        <Input
+                                                            type="select"
+                                                            id="itemName"
+                                                            name="itemName"
+                                                            value={formData.itemName}
+                                                            onChange={handleInputChange}
+                                                            className="form-control"
+                                                            style={{ height: "38px", fontSize: "0.95rem" }}
+                                                        >
+                                                            <option value="">Select Item</option>
+                                                            <option value="Cylinder Type A">Cylinder Type A</option>
+                                                            <option value="Cylinder Type B">Cylinder Type B</option>
+                                                            <option value="Safety Valve">Safety Valve</option>
+                                                            <option value="Pressure Gauge">Pressure Gauge</option>
                                                         </Input>
                                                     </FormGroup>
                                                 </Col>

@@ -41,7 +41,8 @@ const AddWarehouseProject = () => {
         projectNumber: "",
         description: "",
         grnNumber: [],
-        items: [],
+        glCodes: [],
+        itemNames: [],
     });
     const [gridRows, setGridRows] = useState([]);
 
@@ -68,20 +69,28 @@ const AddWarehouseProject = () => {
 
     const addToGrid = () => {
         const selectedGrns = Array.isArray(formData.grnNumber) ? formData.grnNumber : (formData.grnNumber ? [formData.grnNumber] : []);
-        const selectedItems = Array.isArray(formData.items) ? formData.items : (formData.items ? [formData.items] : []);
+        const selectedGlCodes = Array.isArray(formData.glCodes) ? formData.glCodes : (formData.glCodes ? [formData.glCodes] : []);
+        const selectedItemNames = Array.isArray(formData.itemNames) ? formData.itemNames : (formData.itemNames ? [formData.itemNames] : []);
+
         if (selectedGrns.length === 0) {
             toast.error("Select at least one GRN to add");
             return;
         }
-        if (selectedItems.length === 0) {
+        if (selectedGlCodes.length === 0) {
+            toast.error("Select at least one GL Code to add");
+            return;
+        }
+        if (selectedItemNames.length === 0) {
             toast.error("Select at least one Item to add");
             return;
         }
 
         const newRows = [];
         selectedGrns.forEach((g) => {
-            selectedItems.forEach((it) => {
-                newRows.push({ id: `${g}__${it}`, grnNumber: g, item: it, qty: 1 });
+            selectedGlCodes.forEach((gl) => {
+                selectedItemNames.forEach((it) => {
+                    newRows.push({ id: `${g}__${gl}__${it}`, grnNumber: g, glCode: gl, itemName: it, qty: 1 });
+                });
             });
         });
 
@@ -92,7 +101,7 @@ const AddWarehouseProject = () => {
             return Object.values(map);
         });
 
-        setFormData(prev => ({ ...prev, items: [] }));
+        setFormData(prev => ({ ...prev, glCodes: [], itemNames: [] }));
     };
 
     const removeGridRow = (id) => {
@@ -294,33 +303,53 @@ const AddWarehouseProject = () => {
                                                         </Input>
                                                     </FormGroup>
                                                 </Col>
-                                                <Col lg="4">
+                                                <Col lg="3">
                                                     <FormGroup className="mb-0">
-                                                        <Label htmlFor="items" className="form-label">
-                                                            Items <span className="text-danger">*</span>
+                                                        <Label htmlFor="glCodes" className="form-label">
+                                                            GL Codes <span className="text-danger">*</span>
                                                         </Label>
                                                         <Input
                                                             type="select"
-                                                            id="items"
-                                                            name="items"
-                                                            value={formData.items}
-                                                            onChange={(e) => {
-                                                                const values = Array.from(e.target.selectedOptions, option => option.value);
-                                                                setFormData(prev => ({ ...prev, items: values }));
-                                                            }}
+                                                            id="glCodes"
+                                                            name="glCodes"
+                                                            value={formData.glCodes}
+                                                            onChange={handleInputChange}
                                                             multiple
                                                             className="form-control"
                                                             style={{ height: "100px", fontSize: "0.95rem" }}
                                                         >
-                                                            <option value="GL-10001 Bolt">GL-10001 Bolt</option>
-                                                            <option value="GL-10002 Safety Valve">GL-10002 Safety Valve</option>
-                                                            <option value="GL-10003 Pressure Gauge">GL-10003 Pressure Gauge</option>
+                                                            <option value="GL-10001">GL-10001</option>
+                                                            <option value="GL-10002">GL-10002</option>
+                                                            <option value="GL-10003">GL-10003</option>
+                                                            <option value="GL-10004">GL-10004</option>
                                                         </Input>
                                                     </FormGroup>
                                                 </Col>
-                                                <Col lg="4" className="d-flex align-items-center">
-                                                    <Button color="secondary" onClick={addToGrid} style={{ height: "38px", width: "50%" }}>
-                                                        Add
+                                                <Col lg="3">
+                                                    <FormGroup className="mb-0">
+                                                        <Label htmlFor="itemNames" className="form-label">
+                                                            Items <span className="text-danger">*</span>
+                                                        </Label>
+                                                        <Input
+                                                            type="select"
+                                                            id="itemNames"
+                                                            name="itemNames"
+                                                            value={formData.itemNames}
+                                                            onChange={handleInputChange}
+                                                            multiple
+                                                            className="form-control"
+                                                            style={{ height: "100px", fontSize: "0.95rem" }}
+                                                        >
+                                                            <option value="Bolt">Bolt</option>
+                                                            <option value="Safety Valve">Safety Valve</option>
+                                                            <option value="Pressure Gauge">Pressure Gauge</option>
+                                                            <option value="Cylinder Type A">Cylinder Type A</option>
+                                                        </Input>
+                                                    </FormGroup>
+                                                </Col>
+                                                <Col lg="2" className="d-flex align-items-center">
+                                                    <Button color="secondary" onClick={addToGrid} style={{ height: "38px", width: "100%" }}>
+                                                        Add Items
                                                     </Button>
                                                 </Col>
                                             </Row>
@@ -333,6 +362,7 @@ const AddWarehouseProject = () => {
                                                             <thead>
                                                                 <tr>
                                                                     <th>GRN Number</th>
+                                                                    <th>GL Code</th>
                                                                     <th>Item</th>
                                                                     <th style={{ width: "140px" }}>Quantity</th>
                                                                     <th style={{ width: "80px" }}></th>
@@ -347,7 +377,8 @@ const AddWarehouseProject = () => {
                                                                     gridRows.map((r) => (
                                                                         <tr key={r.id}>
                                                                             <td>{r.grnNumber}</td>
-                                                                            <td>{r.item}</td>
+                                                                            <td>{r.glCode}</td>
+                                                                            <td>{r.itemName}</td>
                                                                             <td>
                                                                                 <Input type="number" value={r.qty} onChange={(e) => updateGridQty(r.id, e.target.value)} style={{ height: "36px" }} />
                                                                             </td>

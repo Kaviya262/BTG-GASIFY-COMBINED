@@ -95,6 +95,8 @@ const OpeningAllocation = () => {
                     id: 1,
                     autoNumber: "00001",
                     date: "2024-01-01",
+                    glCode: "GL-10001",
+                    itemName: "Cylinder storage",
                     description: "GL-10001 Cylinder storage",
                     floor: "1",
                     positionRack: "Left",
@@ -107,6 +109,8 @@ const OpeningAllocation = () => {
                     id: 2,
                     autoNumber: "00002",
                     date: "2024-01-02",
+                    glCode: "GL-10003",
+                    itemName: "Valve storage",
                     description: "GL-10003 Valve storage",
                     floor: "2",
                     positionRack: "Right",
@@ -119,6 +123,8 @@ const OpeningAllocation = () => {
                     id: 3,
                     autoNumber: "00003",
                     date: "2024-01-03",
+                    glCode: "GL-10004",
+                    itemName: "Gauge storage",
                     description: "GL-10004 Gauge storage",
                     floor: "1",
                     positionRack: "Middle",
@@ -131,6 +137,8 @@ const OpeningAllocation = () => {
                     id: 4,
                     autoNumber: "00004",
                     date: "2024-01-04",
+                    glCode: "GL-10002",
+                    itemName: "Safety equipment",
                     description: "GL-10002 Safety equipment",
                     floor: "2",
                     positionRack: "Left",
@@ -368,22 +376,22 @@ const OpeningAllocation = () => {
         );
     };
 
-  const finalItemNameTemplate = (rowData) => {
-    return `${rowData.description} – ${rowData.barcode}`;
-  };
+    const finalItemNameTemplate = (rowData) => {
+        return `${rowData.glCode}-${rowData.itemName} – ${rowData.barcode}`;
+    };
 
-  const headerStyleObj = { backgroundColor: "#0066cc", color: "white" };
+    const headerStyleObj = { backgroundColor: "#0066cc", color: "white" };
 
-  document.title = "Warehouse Opening Allocation | BTG Gas & Dashboard Template";
+    document.title = "Warehouse Opening Allocation | BTG Gas & Dashboard Template";
 
-  return (
-    <React.Fragment>
-      <div className="page-content">
-        <Container fluid>
-          <Breadcrumbs title="Warehouse" breadcrumbItem="Opening Allocation" />
+    return (
+        <React.Fragment>
+            <div className="page-content">
+                <Container fluid>
+                    <Breadcrumbs title="Warehouse" breadcrumbItem="Opening Allocation" />
 
-          <Row>
-            <Card className="search-top">
+                    <Row>
+                        <Card className="search-top">
                             <div className="row align-items-end g-1 quotation-mid mb-4">
                                 {/* From Date and To Date */}
                                 <div className="col-12 col-lg-5 mt-1">
@@ -525,10 +533,17 @@ const OpeningAllocation = () => {
                                                 className="text-center"
                                             />
                                             <Column
-                                                field="description"
-                                                header="Item Name"
+                                                field="glCode"
+                                                header="GL Code"
                                                 sortable
-                                                style={{ width: "18%", whiteSpace: "nowrap" }}
+                                                style={{ width: "10%", whiteSpace: "nowrap" }}
+                                                className="text-left"
+                                            />
+                                            <Column
+                                                field="itemName"
+                                                header="Item"
+                                                sortable
+                                                style={{ width: "15%", whiteSpace: "nowrap" }}
                                                 className="text-left"
                                             />
                                             <Column
@@ -609,10 +624,12 @@ const OpeningAllocation = () => {
                         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.95rem" }}>
                             <tbody>
                                 <tr style={{ borderBottom: "1px solid #e9ecef" }}>
-                                    <td style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", width: "20%", backgroundColor: "#f8f9fa" }}>Auto-Number</td>
+                                    <td style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", width: "15%", backgroundColor: "#f8f9fa" }}>Auto-Number</td>
                                     <td style={{ padding: "0.6rem 0.8rem" }}>{selectedDetail.autoNumber}</td>
-                                    <td style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", width: "20%", backgroundColor: "#f8f9fa" }}>Description</td>
-                                    <td style={{ padding: "0.6rem 0.8rem" }}>{selectedDetail.description}</td>
+                                    <td style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", width: "15%", backgroundColor: "#f8f9fa" }}>GL Code</td>
+                                    <td style={{ padding: "0.6rem 0.8rem" }}>{selectedDetail.glCode}</td>
+                                    <td style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", width: "15%", backgroundColor: "#f8f9fa" }}>Item</td>
+                                    <td style={{ padding: "0.6rem 0.8rem" }}>{selectedDetail.itemName}</td>
                                 </tr>
                                 <tr style={{ borderBottom: "1px solid #e9ecef" }}>
                                     <td style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", backgroundColor: "#f8f9fa" }}>Floor</td>

@@ -40,7 +40,8 @@ const EditInStockAllocation = () => {
   const [formData, setFormData] = useState({
     id: id,
     grnNumber: "",
-    items: "",
+    glCode: "",
+    itemName: "",
     isNumber: "IS000001",
     date: "",
     description: "",
@@ -60,7 +61,8 @@ const EditInStockAllocation = () => {
       setFormData({
         id: location.state.inStockData.id,
         grnNumber: location.state.inStockData.grnNumber || "",
-        items: location.state.inStockData.items || "",
+        glCode: location.state.inStockData.glCode || "",
+        itemName: location.state.inStockData.itemName || "",
         isNumber: location.state.inStockData.isNumber || "IS000001",
         date: location.state.inStockData.date || "",
         description: location.state.inStockData.description || "",
@@ -90,7 +92,7 @@ const EditInStockAllocation = () => {
       ...prev,
       barcode: shelfNum || ("BAR" + Date.now().toString().slice(-6)),
       shelfNumber: shelfNum,
-      finalName: prev.items && shelfNum ? `${prev.items} - ${shelfNum}` : "",
+      finalName: prev.glCode && prev.itemName && shelfNum ? `${prev.glCode}-${prev.itemName} - ${shelfNum}` : "",
     }));
   };
 
@@ -100,19 +102,23 @@ const EditInStockAllocation = () => {
       ...formData,
       [name]: value,
     };
-    
+
     if (["floor", "positionRack", "rackNumber", "height"].includes(name)) {
       const shelfNum = generateShelfNumber(updatedData.floor, updatedData.positionRack, updatedData.rackNumber, updatedData.height);
       updatedData.shelfNumber = shelfNum;
-      if (updatedData.items) {
-        updatedData.finalName = `${updatedData.items} - ${shelfNum}`;
+      if (updatedData.glCode && updatedData.itemName) {
+        updatedData.finalName = `${updatedData.glCode}-${updatedData.itemName} - ${shelfNum}`;
       }
     }
-    
-    if (name === "items" && updatedData.shelfNumber) {
-      updatedData.finalName = `${value} - ${updatedData.shelfNumber}`;
+
+    if ((name === "glCode" || name === "itemName") && updatedData.shelfNumber) {
+      if (updatedData.glCode && updatedData.itemName) {
+        updatedData.finalName = `${updatedData.glCode}-${updatedData.itemName} - ${updatedData.shelfNumber}`;
+      } else {
+        updatedData.finalName = "";
+      }
     }
-    
+
     setFormData(updatedData);
   };
 
@@ -122,8 +128,12 @@ const EditInStockAllocation = () => {
       toast.error("GRN Number is required");
       return;
     }
-    if (!formData.items) {
-      toast.error("Items is required");
+    if (!formData.glCode) {
+      toast.error("GL Code is required");
+      return;
+    }
+    if (!formData.itemName) {
+      toast.error("Item is required");
       return;
     }
     if (!formData.floor) {
@@ -165,8 +175,12 @@ const EditInStockAllocation = () => {
       toast.error("GRN Number is required");
       return;
     }
-    if (!formData.items) {
-      toast.error("Items is required");
+    if (!formData.glCode) {
+      toast.error("GL Code is required");
+      return;
+    }
+    if (!formData.itemName) {
+      toast.error("Item is required");
       return;
     }
     if (!formData.floor) {
@@ -313,25 +327,47 @@ const EditInStockAllocation = () => {
 
                       {/* Row 2: Items, Floor, Position Rack */}
                       <Row className="mb-3">
-                        <Col lg="4">
+                        <Col lg="2">
                           <FormGroup>
-                            <Label htmlFor="items" className="form-label">
-                              Items <span className="text-danger">*</span>
+                            <Label htmlFor="glCode" className="form-label">
+                              GL Code <span className="text-danger">*</span>
                             </Label>
                             <Input
                               type="select"
-                              id="items"
-                              name="items"
-                              value={formData.items}
+                              id="glCode"
+                              name="glCode"
+                              value={formData.glCode}
                               onChange={handleInputChange}
                               className="form-control"
                               style={{ height: "38px", fontSize: "0.95rem" }}
                             >
-                              <option value="">Select Items</option>
-                              <option value="GL-10001 Cylinder Type A">GL-10001 Cylinder Type A</option>
-                              <option value="GL-10002 Cylinder Type B">GL-10002 Cylinder Type B</option>
-                              <option value="GL-10003 Safety Valve">GL-10003 Safety Valve</option>
-                              <option value="GL-10004 Pressure Gauge">GL-10004 Pressure Gauge</option>
+                              <option value="">Select GL Code</option>
+                              <option value="GL10001">GL10001</option>
+                              <option value="GL10002">GL10002</option>
+                              <option value="GL10003">GL10003</option>
+                              <option value="GL10004">GL10004</option>
+                            </Input>
+                          </FormGroup>
+                        </Col>
+                        <Col lg="2">
+                          <FormGroup>
+                            <Label htmlFor="itemName" className="form-label">
+                              Item <span className="text-danger">*</span>
+                            </Label>
+                            <Input
+                              type="select"
+                              id="itemName"
+                              name="itemName"
+                              value={formData.itemName}
+                              onChange={handleInputChange}
+                              className="form-control"
+                              style={{ height: "38px", fontSize: "0.95rem" }}
+                            >
+                              <option value="">Select Item</option>
+                              <option value="Cylinder Type A">Cylinder Type A</option>
+                              <option value="Cylinder Type B">Cylinder Type B</option>
+                              <option value="Safety Valve">Safety Valve</option>
+                              <option value="Pressure Gauge">Pressure Gauge</option>
                             </Input>
                           </FormGroup>
                         </Col>

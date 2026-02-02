@@ -42,7 +42,8 @@ const EditWarehouseDirect = () => {
         drNumber: "DR000001",
         grnNumber: [],
         date: "",
-        items: [],
+        glCode: "",
+        itemName: "",
         department: "",
         consumer: "",
         description: "",
@@ -57,7 +58,8 @@ const EditWarehouseDirect = () => {
                 drNumber: directData.drNumber || "DR000001",
                 grnNumber: Array.isArray(directData.grnNumber) ? directData.grnNumber : (directData.grnNumber ? [directData.grnNumber] : []),
                 date: directData.date || "",
-                items: Array.isArray(directData.items) ? directData.items : (directData.items ? [directData.items] : []),
+                glCode: directData.glCode || "",
+                itemName: directData.itemName || "",
                 department: directData.department || "",
                 consumer: directData.consumer || "",
                 description: directData.description || "",
@@ -126,23 +128,31 @@ const EditWarehouseDirect = () => {
 
     const addToGrid = () => {
         const selectedGrns = Array.isArray(formData.grnNumber) ? formData.grnNumber : (formData.grnNumber ? [formData.grnNumber] : []);
-        const selectedItems = Array.isArray(formData.items) ? formData.items : (formData.items ? [formData.items] : []);
         if (selectedGrns.length === 0) {
             toast.error("Select at least one GRN to add");
             return;
         }
-        if (selectedItems.length === 0) {
-            toast.error("Select at least one Item to add");
+        if (!formData.glCode) {
+            toast.error("Select GL Code to add");
+            return;
+        }
+        if (!formData.itemName) {
+            toast.error("Select Item to add");
             return;
         }
 
         const newRows = [];
         selectedGrns.forEach((g) => {
-            selectedItems.forEach((it) => {
-                newRows.push({ id: `${g}__${it}`, grnNumber: g, item: it, qty: 1 });
+            newRows.push({
+                id: `${g}__${formData.glCode}__${formData.itemName}`,
+                grnNumber: g,
+                glCode: formData.glCode,
+                itemName: formData.itemName,
+                qty: 1
             });
         });
 
+        // Merge with existing but avoid duplicate keys
         setGridRows((prev) => {
             const map = {};
             prev.forEach(r => { map[r.id] = r; });
@@ -150,7 +160,8 @@ const EditWarehouseDirect = () => {
             return Object.values(map);
         });
 
-        setFormData(prev => ({ ...prev, items: [] }));
+        // clear item selection
+        setFormData(prev => ({ ...prev, glCode: "", itemName: "" }));
     };
 
     const removeGridRow = (id) => {
@@ -336,27 +347,47 @@ const EditWarehouseDirect = () => {
                                                         </Input>
                                                     </FormGroup>
                                                 </Col>
-                                                <Col lg="4">
+                                                <Col lg="2">
                                                     <FormGroup className="mb-0">
-                                                        <Label htmlFor="items" className="form-label">
-                                                            Items <span className="text-danger">*</span>
+                                                        <Label htmlFor="glCode" className="form-label">
+                                                            GL Code <span className="text-danger">*</span>
                                                         </Label>
                                                         <Input
                                                             type="select"
-                                                            id="items"
-                                                            name="items"
-                                                            value={formData.items}
-                                                            onChange={(e) => {
-                                                                const values = Array.from(e.target.selectedOptions, option => option.value);
-                                                                setFormData(prev => ({ ...prev, items: values }));
-                                                            }}
-                                                            multiple
+                                                            id="glCode"
+                                                            name="glCode"
+                                                            value={formData.glCode}
+                                                            onChange={handleInputChange}
                                                             className="form-control"
-                                                            style={{ height: "100px", fontSize: "0.95rem" }}
+                                                            style={{ height: "38px", fontSize: "0.95rem" }}
                                                         >
-                                                            <option value="GL-10001 Bolt">GL-10001 Bolt</option>
-                                                            <option value="GL-10002 Safety Valve">GL-10002 Safety Valve</option>
-                                                            <option value="GL-10003 Pressure Gauge">GL-10003 Pressure Gauge</option>
+                                                            <option value="">Select GL Code</option>
+                                                            <option value="GL10001">GL10001</option>
+                                                            <option value="GL10002">GL10002</option>
+                                                            <option value="GL10003">GL10003</option>
+                                                            <option value="GL10004">GL10004</option>
+                                                        </Input>
+                                                    </FormGroup>
+                                                </Col>
+                                                <Col lg="2">
+                                                    <FormGroup className="mb-0">
+                                                        <Label htmlFor="itemName" className="form-label">
+                                                            Item <span className="text-danger">*</span>
+                                                        </Label>
+                                                        <Input
+                                                            type="select"
+                                                            id="itemName"
+                                                            name="itemName"
+                                                            value={formData.itemName}
+                                                            onChange={handleInputChange}
+                                                            className="form-control"
+                                                            style={{ height: "38px", fontSize: "0.95rem" }}
+                                                        >
+                                                            <option value="">Select Item</option>
+                                                            <option value="Bolt">Bolt</option>
+                                                            <option value="Safety Valve">Safety Valve</option>
+                                                            <option value="Pressure Gauge">Pressure Gauge</option>
+                                                            <option value="Cylinder A">Cylinder A</option>
                                                         </Input>
                                                     </FormGroup>
                                                 </Col>
@@ -375,6 +406,7 @@ const EditWarehouseDirect = () => {
                                                             <thead>
                                                                 <tr>
                                                                     <th>GRN Number</th>
+                                                                    <th>GL Code</th>
                                                                     <th>Item</th>
                                                                     <th style={{ width: "140px" }}>Quantity</th>
                                                                     <th style={{ width: "80px" }}></th>
@@ -389,7 +421,8 @@ const EditWarehouseDirect = () => {
                                                                     gridRows.map((r) => (
                                                                         <tr key={r.id}>
                                                                             <td>{r.grnNumber}</td>
-                                                                            <td>{r.item}</td>
+                                                                            <td>{r.glCode}</td>
+                                                                            <td>{r.itemName}</td>
                                                                             <td>
                                                                                 <Input type="number" value={r.qty} onChange={(e) => updateGridQty(r.id, e.target.value)} style={{ height: "36px" }} />
                                                                             </td>

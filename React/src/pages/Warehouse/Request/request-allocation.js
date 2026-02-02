@@ -102,7 +102,11 @@ const RequestAllocation = () => {
           department: "Warehouse",
           status: "Pending",
           user: "John Smith",
-          items: "GL-10001 Cylinder Type A, GL-10002 Cylinder Type B",
+          items: "Cylinder Type A, Cylinder Type B",
+          itemsData: [
+            { glCode: "GL-10001", itemName: "Cylinder Type A", quantity: 5, purpose: "Stock" },
+            { glCode: "GL-10002", itemName: "Cylinder Type B", quantity: 3, purpose: "Replacement" },
+          ],
           issueStatus: "Pending",
           issueDate: "",
         },
@@ -114,7 +118,10 @@ const RequestAllocation = () => {
           department: "Production",
           status: "Issued",
           user: "Jane Doe",
-          items: "GL-10003 Safety Valve",
+          items: "Safety Valve",
+          itemsData: [
+            { glCode: "GL-10003", itemName: "Safety Valve", quantity: 10, purpose: "Maintenance" },
+          ],
           issueStatus: "Issued",
           issueDate: "2024-01-17",
         },
@@ -126,7 +133,10 @@ const RequestAllocation = () => {
           department: "Sales",
           status: "Pending",
           user: "Mike Johnson",
-          items: "GL-10004 Pressure Gauge",
+          items: "Pressure Gauge",
+          itemsData: [
+            { glCode: "GL-10004", itemName: "Pressure Gauge", quantity: 2, purpose: "Demo" },
+          ],
           issueStatus: "Pending",
           issueDate: "",
         },
@@ -138,7 +148,10 @@ const RequestAllocation = () => {
           department: "Maintenance",
           status: "Issued",
           user: "Sarah Wilson",
-          items: "GL-10001 Cylinder Type A",
+          items: "Cylinder Type A",
+          itemsData: [
+            { glCode: "GL-10001", itemName: "Cylinder Type A", quantity: 8, purpose: "Project X" },
+          ],
           issueStatus: "Issued",
           issueDate: "2024-01-18",
         },
@@ -338,7 +351,13 @@ const RequestAllocation = () => {
       >
         Items
         <UncontrolledTooltip placement="top" target={`items-tooltip-${rowData.id}`}>
-          {rowData.items}
+          {Array.isArray(rowData.itemsData) ? (
+            rowData.itemsData.map((it, idx) => (
+              <div key={idx}>{it.glCode} - {it.itemName}</div>
+            ))
+          ) : (
+            rowData.items
+          )}
         </UncontrolledTooltip>
       </span>
     );
@@ -700,7 +719,8 @@ const RequestAllocation = () => {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem", border: "1px solid #e9ecef" }}>
                 <thead>
                   <tr style={{ backgroundColor: "#f8f9fa" }}>
-                    <th style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", textAlign: "left", borderBottom: "2px solid #dee2e6" }}>Item Name</th>
+                    <th style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", textAlign: "left", borderBottom: "2px solid #dee2e6" }}>GL Code</th>
+                    <th style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", textAlign: "left", borderBottom: "2px solid #dee2e6" }}>Item</th>
                     <th style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", textAlign: "center", borderBottom: "2px solid #dee2e6" }}>Quantity</th>
                     <th style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", textAlign: "left", borderBottom: "2px solid #dee2e6" }}>Purpose</th>
                   </tr>
@@ -709,6 +729,7 @@ const RequestAllocation = () => {
                   {selectedDetail.itemsData && selectedDetail.itemsData.length > 0 ? (
                     selectedDetail.itemsData.map((item, index) => (
                       <tr key={index} style={{ borderBottom: "1px solid #e9ecef" }}>
+                        <td style={{ padding: "0.6rem 0.8rem" }}>{item.glCode}</td>
                         <td style={{ padding: "0.6rem 0.8rem" }}>{item.itemName}</td>
                         <td style={{ padding: "0.6rem 0.8rem", textAlign: "center" }}>{item.quantity}</td>
                         <td style={{ padding: "0.6rem 0.8rem" }}>{item.purpose}</td>

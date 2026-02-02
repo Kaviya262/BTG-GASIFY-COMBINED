@@ -90,10 +90,10 @@ const WarehouseDirect = () => {
                     date: "2023-10-25",
                     grnNumber: "GRN0000001",
                     items: [
-                        "GL-10001 Bolt",
-                        "GL-10002 Safety Valve",
-                        "GL-10003 Pressure Gauge",
-                        "GL-10002 Safety Valve"
+                        { glCode: "GL10001", itemName: "Bolt" },
+                        { glCode: "GL10002", itemName: "Safety Valve" },
+                        { glCode: "GL10003", itemName: "Pressure Gauge" },
+                        { glCode: "GL10002", itemName: "Safety Valve" }
                     ],
                     quantity: 50,
                     department: "Production",
@@ -107,9 +107,9 @@ const WarehouseDirect = () => {
                     date: "2023-10-26",
                     grnNumber: "GRN0000002",
                     items: [
-                        "GL-10002 Safety Valve",
-                        "GL-10003 Pressure Gauge",
-                        "GL-10001 Bolt"
+                        { glCode: "GL10002", itemName: "Safety Valve" },
+                        { glCode: "GL10003", itemName: "Pressure Gauge" },
+                        { glCode: "GL10001", itemName: "Bolt" }
                     ],
                     quantity: 20,
                     department: "Maintenance",
@@ -123,10 +123,10 @@ const WarehouseDirect = () => {
                     date: "2023-10-27",
                     grnNumber: "GRN0000003",
                     items: [
-                        "GL-10003 Pressure Gauge",
-                        "GL-10002 Safety Valve",
-                        "GL-10002 Safety Valve",
-                        "GL-10001 Bolt"
+                        { glCode: "GL10003", itemName: "Pressure Gauge" },
+                        { glCode: "GL10002", itemName: "Safety Valve" },
+                        { glCode: "GL10002", itemName: "Safety Valve" },
+                        { glCode: "GL10001", itemName: "Bolt" }
                     ],
                     quantity: 15,
                     department: "Quality Control",
@@ -140,9 +140,9 @@ const WarehouseDirect = () => {
                     date: "2023-10-28",
                     grnNumber: "GRN0000004",
                     items: [
-                        "GL-10002 Safety Valve",
-                        "GL-10001 Bolt",
-                        "GL-10002 Safety Valve"
+                        { glCode: "GL10002", itemName: "Safety Valve" },
+                        { glCode: "GL10001", itemName: "Bolt" },
+                        { glCode: "GL10002", itemName: "Safety Valve" }
                     ],
                     quantity: 30,
                     department: "Production",
@@ -218,7 +218,7 @@ const WarehouseDirect = () => {
                     <div className="text-start">
                         {Array.isArray(rowData.items) ? (
                             rowData.items.map((item, index) => (
-                                <div key={index}>{item}</div>
+                                <div key={index}>{item.glCode} - {item.itemName}</div>
                             ))
                         ) : (
                             rowData.items
@@ -526,6 +526,37 @@ const WarehouseDirect = () => {
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+
+                    {/* Items Section */}
+                    <div className="mt-4">
+                        <h6 style={{ fontWeight: "bold", marginBottom: "1rem" }}>Items Details</h6>
+                        <div style={{ overflowX: "auto" }}>
+                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem", border: "1px solid #e9ecef" }}>
+                                <thead>
+                                    <tr style={{ backgroundColor: "#f8f9fa" }}>
+                                        <th style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", textAlign: "left", borderBottom: "2px solid #dee2e6" }}>GL Code</th>
+                                        <th style={{ padding: "0.6rem 0.8rem", fontWeight: "bold", textAlign: "left", borderBottom: "2px solid #dee2e6" }}>Item</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {selectedDetail.items && selectedDetail.items.length > 0 ? (
+                                        selectedDetail.items.map((item, index) => (
+                                            <tr key={index} style={{ borderBottom: "1px solid #e9ecef" }}>
+                                                <td style={{ padding: "0.6rem 0.8rem" }}>{item.glCode}</td>
+                                                <td style={{ padding: "0.6rem 0.8rem" }}>{item.itemName}</td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan="2" style={{ padding: "1rem 0.8rem", textAlign: "center", color: "#6c757d" }}>
+                                                No items found
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </ModalBody>
                 <ModalFooter>
