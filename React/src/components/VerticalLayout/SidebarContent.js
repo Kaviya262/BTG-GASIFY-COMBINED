@@ -54,12 +54,12 @@ class SidebarContent extends Component {
                 { screenId: 99908, screenName: "Cash Book Entry", url: "/cash-book-entry", icon: "bx bx-money" },
                 { screenId: 99910, screenName: "AR Book", url: "/ARBookReport", icon: "bx bx-file" },
                 { screenId: 99903, screenName: "AR Book DO", url: "/ar-book-do", icon: "bx bx-file" },
-                { screenId: 99911, screenName: "Asset Register", url: "/AssetRegister", icon: "bx bx-building" },
+                //{ screenId: 99911, screenName: "Asset Register", url: "/AssetRegister", icon: "bx bx-building" },
                 { screenId: 99912, screenName: "Bank Book", url: "/BankBook", icon: "bx bx-book-open" },
                 { screenId: 99913, screenName: "Cash Book", url: "/CashBook", icon: "bx bx-wallet" },
-                { screenId: 99914, screenName: "Other Revenues", url: "/ManageRevenues", icon: "bx bx-chart" },
-                { screenId: 99915, screenName: "Outstanding Pos", url: "/Pendingpo", icon: "bx bx-list-check" },
-                { screenId: 99916, screenName: "Over Draft", url: "/ManageOverDraft", icon: "bx bx-transfer" },
+                //{ screenId: 99914, screenName: "Other Revenues", url: "/ManageRevenues", icon: "bx bx-chart" },
+                //{ screenId: 99915, screenName: "Outstanding Pos", url: "/Pendingpo", icon: "bx bx-list-check" },
+                //{ screenId: 99916, screenName: "Over Draft", url: "/ManageOverDraft", icon: "bx bx-transfer" },
                 { screenId: 99917, screenName: "Petty Cash", url: "/pettyCash", icon: "bx bx-coin-stack" },
                 // --- NEW AP SCREEN ADDED HERE ---
                 //{ screenId: 99919, screenName: "AP", url: "/AP", icon: "bx bx-file" }
@@ -77,8 +77,40 @@ class SidebarContent extends Component {
                 }
             });
 
+            // DEBUG: Log Finance screens BEFORE override
+            console.log(`[DEBUG FINANCE] Screens after injection (before override):`, financeModule.screen.map(s => s.screenName));
+
+            // SPECIAL: Force ALL Finance screens for users 160, 161, 162, 163, 165, 191
+            const authUserFinance = JSON.parse(localStorage.getItem("authUser"));
+            const financeFullAccessUsers = [160, 161, 162, 163, 165, 191];
+            const currentUserIdFinance = authUserFinance ? (parseInt(authUserFinance.u_id) || 0) : 0;
+
+            console.log(`[DEBUG FINANCE] Current User ID: ${currentUserIdFinance}`);
+            console.log(`[DEBUG FINANCE] Is in financeFullAccessUsers? ${financeFullAccessUsers.includes(currentUserIdFinance)}`);
+
+            if (financeFullAccessUsers.includes(currentUserIdFinance)) {
+                console.log(`[FINANCE OVERRIDE] Forcing all Finance screens for user ${currentUserIdFinance}`);
+                console.log(`[FINANCE OVERRIDE] Screens BEFORE clear:`, financeModule.screen.map(s => s.screenName));
+
+                // Clear existing screens and add ALL screens
+                financeModule.screen = [];
+                missingScreens.forEach(item => {
+                    financeModule.screen.push({
+                        screenId: item.screenId,
+                        screenName: item.screenName,
+                        url: item.url,
+                        icon: item.icon,
+                        module: []
+                    });
+                });
+
+                console.log(`[FINANCE OVERRIDE] Screens AFTER rebuild:`, financeModule.screen.map(s => s.screenName));
+            }
+
             // Sort them alphabetically to look nice
             financeModule.screen.sort((a, b) => a.screenName.localeCompare(b.screenName));
+
+            console.log(`[DEBUG FINANCE] Final screens after sort:`, financeModule.screen.map(s => s.screenName));
         }
 
         // ---------------------------------------------------------
@@ -473,6 +505,36 @@ class SidebarContent extends Component {
         }
 
         // ---------------------------------------------------------
+        // D.1. ENSURE MPP IS ADDED TO CLAIM MODULE (for specific users)
+        // ---------------------------------------------------------
+        // This runs AFTER Claim module creation/retrieval to ensure MPP is available
+        if (claimModule) {
+            const authUserMPP = JSON.parse(localStorage.getItem("authUser"));
+            const currentUserId = authUserMPP ? (parseInt(authUserMPP.u_id) || 0) : 0;
+
+            // Users who MUST have MPP
+            const mppRequiredUsers = [157];
+
+            // Check if MPP already exists in the Claim module
+            const mppExists = claimModule.screen.find(s => s.screenName === "Master Payment Plan" || s.url === "/paymentplanapproval");
+
+            console.log(`[MPP DEBUG] MPP exists: ${!!mppExists}, User in required list: ${mppRequiredUsers.includes(currentUserId)}`);
+
+            // Add MPP if it doesn't exist and user should have it
+            if (!mppExists && mppRequiredUsers.includes(currentUserId)) {
+                console.log(`[MPP INJECTION] Adding Master Payment Plan for user ${currentUserId}`);
+                claimModule.screen.push({
+                    screenId: 99931,
+                    screenName: "Master Payment Plan",
+                    url: "/paymentplanapproval",
+                    icon: "bx bx-calendar-check",
+                    module: []
+                });
+            }
+        }
+
+
+        // ---------------------------------------------------------
         // 4.1. Warehouse Menu
         // ---------------------------------------------------------
         const warehouseMenu = {
@@ -579,12 +641,73 @@ class SidebarContent extends Component {
         // UNIVERSAL SECURITY FILTERS
         // ---------------------------------------------------------
 
-        // Universal Security Filters
-
-        // 1. GM, Director, CEO & Restricted Users: ONLY APPROVAL PAGES (Strict Priority)
+        // Declare variables needed for all security filters
         const role = authUser && authUser.roleName ? authUser.roleName.trim().toLowerCase() : "";
         const restrictedApprovalUsers = [138, 139, 140];
         const currentUserIdFilter = authUser ? (parseInt(authUser.u_id) || 0) : 0;
+
+        // PRIORITY FILTER: FINANCE/INVOICE/REPORTS USERS (160, 161, 162, 163, 165, 191)
+        // This runs FIRST to bypass default restrictions
+        const financeInvoiceReportsUsers = [160, 161, 162, 163, 165, 191];
+        let skipUniversalFilters = false;
+
+        if (financeInvoiceReportsUsers.includes(currentUserIdFilter)) {
+            console.log(`--- FINANCE/INVOICE/REPORTS USER (${currentUserIdFilter}): Full Finance/Invoice/Reports Access, Claim & Payment Only ---`);
+
+            // DEBUG: Log Finance screens BEFORE filtering
+            const financeModDebug = menuData.menus.find(m => m.moduleName === "Finance");
+            if (financeModDebug) {
+                console.log(`[DEBUG] Finance screens BEFORE filtering:`, financeModDebug.screen.map(s => s.screenName));
+            } else {
+                console.log(`[DEBUG] Finance module NOT FOUND before filtering`);
+            }
+
+            // 1. Filter menus to show ONLY Finance, Invoice, Reports, and Claim
+            const allowedModules = ["Finance", "Invoice", "Invoices", "Reports", "Report", "Claim", "Claims"];
+            menuData.menus = menuData.menus.filter(m => allowedModules.includes(m.moduleName));
+            console.log(`[RESTRICTION APPLIED] Filtered to Finance/Invoice/Reports/Claim for user ${currentUserIdFilter}`);
+
+            // DEBUG: Log Finance screens AFTER module filtering
+            const financeModDebug2 = menuData.menus.find(m => m.moduleName === "Finance");
+            if (financeModDebug2) {
+                console.log(`[DEBUG] Finance screens AFTER module filtering:`, financeModDebug2.screen.map(s => s.screenName));
+            } else {
+                console.log(`[DEBUG] Finance module NOT FOUND after module filtering`);
+            }
+
+            // 2. Filter Claim module to show ONLY "Claim & Payment" (and PPP for specific users)
+            const claimMod = menuData.menus.find(m => m.moduleName === "Claim" || m.moduleName === "Claims");
+            if (claimMod && claimMod.screen) {
+                const originalScreenCount = claimMod.screen.length;
+
+                // Users who get PPP in addition to Claim & Payment
+                const pppUsers = [161, 160, 165, 163];
+
+                claimMod.screen = claimMod.screen.filter(s => {
+                    const isClaimAndPayment = s.screenName === "Claim & Payment" || s.url === "/Manageclaim&Payment";
+                    const isPPP = s.screenName === "PPP" || s.url === "/PPP";
+
+                    // For PPP users: Allow both Claim & Payment AND PPP
+                    if (pppUsers.includes(currentUserIdFilter)) {
+                        return isClaimAndPayment || isPPP;
+                    }
+
+                    // For others: Only Claim & Payment
+                    return isClaimAndPayment;
+                });
+                console.log(`[RESTRICTION APPLIED] Claim screens filtered from ${originalScreenCount} to ${claimMod.screen.length} for user ${currentUserIdFilter}`);
+            }
+
+            // 3. Finance, Invoice, and Reports modules keep ALL their screens (no filtering needed)
+            console.log(`[INFO] Finance, Invoice, and Reports modules retain all screens for user ${currentUserIdFilter}`);
+
+            // Skip the universal security filters below
+            skipUniversalFilters = true;
+        }
+
+        // Universal Security Filters (Skip if already handled above)
+
+        // 1. GM, Director, CEO & Restricted Users: ONLY APPROVAL PAGES (Strict Priority)
 
 
         // DEBUGGING FOR USER 158
@@ -594,14 +717,19 @@ class SidebarContent extends Component {
             console.log("Is 158 a Director/GM/CEO?", role === "gm" || role === "director" || role === "ceo" || role === "general manager");
         }
 
-        if (role === "gm" || role === "director" || role === "ceo" || role === "general manager" || restrictedApprovalUsers.includes(currentUserIdFilter)) {
+        if (!skipUniversalFilters && (role === "gm" || role === "director" || role === "ceo" || role === "general manager" || restrictedApprovalUsers.includes(currentUserIdFilter))) {
             if (currentUserIdFilter === 158) console.log("=== DEBUG 158: Entered GM/Director Block (Line 518) ===");
             console.log("--- GM/DIRECTOR/CEO: Approval Pages Only (Restriction Applied) ---");
 
-            const allowedModules = ["Procurement", "Claim", "Warehouse"];
+            const allowedModules = ["Procurement", "Claim", "Claims"];
             // Special Case: User 135 gets Masters
             if (currentUserIdFilter === 135) {
                 allowedModules.push("Masters");
+            }
+            // Special Case: User 138 NOT allowed Procurement
+            if (currentUserIdFilter === 138) {
+                const procIndex = allowedModules.indexOf("Procurement");
+                if (procIndex > -1) allowedModules.splice(procIndex, 1);
             }
 
             menuData.menus = menuData.menus.filter(m => allowedModules.includes(m.moduleName));
@@ -648,7 +776,7 @@ class SidebarContent extends Component {
         }
 
         // EVERYONE ELSE: Procurement + Claim WITHOUT approvals
-        else if (authUser) {
+        else if (!skipUniversalFilters && authUser) {
             if (currentUserIdFilter === 158) console.log("=== DEBUG 158: Entered DEFAULT USER Block (Line 569) ===");
             console.log("--- DEFAULT USER: Procurement + Claim (No Approvals) ---");
 
@@ -657,11 +785,17 @@ class SidebarContent extends Component {
                 console.log("=== DEBUG 158: Default Modules BEFORE filter: ", menuData.menus.map(m => m.moduleName));
             }
 
-            const allowedModules = ["Procurement", "Claim", "Claims", "Warehouse"];
+            const allowedModules = ["Procurement", "Claim", "Claims"];
+            if (currentUserIdFilter === 135) {
+                allowedModules.push("Warehouse");
+            }
             // Special Case: User 135 gets Masters + New Users 137,168,169,170,184
             const masterAccessUsers = [135, 137, 168, 169, 170, 184];
             if (masterAccessUsers.includes(currentUserIdFilter) || currentUserIdFilter === 1) {
                 allowedModules.push("Masters");
+            }
+            if (currentUserIdFilter === 158) {
+                allowedModules.push("Reports");
             }
 
             menuData.menus = menuData.menus.filter(m => allowedModules.includes(m.moduleName));
@@ -685,6 +819,11 @@ class SidebarContent extends Component {
                             if (item.screenName === "Master Payment Plan" || item.url === "/paymentplanapproval") return true;
                         }
 
+                        // Special Case: User 157 gets Master Payment Plan
+                        if (currentUserIdFilter === 157) {
+                            if (item.screenName === "Master Payment Plan" || item.url === "/paymentplanapproval") return true;
+                        }
+
                         // Special Case: Users 142 & 145 get Approval
                         if ([142, 145].includes(currentUserIdFilter) && (item.screenName === "Approval" || item.url === "/Manageapproval")) {
                             return true;
@@ -696,16 +835,19 @@ class SidebarContent extends Component {
             });
         }
 
-        // Hide Finance from non-SuperAdmin
-        if (authUser && !authUser.superAdmin) {
+        // Hide Finance from non-SuperAdmin (except financeInvoiceReportsUsers)
+        if (!skipUniversalFilters && authUser && !authUser.superAdmin) {
             menuData.menus = menuData.menus.filter(m => m.moduleName !== "Finance");
         }
 
         // ---------------------------------------------------------
         // DEFINE RESTRICTED USER LIST (New Group)
         // ---------------------------------------------------------
-        // Users: 161, 172, 145, 171, 160, 152, 154, 174, 147, 151, 163, 159, 185, 133, 168, 150, 143, 186, 155, 166, 164, 142, 148, 146, 153, 141, 165, 157, 144, 162, 187, 149, 173, 167, 190
-        const claimOnlyUsers = [161, 172, 145, 171, 160, 152, 154, 174, 147, 151, 163, 159, 185, 133, 168, 150, 143, 186, 155, 166, 164, 142, 148, 146, 153, 141, 165, 157, 144, 162, 187, 149, 173, 167, 190];
+        // Users: 172, 145, 171, 152, 154, 174, 147, 151, 159, 185, 133, 168, 150, 143, 186, 155, 166, 164, 142, 148, 146, 153, 141, 157, 144, 149, 173, 167, 190
+        // NOTE: Removed 160, 161, 162, 163, 165, 191 as they are handled by financeInvoiceReportsUsers
+        const claimOnlyUsers = [172, 145, 171, 152, 154, 174, 147, 151, 159, 133, 168, 150, 143, 155, 166, 164, 142, 148, 146, 153, 141, 157, 144, 149, 173, 167, 190];
+
+
 
         // ---------------------------------------------------------
         // 13. SPECIAL RESTRICTION: USERS 175 & 176
@@ -756,7 +898,35 @@ class SidebarContent extends Component {
         }
 
         // ---------------------------------------------------------
-        // 15. SPECIAL RESTRICTION: CLAIM ONLY USERS (35 Users)
+        // 15. SPECIAL RESTRICTION: GROUP 3 (185, 186, 187)
+        // ---------------------------------------------------------
+        // Requirement:
+        // 1. Procurement: Show ONLY "Purchase Memo"
+        // 2. Claim: Show ONLY "Claim & Payment"
+        const restrictedGroup3Users = [185, 186, 187];
+        if (restrictedGroup3Users.includes(currentUserIdFilter)) {
+            console.log("--- RESTRICTED GROUP 3 (185-187): Purchase Memo Only + Claim & Payment Only ---");
+
+            // 1. Filter Procurement to show ONLY "Purchase Memo"
+            const procurementMod = menuData.menus.find(m => m.moduleName === "Procurement");
+            if (procurementMod && procurementMod.screen) {
+                const allowedProcurementScreens = ["Purchase Memo"];
+                procurementMod.screen = procurementMod.screen.filter(s =>
+                    allowedProcurementScreens.includes(s.screenName)
+                );
+            }
+
+            // 2. Filter Claim to show ONLY "Claim & Payment"
+            const claimMod = menuData.menus.find(m => m.moduleName === "Claim" || m.moduleName === "Claims");
+            if (claimMod && claimMod.screen) {
+                claimMod.screen = claimMod.screen.filter(s =>
+                    s.screenName === "Claim & Payment" || s.url === "/Manageclaim&Payment"
+                );
+            }
+        }
+
+        // ---------------------------------------------------------
+        // 16. SPECIAL RESTRICTION: CLAIM ONLY USERS
         // ---------------------------------------------------------
         // Requirement:
         // 1. Hide Procurement module completely
@@ -772,9 +942,27 @@ class SidebarContent extends Component {
             const claimMod = menuData.menus.find(m => m.moduleName === "Claim" || m.moduleName === "Claims");
             if (claimMod && claimMod.screen) {
                 const originalScreenCount = claimMod.screen.length;
+
+                // Debug for user 157
+                if (currentUserIdFilter === 157) {
+                    console.log(`[USER 157 DEBUG] Claim screens BEFORE filter:`, claimMod.screen.map(s => `${s.screenName} (${s.url})`));
+                }
+
                 claimMod.screen = claimMod.screen.filter(s => {
                     const isClaimAndPayment = s.screenName === "Claim & Payment" || s.url === "/Manageclaim&Payment";
                     const isApproval = s.screenName === "Approval" || s.url === "/Manageapproval";
+                    const isPPP = s.screenName === "PPP" || s.url === "/PPP";
+                    const isMPP = s.screenName === "Master Payment Plan" || s.url === "/paymentplanapproval";
+
+                    // User 157: Allow Claim & Payment, MPP, AND PPP
+                    if (currentUserIdFilter === 157) {
+                        return isClaimAndPayment || isMPP || isPPP;
+                    }
+
+                    // Users 161, 160, 165, 163: Allow Claim & Payment AND PPP
+                    if ([161, 160, 165, 163].includes(currentUserIdFilter)) {
+                        return isClaimAndPayment || isPPP;
+                    }
 
                     // Users 142 & 145: Allow Claim & Payment AND Approval
                     if ([142, 145].includes(currentUserIdFilter)) {
@@ -815,8 +1003,8 @@ class SidebarContent extends Component {
             console.log("=== FINAL OVERRIDE (158): Custom Configuration ===");
 
             // 1. Remove Forbidden Modules (Allow Procurement & Invoices now)
-            // User requested: Remove Sales, Reports, Employee, Attendance, Leaves
-            const modulesToRemove = ["Sales", "Reports", "Employee", "Attendance", "Leaves"];
+            // User requested: Remove Sales, Employee, Attendance, Leaves, Warehouse. Allow Reports.
+            const modulesToRemove = ["Sales", "Employee", "Attendance", "Leaves", "Warehouse"];
             menuData.menus = menuData.menus.filter(m => !modulesToRemove.includes(m.moduleName));
 
             // 2. Configure Procurement: Show ALL except "Approval"
