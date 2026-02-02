@@ -153,6 +153,38 @@ def get_by_id(pmid: int, OrgId: int = 1):
             details = result_sets[1]
         if len(result_sets) > 2:
             attachments = result_sets[2]
+        
+        # Fetch details directly from table to ensure all fields are populated
+        # (ItemGroup, Department, UOM may be missing from stored procedure)
+        if details:
+            detail_sql = """
+                SELECT 
+                    d.Memo_dtl_ID, 
+                    d.Memo_ID, 
+                    d.ItemId, 
+                    d.DepartmentId, 
+                    d.UOMId, 
+                    d.Qty, 
+                    d.AvailStk, 
+                    d.DeliveryDate, 
+                    d.Remarks, 
+                    d.itemGroupId, 
+                    d.CreatedBy, 
+                    d.CreatedDate, 
+                    d.IsActive,
+                    i.itemname,
+                    ig.groupname,
+                    dep.departmentname,
+                    uom.UOM
+                FROM tbl_purchasememo_detail d
+                LEFT JOIN btggasify_masterpanel_live.master_item i ON d.ItemId = i.itemid
+                LEFT JOIN btggasify_masterpanel_live.master_itemgroup ig ON d.itemGroupId = ig.groupid
+                LEFT JOIN btggasify_live.master_department dep ON d.DepartmentId = dep.departmentid
+                LEFT JOIN btggasify_live.master_uom uom ON d.UOMId = uom.Id
+                WHERE d.Memo_ID = %s AND d.IsActive = 1
+            """
+            cursor.execute(detail_sql, (pmid,))
+            details = cursor.fetchall()
             
         model_list = {
             "header": header,

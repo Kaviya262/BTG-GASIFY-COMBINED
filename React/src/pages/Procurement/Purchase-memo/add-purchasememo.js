@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useHistory, useParams } from "react-router-dom";
 import { Button, Col, Card, CardBody, Container, FormGroup, Label, Row, TabContent, TabPane, NavItem, Table, Input, NavLink, InputGroup, UncontrolledAlert } from "reactstrap";
 import Breadcrumbs from "../../../components/Common/Breadcrumb";
@@ -30,6 +30,7 @@ const AddPurchaseMemo = () => {
     const { id } = useParams();
     const purchase_memo_id = Number(id ?? 0);
     const isEditMode = !!id;
+    const formikRef = useRef(null);
     const [branchId, setBranchId] = useState(1);
     const [orgId, setOrgId] = useState(1);
     const [userId, setUserId] = useState(1);
@@ -493,15 +494,17 @@ const validateDuplicateUom = (items = []) => {
             isNew: header.isNew || 0,
             items: details.length > 0
                 ? details.map((item) => ({
-                    itemname: item.itemname,
+                    itemname: item.itemname || "",
                     uom: item.UOMId || "",
                     qty: item.Qty || "",
                     availableStock: item.AvailStk || "",
-                    deliveryDate: item.DeliveryDate || "",
-                    itemid: item.itemid,
-                    itemGroupId: item.itemGroupId,
-                    departmentid: item.departmentid,
-                    memoDtlId: item.memoDtlId
+                    deliveryDate: item.DeliveryDate?.slice(0, 10) || "",
+                    itemid: item.ItemId || item.itemid || 0,
+                    itemGroupId: item.itemGroupId || 0,
+                    groupname: item.groupname || "",
+                    departmentid: item.DepartmentId || item.departmentid || 0,
+                    departmentname: item.departmentname || "",
+                    memoDtlId: item.Memo_dtl_ID || item.memoDtlId || 0
 
                 }))
                 : [
@@ -509,9 +512,10 @@ const validateDuplicateUom = (items = []) => {
                         memoDtlId: 0,
                         itemid: 0,
                         itemGroupId: 0,
+                        groupname: "",
                         departmentid: 0,
                         itemname: null,
-                        department: null,
+                        departmentname: null,
                         uom: "",
                         qty: "",
                         availableStock: "",
@@ -525,9 +529,18 @@ const validateDuplicateUom = (items = []) => {
         debugger
         try {
             const res = await ProcurementMemoGetById(memoId, orgId, branchId);
+            console.log("GetById Response:", res);
             const header = res.data?.header;
+            const details = res.data?.details || [];
             const formikFormatted = mapMemoResponseToFormik(res.data);
+            console.log("Formik Formatted Data:", formikFormatted);
             setInitialValues(formikFormatted);
+            
+            // Also update Formik form directly if ref is available
+            if (formikRef.current) {
+                formikRef.current.setValues(formikFormatted);
+            }
+            
             setSelectedPmType({
                 typename: header.typename,
                 typeid: header.PM_Type,
@@ -538,7 +551,46 @@ const validateDuplicateUom = (items = []) => {
                 userid: header.RequestorId,
             });
 
+            // Load all dropdown options for edit mode
+            await loadUomDetails();
+            await loadItemGroupOptions();
+            await loadDepartmentSuggestions({});
+
+            // Load dropdown options for each detail item and pre-populate with current values
+            for (let i = 0; i < details.length; i++) {
+                const item = details[i];
+                
+                // Load Item Name options if ItemGroup is selected
+                if (item.itemGroupId) {
+                    await loadItemNameOptions(item.itemGroupId, i);
+                    
+                    // Pre-populate itemNameOptions with the current item if not already there
+                    setItemNameOptions(prev => {
+                        const currentOptions = prev[i] || [];
+                        const itemExists = currentOptions.some(opt => opt.value === item.ItemId);
+                        
+                        if (!itemExists && item.itemname) {
+                            // Add the current item to the options
+                            return {
+                                ...prev,
+                                [i]: [
+                                    {
+                                        label: item.itemname,
+                                        value: item.ItemId,
+                                        stock: item.AvailStk,
+                                        uom: item.UOMId
+                                    },
+                                    ...currentOptions
+                                ]
+                            };
+                        }
+                        return prev;
+                    });
+                }
+            }
+
         } catch (err) {
+            console.error("Error in GetById:", err);
             Swal.fire("Error", err.message, "error");
         }
     };
@@ -627,7 +679,7 @@ const validateDuplicateUom = (items = []) => {
                         <Col lg="12">
                             <Card>
                                 <CardBody>
-                                    <Formik enableReinitialize initialValues={initialValues} validationSchema={validationSchema}>
+                                    <Formik ref={formikRef} enableReinitialize initialValues={initialValues} validationSchema={validationSchema}>
                                         {({ values, errors, touched, setFieldValue, setTouched, validateForm, setFieldTouched }) => (
                                             <Form>
                                                 <div className="row align-items-center g-3 justify-content-end">
@@ -707,7 +759,6 @@ const validateDuplicateUom = (items = []) => {
                                                                 placeholder="PM No"
                                                                 type="text"
                                                                 className={`form-control ${errors.pmNo && touched.pmNo ? "is-invalid" : ""}`}
-                                                                disabled
                                                             />
                                                             {/* <ErrorMessage name="prNo" component="div" className="invalid-feedback" /> */}
                                                         </FormGroup>
@@ -752,7 +803,7 @@ const validateDuplicateUom = (items = []) => {
                                                                     />
                                                                 )}
                                                             </Field> */}
-                                                            <Field name="pmDate" type="date" className="form-control" disabled />
+                                                            <Field name="pmDate" type="date" className="form-control" />
 
                                                         </FormGroup>
 
@@ -898,7 +949,6 @@ const validateDuplicateUom = (items = []) => {
                                                                                 {/* Item Group */}
                                                                                 <td>
                                                                                     <Select
-                                                                                        isDisabled={editingRowIndex !== i}
                                                                                         value={itemGroupOptions?.find(opt => opt.value === item.itemGroupId) || null}
 
                                                                                         onChange={(selected) => {
@@ -923,27 +973,21 @@ const validateDuplicateUom = (items = []) => {
                                                                                 {/* Item Name */}
                                                                                 <td>
 
-                                                                                    {editingRowIndex !== i ? (
-                                                                                        <Input type="text" disabled={true} value={item.itemname} />
+                                                                                    <Select
 
-                                                                                    ) : (
-
-                                                                                        <Select
-
-                                                                                            value={itemNameOptions[i]?.find(opt => opt.value === item.itemid) || null}
-                                                                                            onChange={(selected) => {
-                                                                                                setFieldValue(`items[${i}].itemid`, selected.value || null);
-                                                                                                setFieldValue(`items[${i}].uom`, selected.uom || null);
-                                                                                                setFieldValue(`items[${i}].itemname`, selected.label || null);
-                                                                                                setFieldValue(`items[${i}].availableStock`, selected?.stock || "");
-                                                                                            }}
-                                                                                            options={itemNameOptions[i] || []}
-                                                                                            placeholder="Select Item Name"
-                                                                                            classNamePrefix="react-select"
-                                                                                            isDisabled={editingRowIndex !== i && !values.items[i].itemGroupId}
-                                                                                            menuPortalTarget={document.body}
-                                                                                        />
-                                                                                    )}
+                                                                                        value={itemNameOptions[i]?.find(opt => opt.value === item.itemid) || null}
+                                                                                        onChange={(selected) => {
+                                                                                            setFieldValue(`items[${i}].itemid`, selected.value || null);
+                                                                                            setFieldValue(`items[${i}].uom`, selected.uom || null);
+                                                                                            setFieldValue(`items[${i}].itemname`, selected.label || null);
+                                                                                            setFieldValue(`items[${i}].availableStock`, selected?.stock || "");
+                                                                                        }}
+                                                                                        options={itemNameOptions[i] || []}
+                                                                                        placeholder="Select Item Name"
+                                                                                        classNamePrefix="react-select"
+                                                                                        isDisabled={!values.items[i].itemGroupId}
+                                                                                        menuPortalTarget={document.body}
+                                                                                    />
                                                                                     {errors.items?.[i]?.itemid && touched.items?.[i]?.itemid && (
                                                                                         <div className="text-danger small">{errors.items[i].itemid}</div>
                                                                                     )}
@@ -954,7 +998,6 @@ const validateDuplicateUom = (items = []) => {
                                                                                 <td>
 
                                                                                     <Select
-                                                                                        isDisabled={editingRowIndex !== i}
                                                                                         value={departmentSuggestions?.find(opt => opt.value === item.departmentid) || null}
                                                                                         onChange={(selected) => {
                                                                                             setFieldValue(`items[${i}].departmentid`, selected.value || null);
@@ -1083,7 +1126,6 @@ const validateDuplicateUom = (items = []) => {
                                                                                         name={`items[${i}].availableStock`}
                                                                                         type="number"
                                                                                         className="form-control text-end"
-                                                                                        disabled
                                                                                     />
                                                                                     {errors.items?.[i]?.availableStock && touched.items?.[i]?.availableStock && (
                                                                                         <div className="text-danger small">{errors.items[i].availableStock}</div>
@@ -1105,7 +1147,7 @@ const validateDuplicateUom = (items = []) => {
                                                                                             altFormat: "d-M-Y",
                                                                                             dateFormat: "Y-m-d",
                                                                                             minDate: "today",
-                                                                                            clickOpens: editingRowIndex === i
+                                                                                            clickOpens: true
                                                                                         }}
                                                                                     />
                                                                                     {errors.items?.[i]?.deliveryDate && touched.items?.[i]?.deliveryDate && (

@@ -418,6 +418,17 @@ const WarehouseGRN = () => {
                         onChange={(e) => setToDate(e.target.value)}
                       />
                     </div>
+                    <div className="d-flex align-items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="bulkGas"
+                        className="form-check-input"
+                        checked={bulkGas}
+                        onChange={(e) => setBulkGas(e.target.checked)}
+                        style={{ width: "18px", height: "18px", cursor: "pointer" }}
+                      />
+                      <label htmlFor="bulkGas" className="form-label mb-0 text-nowrap" style={{ cursor: "pointer" }}>Bulk Gas</label>
+                    </div>
                   </div>
                 </div>
 
