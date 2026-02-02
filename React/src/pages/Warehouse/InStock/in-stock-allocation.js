@@ -379,7 +379,7 @@ const InStockAllocation = () => {
   };
 
   const finalItemNameTemplate = (rowData) => {
-    return `${rowData.glCode}-${rowData.itemName} – ${rowData.barcode}`;
+    return `${rowData.itemName} – ${rowData.barcode}`;
   };
 
   const headerStyleObj = { backgroundColor: "#0066cc", color: "white" };
