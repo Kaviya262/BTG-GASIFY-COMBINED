@@ -76,7 +76,7 @@ const AddOpeningAllocation = () => {
             formData.rackNumber,
             formData.height
         );
-        const newFinalName = formData.glCode && formData.itemName && newShelfNumber ? `${formData.glCode}-${formData.itemName} - ${newShelfNumber}` : "";
+        const newFinalName = formData.itemName && newShelfNumber ? `${formData.itemName} - ${newShelfNumber}` : "";
 
         setFormData((prev) => ({
             ...prev,
@@ -105,8 +105,8 @@ const AddOpeningAllocation = () => {
 
         // Auto-generate final name when shelf number or items change
         if (["glCode", "itemName", "shelfNumber"].includes(name) || ["floor", "positionRack", "rackNumber", "height"].includes(name)) {
-            updatedData.finalName = updatedData.glCode && updatedData.itemName && updatedData.shelfNumber
-                ? `${updatedData.glCode}-${updatedData.itemName} - ${updatedData.shelfNumber}`
+            updatedData.finalName = updatedData.itemName && updatedData.shelfNumber
+                ? `${updatedData.itemName} - ${updatedData.shelfNumber}`
                 : "";
         }
 

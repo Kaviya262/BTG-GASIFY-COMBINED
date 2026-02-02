@@ -92,7 +92,7 @@ const EditInStockAllocation = () => {
       ...prev,
       barcode: shelfNum || ("BAR" + Date.now().toString().slice(-6)),
       shelfNumber: shelfNum,
-      finalName: prev.glCode && prev.itemName && shelfNum ? `${prev.glCode}-${prev.itemName} - ${shelfNum}` : "",
+      finalName: prev.itemName && shelfNum ? `${prev.itemName} - ${shelfNum}` : "",
     }));
   };
 
@@ -106,14 +106,14 @@ const EditInStockAllocation = () => {
     if (["floor", "positionRack", "rackNumber", "height"].includes(name)) {
       const shelfNum = generateShelfNumber(updatedData.floor, updatedData.positionRack, updatedData.rackNumber, updatedData.height);
       updatedData.shelfNumber = shelfNum;
-      if (updatedData.glCode && updatedData.itemName) {
-        updatedData.finalName = `${updatedData.glCode}-${updatedData.itemName} - ${shelfNum}`;
+      if (updatedData.itemName) {
+        updatedData.finalName = `${updatedData.itemName} - ${shelfNum}`;
       }
     }
 
-    if ((name === "glCode" || name === "itemName") && updatedData.shelfNumber) {
-      if (updatedData.glCode && updatedData.itemName) {
-        updatedData.finalName = `${updatedData.glCode}-${updatedData.itemName} - ${updatedData.shelfNumber}`;
+    if (name === "itemName" && updatedData.shelfNumber) {
+      if (updatedData.itemName) {
+        updatedData.finalName = `${updatedData.itemName} - ${updatedData.shelfNumber}`;
       } else {
         updatedData.finalName = "";
       }
