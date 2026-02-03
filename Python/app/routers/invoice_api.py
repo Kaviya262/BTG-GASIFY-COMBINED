@@ -58,6 +58,8 @@ class InvoiceListItem(BaseModel):
     TotalAmount: float
     CalculatedPrice: float
     Status: str
+    DOnumber: Optional[str] = ""
+    uomid: Optional[int] = 0  # Fixed: removed duplicate PONumber field
 
 class InvoiceItemDetail(BaseModel):
     Id: int
@@ -68,6 +70,9 @@ class InvoiceItemDetail(BaseModel):
     TotalPrice: float
     Currencyid: int
     ExchangeRate: float
+    DOnumber: Optional[str] = ""
+    PONumber: Optional[str] = ""
+    uomid: Optional[int] = 0
 
 class InvoiceFullDetail(BaseModel):
     InvoiceId: int
@@ -182,7 +187,7 @@ async def create_invoice(payload: CreateInvoiceRequest):
                 total_header_amount += line_total
                 total_calculated_price_idr += line_calculated_price
 
-                # C. Insert Detail (Restored ExchangeRate now that DB Name is fixed)
+                # C. Insert Detail
                 detail_query = text(f"""
                     INSERT INTO {DB_NAME_USER_NEW}.tbl_salesinvoices_details
                     (salesinvoicesheaderid, gascodeid, PickedQty, UnitPrice, TotalPrice, Price, Currencyid, ExchangeRate, uomid, DOnumber, PONumber, DriverName, TruckName, DeliveryAddress)
@@ -218,6 +223,7 @@ async def create_invoice(payload: CreateInvoiceRequest):
                 "hid": new_header_id
             })
 
+            await conn.commit()  # Explicit commit for async
             return {"status": "success", "message": "Invoice Created", "data": new_header_id, "InvoiceId": new_header_id}
 
         except Exception as e:
@@ -254,7 +260,7 @@ async def update_invoice(payload: UpdateInvoiceRequest):
                 total_header_amount += line_total
                 total_calculated_price_idr += line_calculated_price
 
-                # Insert (Restored ExchangeRate)
+                # Insert
                 detail_query = text(f"""
                     INSERT INTO {DB_NAME_USER_NEW}.tbl_salesinvoices_details
                     (salesinvoicesheaderid, gascodeid, PickedQty, UnitPrice, TotalPrice, Price, Currencyid, ExchangeRate, uomid, DOnumber, PONumber, DriverName, TruckName, DeliveryAddress)
@@ -302,6 +308,7 @@ async def update_invoice(payload: UpdateInvoiceRequest):
                 "hid": invoice_id
             })
 
+            await conn.commit()  # Explicit commit for async
             return {"status": True, "message": "Invoice updated successfully", "data": invoice_id}
 
         except Exception as e:
@@ -329,7 +336,11 @@ async def get_all_invoices(filter_data: InvoiceFilter):
             CASE 
                 WHEN h.IsSubmitted = 1 THEN 'Posted' 
                 ELSE 'Saved' 
-            END AS Status
+            END AS Status,
+            (SELECT d.DOnumber FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_details d 
+             WHERE d.salesinvoicesheaderid = h.id LIMIT 1) AS DOnumber,
+            (SELECT d.uomid FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_details d 
+             WHERE d.salesinvoicesheaderid = h.id LIMIT 1) AS uomid
         FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header h
         LEFT JOIN {DB_NAME_USER_NEW}.master_customer c ON h.customerid = c.Id
         WHERE h.Salesinvoicesdate BETWEEN :from_date AND :to_date
@@ -394,7 +405,7 @@ async def get_invoice_details(invoiceid: str):
                 all_header_ids.append(h.RealHeaderId)
 
             header_dict = dict(primary_header._mapping)
-            header_dict["InvoiceId"] = header_dict.pop("RealHeaderId") 
+            header_dict["InvoiceId"] = header_dict.pop("RealHeaderId")
             header_dict["TotalAmount"] = aggregated_total_amount
             header_dict["CalculatedPrice"] = aggregated_calc_price
 
@@ -408,9 +419,10 @@ async def get_invoice_details(invoiceid: str):
                         COALESCE(d.UnitPrice, 0) AS UnitPrice,
                         COALESCE(d.TotalPrice, 0) AS TotalPrice,
                         COALESCE(d.Currencyid, 1) AS Currencyid,
-                        COALESCE(d.ExchangeRate, 1) AS ExchangeRate, 
-                        d.DOnumber AS DOnumber,
-                        d.PONumber AS PONumber
+                        COALESCE(d.ExchangeRate, 1) AS ExchangeRate,
+                        COALESCE(d.DOnumber, '') AS DOnumber,
+                        COALESCE(d.PONumber, '') AS PONumber,
+                        COALESCE(d.uomid, 0) AS uomid
                     FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_details d
                     LEFT JOIN {DB_NAME_USER_NEW}.master_gascode g ON d.gascodeid = g.Id
                     WHERE d.salesinvoicesheaderid IN :hids
@@ -519,8 +531,8 @@ async def create_invoice_from_do(payload: ConvertDORequest):
                     
                     det_query = text(f"""
                         INSERT INTO {DB_NAME_USER_NEW}.tbl_salesinvoices_details
-                        (salesinvoicesheaderid, gascodeid, PickedQty, UnitPrice, TotalPrice, Currencyid, ExchangeRate, DOnumber)
-                        VALUES (:hid, :gas, :qty, :price, :total, :cur, :rate, :do_str)
+                        (salesinvoicesheaderid, gascodeid, PickedQty, UnitPrice, TotalPrice, Price, Currencyid, ExchangeRate, DOnumber)
+                        VALUES (:hid, :gas, :qty, :price, :total, :calc_price, :cur, :rate, :do_str)
                     """)
                     await conn.execute(det_query, {
                         "hid": new_invoice_id,
@@ -528,6 +540,7 @@ async def create_invoice_from_do(payload: ConvertDORequest):
                         "qty": row.PickedQty,
                         "price": row.UnitPrice,
                         "total": line_total,
+                        "calc_price": line_calc_price,
                         "cur": row.Currencyid,
                         "rate": rate_val,
                         "do_str": do_number_str
@@ -545,6 +558,7 @@ async def create_invoice_from_do(payload: ConvertDORequest):
                 "hid": new_invoice_id
             })
 
+            await conn.commit()  # Explicit commit for async
             return {"status": True, "message": "Invoice Created Successfully", "InvoiceId": new_invoice_id}
 
         except Exception as e:
@@ -589,11 +603,9 @@ async def get_sales_details(filter_data: InvoiceFilter):
             (d.TotalPrice * COALESCE(mc.ExchangeRate, 1)) as ConvertedTotal
         FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header h
         JOIN {DB_NAME_USER_NEW}.tbl_salesinvoices_details d ON h.id = d.salesinvoicesheaderid
-        
         LEFT JOIN {DB_NAME_USER_NEW}.master_customer c ON h.customerid = c.Id
         LEFT JOIN {DB_NAME_USER_NEW}.master_gascode g ON d.gascodeid = g.Id
         LEFT JOIN {DB_NAME_USER}.master_currency mc ON d.Currencyid = mc.CurrencyId
-        
         WHERE DATE(h.Salesinvoicesdate) BETWEEN :from_date AND :to_date 
           AND h.isactive = 1 
           AND (:cust_id = 0 OR h.customerid = :cust_id)

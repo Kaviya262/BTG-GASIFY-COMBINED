@@ -4,6 +4,7 @@ import mysql.connector
 import os
 from datetime import datetime
 from dotenv import load_dotenv
+from typing import List  # <--- Added for List[int]
 
 load_dotenv()
 
@@ -12,6 +13,7 @@ router = APIRouter(
     tags=["Claim Payment Discussion"]
 )
 
+# --- Existing Models ---
 class HodDiscussionRequest(BaseModel):
     claim_id: int
     comment: str
@@ -22,6 +24,20 @@ class ApplicantReplyRequest(BaseModel):
     reply: str
     applicant_name: str
 
+class DiscussionRequest(BaseModel):
+    claim_id: int
+    comment: str
+    user_name: str
+    sender_role: str = "" 
+
+# --- NEW MODEL FOR SPC ---
+class GenerateSPCRequest(BaseModel):
+    Ids: List[int]
+    OrgId: int
+    BranchId: int
+    UserId: int
+    CreatedDate: str
+
 def get_db_connection_sync():
     return mysql.connector.connect(
         host=os.getenv('DB_HOST'),
@@ -30,6 +46,70 @@ def get_db_connection_sync():
         database=os.getenv('DB_NAME_FINANCE', 'btggasify_finance_live'),
         port=int(os.getenv('DB_PORT', 3306))
     )
+
+# --- NEW FUNCTION: Generate SPC ---
+@router.post("/generate_spc")
+def generate_spc(payload: GenerateSPCRequest):
+    conn = None
+    cursor = None
+    try:
+        # We need to connect to the User Panel DB for Claims
+        # Using the same credentials but switching DB or referencing explicitly
+        user_db_name = os.getenv('DB_NAME_USER_NEW', 'btggasify_userpanel_live')
+        
+        conn = get_db_connection_sync()
+        cursor = conn.cursor()
+        
+        if not payload.Ids:
+            raise HTTPException(status_code=400, detail="No IRNs selected")
+
+        # 1. Generate Claim No (SPC-SEQ)
+        # Note: We explicitly reference the user_db_name table
+        seq_query = f"SELECT IFNULL(MAX(id), 0) + 1 FROM {user_db_name}.tbl_claim_header"
+        cursor.execute(seq_query)
+        next_id = cursor.fetchone()[0]
+        claim_no = f"SPC-{next_id}"
+
+        # 2. Create Claim Header
+        header_query = f"""
+            INSERT INTO {user_db_name}.tbl_claim_header 
+            (ClaimNo, ClaimDate, OrgId, BranchId, CreatedBy, CreatedDate, Status, IsActive)
+            VALUES (%s, NOW(), %s, %s, %s, NOW(), 'Draft', 1)
+        """
+        cursor.execute(header_query, (claim_no, payload.OrgId, payload.BranchId, payload.UserId))
+        new_claim_id = cursor.lastrowid
+
+        # 3. Update IRNs (Invoice Receipt Headers)
+        # Using 'format_strings' for IN clause in MySQL connector
+        format_strings = ','.join(['%s'] * len(payload.Ids))
+        update_query = f"""
+            UPDATE {user_db_name}.tbl_invoice_receipt_header 
+            SET ClaimId = %s, 
+                ClaimStatus = 'Claimed'
+            WHERE id IN ({format_strings})
+        """
+        
+        # Combine parameters: claim_id first, then the list of IDs
+        params = [new_claim_id] + payload.Ids
+        cursor.execute(update_query, tuple(params))
+
+        conn.commit()
+
+        return {
+            "status": True, 
+            "message": f"Payment Claim {claim_no} generated successfully!", 
+            "data": new_claim_id
+        }
+
+    except Exception as e:
+        print(f"Error generating SPC: {str(e)}")
+        if conn: conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
+# --- EXISTING FUNCTIONS BELOW (Unchanged) ---
 
 @router.post("/save_hod_discussion")
 def save_hod_discussion(req: HodDiscussionRequest):
@@ -190,14 +270,6 @@ def get_history(claim_id: int):
     finally:
         if cursor: cursor.close()
         if conn: conn.close()
-
-# --- HOD <-> GM Discussion ---
-
-class DiscussionRequest(BaseModel):
-    claim_id: int
-    comment: str
-    user_name: str
-    sender_role: str = "" # "HOD", "GM", "Director"
 
 @router.post("/save_hod_gm_discussion")
 def save_hod_gm_discussion(req: DiscussionRequest):

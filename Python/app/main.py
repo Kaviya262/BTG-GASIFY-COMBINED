@@ -24,7 +24,7 @@ app.add_middleware(
 app.include_router(finance.router)
 
 # Existing Invoice Router (Prefix removed as per user request)
-app.include_router(invoice_api.router, tags=["Invoices"])
+app.include_router(invoice_api.router, prefix="/pyapi", tags=["Invoices"])
 
 # --- NEW: Include BankBook Router ---
 # Since your request URL was /api/AR/..., we must add the /api prefix here too.

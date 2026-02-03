@@ -595,14 +595,24 @@ word-break: break-word;
   };
 
   const handleShowDetails = async (row) => {
+    console.log("=== PAYMENT SUMMARY TABLE - handleShowDetails ===");
+    console.log("Row data:", row);
+    console.log("Calling ClaimAndPaymentGetById with:", row.id, 1, 1);
 
-    const res = await ClaimAndPaymentGetById(row.Claim_ID, 1, 1);
+    const res = await ClaimAndPaymentGetById(row.id, 1, 1);
+
+    console.log("API Response:", res);
+    console.log("Response status:", res?.status);
+    console.log("Response data:", res?.data);
+    console.log("Response data.header:", res?.data?.header);
+    console.log("Response data.details:", res?.data?.details);
+
     if (res.status) {
 
       setSelectedDetail(res.data);
       setDetailVisible(true);
-      setPreviewUrl(res.data.header.AttachmentPath == undefined || res.data.header.AttachmentPath == null ? "" : res.data.header.AttachmentPath);
-      setFileName(res.data.header.AttachmentName == undefined || res.data.header.AttachmentName == null ? "" : res.data.header.AttachmentName);
+      setPreviewUrl(res.data?.header?.AttachmentPath || "");
+      setFileName(res.data?.header?.AttachmentName || "");
 
     }
     else {

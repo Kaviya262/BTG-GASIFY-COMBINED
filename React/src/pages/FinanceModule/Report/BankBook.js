@@ -95,7 +95,7 @@ const BankBook = () => {
 
             const uniqueCurrency = [
                 ...new Set(resultData.map((x) => x.Currency))
-            ].map((c) => ({ label: c, value: c }));
+            ].filter(c => c && c !== '-').map((c) => ({ label: c, value: c }));
 
             setCurrencyList(uniqueCurrency);
 
@@ -127,12 +127,12 @@ const BankBook = () => {
                 date: item.Date ? new Date(item.Date) : null,
                 voucherNo: item.VoucherNo || "-",
                 transactionType: item.TransactionType || "-",
-                glcode: "", 
+                glcode: "",
                 account: item.Account || "-",
                 party: item.Party || "-",
                 description: item.Description || "-",
                 currency: item.Currency || "IDR",
-                actamount: item.NetAmount, 
+                actamount: item.NetAmount,
                 creditIn: parseFloat(item.CreditIn || 0),
                 debitOut: parseFloat(item.DebitOut || 0),
                 balance: parseFloat(item.Balance || 0),
@@ -155,7 +155,7 @@ const BankBook = () => {
         }));
         setbtgBankOptions(options);
     }
-    
+
     // --- FIX: Logic to show ALL records if currency is null ---
     const filtered = currency
         ? bankBook.filter(item => item.currency === currency.value)
@@ -239,7 +239,7 @@ const BankBook = () => {
         // fetchBankBook will be called by useEffect when bankid changes or we can call it manually
         // Since setbankid is async, best to rely on useEffect or call a refresh function that reads current state carefully. 
         // For simplicity here, we can trigger a manual fetch with default params.
-        setTimeout(() => fetchBankBook(), 100); 
+        setTimeout(() => fetchBankBook(), 100);
     };
 
     useEffect(() => {
@@ -269,13 +269,13 @@ const BankBook = () => {
                             options={btgBankOptions}
                             isClearable={true} // Allow clearing the bank selection
                             value={btgBankOptions.find((o) => o.value === bankid) || null}
-                            onChange={(option) => { 
-                                setbankid(option?.value || null); 
+                            onChange={(option) => {
+                                setbankid(option?.value || null);
                             }}
                             placeholder="Select BTG Bank"
                         />
                     </Col>
-                    
+
                     <Col md="3">
                         <input
                             type="date"
@@ -342,7 +342,7 @@ const BankBook = () => {
                                     filter
                                 >
                                     <Column field="date" header="Date" body={dateBodyTemplate} style={{ width: '120px' }} />
-                                    
+
                                     <Column field="voucherNo" header="Voucher No" filter filterPlaceholder="Search Voucher" />
 
                                     <Column field="transactionType" header="Transaction Type" filter filterPlaceholder="Search Type" />
@@ -351,7 +351,7 @@ const BankBook = () => {
                                     <Column field="description" header="Description" filter filterPlaceholder="Search Description" />
 
                                     <Column field="currency" header="Currency" filter filterPlaceholder="Search Currency" />
-                                    
+
                                     <Column field="creditIn" header="Credit (In)" body={(d) => d.creditIn.toLocaleString('en-US', {
                                         style: 'decimal',
                                         minimumFractionDigits: 2

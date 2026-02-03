@@ -1373,12 +1373,18 @@ const ManageApproval = ({ selectedType, setSelectedType }) => {
       // Optionally show a message or do nothing
       return;
     }
+    console.log("Fetching details for row:", row);
     const res = await ClaimAndPaymentGetById(row.id, 1, 1);
+    console.log("API Response:", res);
+    console.log("Response data:", res.data);
+    console.log("Response data.header:", res.data?.header);
+    console.log("Response data.details:", res.data?.details);
+
     if (res.status) {
       setSelectedDetail(res.data);
       setDetailVisible(true);
-      setPreviewUrl(res.data.header.AttachmentPath == undefined || res.data.header.AttachmentPath == null ? "" : res.data.header.AttachmentPath);
-      setFileName(res.data.header.AttachmentName == undefined || res.data.header.AttachmentName == null ? "" : res.data.header.AttachmentName);
+      setPreviewUrl(res.data?.header?.AttachmentPath || "");
+      setFileName(res.data?.header?.AttachmentName || "");
     } else {
       Swal.fire("Error", "Data is not available", "error");
     }
@@ -1817,33 +1823,49 @@ word-break: break-word;
   }
 
 
-  const pvgroupedBySummary = claims.filter(x => x.type == "PPP PV").reduce((acc, item) => {
+  // ✅ FIXED: Filter out PPP PV claims without valid payment plan data
+  const pvgroupedBySummary = claims
+    .filter(x =>
+      x.type == "PPP PV" &&
+      x.SummaryId &&
+      x.SummaryId > 0 &&
+      x.PaymentNo &&
+      x.PaymentPlanDate
+    )
+    .reduce((acc, item) => {
+      const key = item.SummaryId;
+      if (!acc[key]) acc[key] = {
+        PPP_PV_Commissioner_approveone: item.PPP_PV_Commissioner_approveone, PPP_PV_Director_approve: item.PPP_PV_Director_approve, type: item.type, PaymentNo: item.PaymentNo, PaymentPlanDate: item.PaymentPlanDate, cashInHand: item.cashInHand, cashFromSalesAtFactory: item.cashFromSalesAtFactory,
+        FromDate: item.FromDate, ToDate: item.ToDate, InHand_CNY: item.InHand_CNY, InHand_USD: item.InHand_USD, InHand_SGD: item.InHand_SGD, InHand_IDR: item.InHand_IDR,
+        InHand_MYR: item.InHand_MYR, Sales_CNY: item.Sales_CNY, Sales_USD: item.Sales_USD, Sales_SGD: item.Sales_SGD, Sales_IDR: item.Sales_IDR, Sales_MYR: item.Sales_MYR,
+        rows: []
+      };
+      acc[key].rows.push(item);
 
-    const key = item.SummaryId;
-    if (!acc[key]) acc[key] = {
-      PPP_PV_Commissioner_approveone: item.PPP_PV_Commissioner_approveone, PPP_PV_Director_approve: item.PPP_PV_Director_approve, type: item.type, PaymentNo: item.PaymentNo, PaymentPlanDate: item.PaymentPlanDate, cashInHand: item.cashInHand, cashFromSalesAtFactory: item.cashFromSalesAtFactory,
-      FromDate: item.FromDate, ToDate: item.ToDate, InHand_CNY: item.InHand_CNY, InHand_USD: item.InHand_USD, InHand_SGD: item.InHand_SGD, InHand_IDR: item.InHand_IDR,
-      InHand_MYR: item.InHand_MYR, Sales_CNY: item.Sales_CNY, Sales_USD: item.Sales_USD, Sales_SGD: item.Sales_SGD, Sales_IDR: item.Sales_IDR, Sales_MYR: item.Sales_MYR,
-      rows: []
-    };
-    acc[key].rows.push(item);
+      return acc;
+    }, {});
 
-    return acc;
-  }, {});
+  // ✅ FIXED: Filter out PPP claims without valid payment plan data
+  const groupedBySummary = claims
+    .filter(x =>
+      x.type == "PPP" &&
+      x.SummaryId &&
+      x.SummaryId > 0 &&
+      x.PaymentNo &&
+      x.PaymentPlanDate
+    )
+    .reduce((acc, item) => {
+      const key = item.SummaryId;
+      if (!acc[key]) acc[key] = {
+        PPP_PV_Commissioner_approveone: item.PPP_PV_Commissioner_approveone, PPP_PV_Director_approve: item.PPP_PV_Director_approve, type: item.type, PaymentNo: item.PaymentNo, PaymentPlanDate: item.PaymentPlanDate, cashInHand: item.cashInHand, cashFromSalesAtFactory: item.cashFromSalesAtFactory,
+        FromDate: item.FromDate, ToDate: item.ToDate, InHand_CNY: item.InHand_CNY, InHand_USD: item.InHand_USD, InHand_SGD: item.InHand_SGD, InHand_IDR: item.InHand_IDR,
+        InHand_MYR: item.InHand_MYR, Sales_CNY: item.Sales_CNY, Sales_USD: item.Sales_USD, Sales_SGD: item.Sales_SGD, Sales_IDR: item.Sales_IDR, Sales_MYR: item.Sales_MYR,
+        rows: []
+      };
+      acc[key].rows.push(item);
 
-  const groupedBySummary = claims.filter(x => x.type == "PPP").reduce((acc, item) => {
-
-    const key = item.SummaryId;
-    if (!acc[key]) acc[key] = {
-      PPP_PV_Commissioner_approveone: item.PPP_PV_Commissioner_approveone, PPP_PV_Director_approve: item.PPP_PV_Director_approve, type: item.type, PaymentNo: item.PaymentNo, PaymentPlanDate: item.PaymentPlanDate, cashInHand: item.cashInHand, cashFromSalesAtFactory: item.cashFromSalesAtFactory,
-      FromDate: item.FromDate, ToDate: item.ToDate, InHand_CNY: item.InHand_CNY, InHand_USD: item.InHand_USD, InHand_SGD: item.InHand_SGD, InHand_IDR: item.InHand_IDR,
-      InHand_MYR: item.InHand_MYR, Sales_CNY: item.Sales_CNY, Sales_USD: item.Sales_USD, Sales_SGD: item.Sales_SGD, Sales_IDR: item.Sales_IDR, Sales_MYR: item.Sales_MYR,
-      rows: []
-    };
-    acc[key].rows.push(item);
-
-    return acc;
-  }, {});
+      return acc;
+    }, {});
 
 
   const normalizeHistory = (data) => {
@@ -2061,7 +2083,18 @@ word-break: break-word;
               <Card>
                 <Accordion multiple>
                   {desiredOrder
-                    .filter(type => grouped[type]) // include only existing keys
+                    .filter(type => {
+                      // ✅ FIXED: Hide PPP tab if no valid PPP records exist
+                      if (type === 'PPP') {
+                        return Object.keys(groupedBySummary).length > 0;
+                      }
+                      // ✅ FIXED: Hide PPP PV tab if no valid PPP PV records exist
+                      if (type === 'PPP PV') {
+                        return Object.keys(pvgroupedBySummary).length > 0;
+                      }
+                      // For other types, check if they exist in grouped
+                      return grouped[type];
+                    })
                     .map(type => (
 
 

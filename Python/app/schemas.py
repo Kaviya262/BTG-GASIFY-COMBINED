@@ -1,5 +1,6 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Union
+from datetime import date  # 🟢 Essential Import
 
 class ArReceiptInput(BaseModel):
     receipt_id: int = 0
@@ -12,7 +13,10 @@ class ArReceiptInput(BaseModel):
     bank_payment_via: int = 0
     cheque_number: Optional[str] = None
     giro_number: Optional[str] = None
-    deposit_bank_id: int = 0
+    
+    # 🟢 Updated to allow int or string "0" / "" from frontend
+    deposit_bank_id: Union[int, str] = 0 
+    
     deposit_account_number: Optional[str] = None
     contra_reference: Optional[str] = None
     proof_missing: bool = False
@@ -25,6 +29,9 @@ class ArReceiptInput(BaseModel):
     sales_person_id: Optional[int] = None
     send_notification: bool = False
     is_posted: bool = False
+    
+    # 🟢 ADDED MISSING FIELD
+    receipt_date: Optional[date] = None 
 
 class CreateARCommand(BaseModel):
     orgId: int
@@ -33,27 +40,28 @@ class CreateARCommand(BaseModel):
     userIp: str
     header: List[ArReceiptInput]
 
+# ... (Rest of your classes InvoiceAllocation, VerifyCustomerUpdate etc. remain unchanged) ...
 class InvoiceAllocation(BaseModel):
     invoice_id: int
     invoice_no: str
-    payment_type: str  # "Full" or "Partial"
+    payment_type: str 
     amount_allocated: float
 
 class VerifyCustomerUpdate(BaseModel):
     customer_id: int
     bank_charges: float
     tax_deduction: float
-    exchange_rate: float = 1.0 # --- ADDED ---
+    exchange_rate: float = 1.0
     allocations: List[InvoiceAllocation]
-    reply_message: Optional[str] = None # --- ADDED FOR REPLY ---
+    reply_message: Optional[str] = None
 
 class SaveDraftRequest(BaseModel):
     customer_id: int
     bank_charges: float
     tax_deduction: float
-    exchange_rate: float = 1.0 # --- ADDED ---
+    exchange_rate: float = 1.0 
     allocations: List[InvoiceAllocation]
-    reply_message: Optional[str] = None # --- ADDED FOR REPLY ---
+    reply_message: Optional[str] = None 
 
 class UpdateReferenceRequest(BaseModel):
     id: int

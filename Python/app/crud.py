@@ -35,7 +35,10 @@ async def create_ar_receipt(db: AsyncSession, command: schemas.CreateARCommand):
             branchid=command.branchId,
             created_by=str(command.userId),
             created_ip=command.userIp,
-            receipt_date=datetime.now().date(),
+            
+            # 🟢 FIX: Use the User-Selected Date (Transaction Date), NOT Today's Date
+            receipt_date=item.receipt_date, 
+            
             customer_id=item.customer_id,
             bank_amount=item.bank_amount,
             bank_charges=item.bank_charges,
@@ -303,6 +306,8 @@ async def update_ar_receipt(db: AsyncSession, command: schemas.CreateARCommand):
             "is_cleared": is_cleared_status,
             "proof_missing": item.proof_missing,
             "contra_reference": item.contra_reference,
+            # 🟢 FIX: Update receipt_date on Edit too
+            "receipt_date": item.receipt_date
         }
 
         stmt = (
@@ -371,43 +376,56 @@ async def update_invoice_reference(db: AsyncSession, invoice_id: int, new_refere
         await db.rollback()
         return False
 
+# 🟢 FIXED BULK UPDATE LOGIC TO PREVENT DUPLICATE ERRORS
 async def bulk_update_ar_reference(db: AsyncSession, ar_ids: List[int], new_reference: str):
     try:
         if not ar_ids:
             return 0 
 
-        preserve_do_query = text(f"""
-            UPDATE {DB_NAME_USER_NEW}.tbl_salesinvoices_details d
-            INNER JOIN {DB_NAME_FINANCE}.tbl_accounts_receivable ar 
-                ON d.salesinvoicesheaderid = ar.invoice_id
-            SET d.DOnumber = ar.invoice_no
-            WHERE ar.ar_id IN :ids
-        """)
+        updated_count = 0
 
-        await db.execute(preserve_do_query, {"ids": tuple(ar_ids)})
-        
-        query_finance = text(f"""
-            UPDATE {DB_NAME_FINANCE}.tbl_accounts_receivable 
-            SET invoice_no = :ref 
-            WHERE ar_id IN :ids
-        """)
-        
-        result_finance = await db.execute(query_finance, {"ref": new_reference, "ids": tuple(ar_ids)})
+        # Loop through each ID to ensure we assign a unique reference number
+        # because the database has a UNIQUE Constraint on invoice_no.
+        for index, ar_id in enumerate(ar_ids):
+            # Logic: First item gets "test-6666", second "test-6666-1", etc.
+            unique_ref = new_reference
+            if len(ar_ids) > 1 and index > 0:
+                unique_ref = f"{new_reference}-{index}"
 
-        query_sales = text(f"""
-            UPDATE {DB_NAME_USER_NEW}.tbl_salesinvoices_header
-            SET salesinvoicenbr = :ref
-            WHERE id IN (
-                SELECT invoice_id 
-                FROM {DB_NAME_FINANCE}.tbl_accounts_receivable 
-                WHERE ar_id IN :ids
-            )
-        """)
+            # 1. Update Details (Preserve DO Linkage)
+            preserve_do_query = text(f"""
+                UPDATE {DB_NAME_USER_NEW}.tbl_salesinvoices_details d
+                INNER JOIN {DB_NAME_FINANCE}.tbl_accounts_receivable ar 
+                    ON d.salesinvoicesheaderid = ar.invoice_id
+                SET d.DOnumber = :ref
+                WHERE ar.ar_id = :id
+            """)
+            await db.execute(preserve_do_query, {"id": ar_id, "ref": unique_ref})
+            
+            # 2. Update Finance AR Table (The source of the Duplicate Error)
+            query_finance = text(f"""
+                UPDATE {DB_NAME_FINANCE}.tbl_accounts_receivable 
+                SET invoice_no = :ref 
+                WHERE ar_id = :id
+            """)
+            await db.execute(query_finance, {"ref": unique_ref, "id": ar_id})
 
-        await db.execute(query_sales, {"ref": new_reference, "ids": tuple(ar_ids)})
-        
+            # 3. Update Sales Header Table
+            query_sales = text(f"""
+                UPDATE {DB_NAME_USER_NEW}.tbl_salesinvoices_header
+                SET salesinvoicenbr = :ref
+                WHERE id IN (
+                    SELECT invoice_id 
+                    FROM {DB_NAME_FINANCE}.tbl_accounts_receivable 
+                    WHERE ar_id = :id
+                )
+            """)
+            await db.execute(query_sales, {"ref": unique_ref, "id": ar_id})
+            
+            updated_count += 1
+
         await db.commit()
-        return result_finance.rowcount
+        return updated_count
 
     except Exception as e:
         print(f"CRITICAL DB ERROR in bulk_update: {str(e)}")

@@ -10,7 +10,7 @@ import { GetCustomerFilter, GetUoM, GetCurrency, fetchGasListDSI, GetCascodedeta
 
 import { GetInvoiceDetails, CreatenewInvoice, UpdateInvoice, GetAvailableDOs } from "../../../common/data/invoiceapi";
 import useAccess from "../../../common/access/useAccess";
-import { createAR, postInvoiceToAR } from "../../FinanceModule/service/financeapi";
+import { postInvoiceToAR } from "../../FinanceModule/service/financeapi";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 
@@ -148,7 +148,7 @@ const AddManualInvoice = () => {
       sqid: 0,
       packingid: 0,
       id: 0,
-      salesInvoicesId: invoiceHeader.id || 0, // Ensure it gets current header ID
+      salesInvoicesId: invoiceHeader.id || 0,
       packingDetailId: 0,
       deliveryNumber: "",
       GasCodeId: 0,
@@ -261,6 +261,7 @@ const AddManualInvoice = () => {
       const response = await GetAvailableDOs(payload);
       const allData = response.data || response || [];
 
+      // Filter for Confirmed DOs
       const filteredData = allData.filter(item => {
         const ref = item.do_number || "";
         return ref.startsWith("DO") || ref.startsWith("27");
@@ -287,18 +288,32 @@ const AddManualInvoice = () => {
         const doId = doHeader.do_id;
         const doNumber = doHeader.do_number;
 
+        // Fetch details for each selected DO
         const detailsData = await GetInvoiceDetails(doId);
 
         if (detailsData && detailsData.Items) {
           const mappedItems = await Promise.all(detailsData.Items.map(async (item) => {
-            const gasInfo = gasCodeList.find(g => g.GasCodeId === item.gascodeid);
+            // 🟢 FIX: SMART MATCH GAS CODE ID
+            // If the imported ID doesn't exist in our list, try to find it by NAME
+            let validGasId = item.gascodeid;
+            let gasInfo = gasCodeList.find(g => g.GasCodeId === item.gascodeid);
+
+            if (!gasInfo) {
+              // Try matching by Name if ID mismatch (e.g. 78 vs 1928)
+              gasInfo = gasCodeList.find(g => g.GasName === item.GasName);
+              if (gasInfo) {
+                console.log(`Auto-Correction: Mapped obsolete ID ${item.gascodeid} to ${gasInfo.GasCodeId} for ${item.GasName}`);
+                validGasId = gasInfo.GasCodeId;
+              }
+            }
+
             let description = "";
             let volume = "";
             let pressure = "";
 
             if (gasInfo) {
               try {
-                const gDet = await GetCascodedetail(gasInfo.GasCodeId);
+                const gDet = await GetCascodedetail(validGasId);
                 if (gDet && gDet[0]) {
                   description = gDet[0].Descriptions;
                   volume = gDet[0].Volume;
@@ -310,8 +325,8 @@ const AddManualInvoice = () => {
             return {
               sqid: 0, packingid: 0, id: 0, salesInvoicesId: invoiceHeader.id || 0, packingDetailId: 0, deliveryNumber: "",
 
-              GasCodeId: item.gascodeid,
-              gasCode: gasInfo ? gasInfo.GasName : "",
+              GasCodeId: validGasId, // 🟢 Use the corrected ID
+              gasCode: gasInfo ? gasInfo.GasName : "", // Store Name for UI
               Description: description || (gasInfo ? gasInfo.GasName : ""),
               Volume: volume,
               Pressure: pressure,
@@ -413,12 +428,11 @@ const AddManualInvoice = () => {
       calculatedPrice,
     };
 
-    // --- FIX: Force salesInvoicesId to match the header ID ---
     const updatedDetails = manualinvoiceDetails.map(item => ({
       sqid: item.sqid || 0,
       packingid: item.packingid || 0,
       id: item.id || 0,
-      salesInvoicesId: invoiceHeader.id || 0, // <--- CRITICAL FIX HERE: Ensures items are linked
+      salesInvoicesId: invoiceHeader.id || 0,
       packingDetailId: item.packingDetailId || 0,
       deliveryNumber: item.deliveryNumber || "",
       gasCodeId: item.GasCodeId || 0,
@@ -486,9 +500,6 @@ const AddManualInvoice = () => {
         setErrorMsg([]);
         setSuccessStatus(true);
 
-        // --- ID RESOLUTION LOGIC ---
-        // 1. If updating (id exists in URL), use that.
-        // 2. If creating, use response.data (which might be the ID or an object)
         let targetInvoiceId = id ? parseInt(id) : null;
 
         if (!targetInvoiceId && response?.data) {
@@ -497,10 +508,6 @@ const AddManualInvoice = () => {
 
         console.log("Target Invoice ID for Posting:", targetInvoiceId);
 
-        // --- AR SYNC LOGIC (The Fix for Update Issue) ---
-        // Sync if:
-        // 1. User clicked "Post" (submitType === 1)
-        // 2. OR User clicked "Update" AND the invoice was PREVIOUSLY posted (isSubmitted === 1)
         const isAlreadyPosted = invoiceHeader.isSubmitted === 1 || invoiceHeader.isSubmitted === true;
         const isPostingNow = Number(submitType) === 1;
 
@@ -534,13 +541,12 @@ const AddManualInvoice = () => {
     try {
       console.log("Fetching invoice details for ID:", id);
       const data = await GetInvoiceDetails(id);
-
-      // --- FIX: Capture the correct Header ID even if casing varies ---
-      // Some APIs return 'InvoiceId', some 'RealHeaderId', some 'id'
       const actualHeaderId = data.InvoiceId || data.RealHeaderId || data.id || id;
 
+      // Determine if response is from Python (Items/Header flat) or Old .NET (Header/Details obj)
       const isNewStructure = data?.Items && !data?.Header;
 
+      // 1. HEADER MAPPING
       if (isNewStructure) {
         SetInvoiceHeader(prev => ({
           ...prev,
@@ -550,108 +556,95 @@ const AddManualInvoice = () => {
           salesInvoiceDate: data.Salesinvoicesdate || new Date(),
           totalAmount: data.TotalAmount || 0,
           calculatedPrice: data.CalculatedPrice || 0,
-          isSubmitted: data.IsSubmitted ?? 0,
+          isSubmitted: data.Status === 'Posted' ? 1 : 0,
+        }));
+      } else if (data?.Header) {
+        SetInvoiceHeader(prev => ({
+          ...prev,
+          ...data.Header,
+          id: data.Header.id || id,
+          isSubmitted: data.Header.IsSubmitted ?? data.Header.isSubmitted ?? 0,
+        }));
+      }
+
+      // 2. DETAILS MAPPING
+      let rawDetails = [];
+      if (isNewStructure) {
+        rawDetails = data.Items || [];
+      } else if (Array.isArray(data?.Details)) {
+        rawDetails = data.Details || [];
+      }
+
+      if (rawDetails.length > 0) {
+        const mappedDetails = rawDetails.map(item => ({
+          sqid: item.sqid || 0,
+          packingid: item.packingid || 0,
+          id: item.Id || item.id || 0,
+          salesInvoicesId: actualHeaderId,
+          packingDetailId: item.packingDetailId || 0,
+
+          // Gas Info
+          GasCodeId: item.gascodeid || item.GasCodeId || 0,
+          gasCode: item.GasName || item.gasCode || "",
+          Description: item.gasDescription || item.Description || "",
+          Volume: item.Volume || "",
+          Pressure: item.Pressure || "",
+
+          // Qty Logic (Priority to PickedQty)
+          Qty: item.PickedQty ?? item.qty ?? 1,
+          pickedQty: item.PickedQty ?? item.pickedQty ?? item.qty ?? 1,
+
+          // 🟢 FIX: Robust checks for UOM, PO, DO (Case Insensitive Fallbacks)
+          Uom: item.UOM || item.uom || item.Uom || "",
+          UomId: item.uomid || item.UomId || 0,
+
+          poNumber: item.PONumber || item.poNumber || item.PoNumber || "",
+          doNumber: item.DOnumber || item.doNumber || item.DoNumber || item.deliveryNumber || "",
+
+          // Financials
+          CurrencyId: item.Currencyid || item.currencyId || 0,
+          UnitPrice: item.UnitPrice || item.unitPrice || 0,
+          TotalPrice: item.TotalPrice || item.totalPrice || 0,
+          price: item.price || "",
+          ConvertedPrice: item.ConvertedPrice || item.price || 0,
+          Exchangerate: item.ExchangeRate || item.exchangerate || item.Exchangerate || 0,
+
+          // Logistics
+          driverName: item.driverName || "",
+          truckName: item.truckName || "",
+          deliveryNumber: item.deliveryNumber || "",
+          requestDeliveryDate: item.requestDeliveryDate ? new Date(item.requestDeliveryDate) : new Date(),
+          deliveryAddress: item.deliveryAddress || "",
+          deliveryInstruction: item.deliveryInstruction || "",
+
+          // SO Info
+          soQty: item.soQty || 0,
+          so_Issued_Qty: item.so_Issued_Qty || 0,
+          balance_Qty: item.balance_Qty || 0,
+
+          ConvertedCurrencyId: item.convertedCurrencyId || item.Currencyid || 0,
+          isImportedDO: !!item.ref_do_id
         }));
 
-        if (Array.isArray(data.Items) && data.Items.length > 0) {
-          const mappedDetails = data.Items.map(item => ({
-            sqid: 0,
-            packingid: 0,
-            id: item.Id || item.id || 0,
-            salesInvoicesId: actualHeaderId, // <--- Use the resolved Header ID
-            packingDetailId: 0,
-            deliveryNumber: "",
-            GasCodeId: item.gascodeid || 0,
-            gasCode: item.GasName || "",
-            Description: item.gasDescription || "",
-            Volume: item.Volume || "",
-            Pressure: item.Pressure || "",
-            Qty: item.PickedQty || item.qty || 1,
-            pickedQty: item.PickedQty || item.qty || 1,
-            Uom: item.UOM || "",
-            UomId: item.uomid || 0,
-            CurrencyId: item.Currencyid || item.currencyId || 0,
-            UnitPrice: item.UnitPrice || item.unitPrice || 0,
-            TotalPrice: item.TotalPrice || item.totalPrice || 0,
-            price: item.price || "",
-            ConvertedPrice: item.ConvertedPrice || item.price || 0,
-            Exchangerate: item.ExchangeRate || item.exchangerate || 0,
-            driverName: item.driverName || "",
-            truckName: item.truckName || "",
-            poNumber: item.PONumber || item.poNumber || "",
-            doNumber: item.DOnumber || "",
-            requestDeliveryDate: item.requestDeliveryDate || new Date(),
-            deliveryAddress: item.deliveryAddress || "",
-            deliveryInstruction: item.deliveryInstruction || "",
-            soQty: item.soQty || 0,
-            so_Issued_Qty: item.so_Issued_Qty || 0,
-            balance_Qty: item.balance_Qty || 0,
-            ConvertedCurrencyId: item.convertedCurrencyId || item.Currencyid || 0,
-            isImportedDO: !!item.ref_do_id
-          }));
-          setmanualinvoiceDetails(mappedDetails);
-          setcurrencySelect(mappedDetails[0]?.ConvertedCurrencyId || null);
-        }
-      } else {
-        if (data?.Header) {
-          SetInvoiceHeader(prev => ({
-            ...prev,
-            ...data.Header,
-            id: data.Header.id || id,
-            isSubmitted: data.Header.IsSubmitted ?? data.Header.isSubmitted ?? 0,
-          }));
-        }
+        setmanualinvoiceDetails(mappedDetails);
 
-        if (Array.isArray(data?.Details)) {
-          const mappedDetails = data.Details.map(item => ({
-            sqid: item.sqid || 0,
-            packingid: item.packingid || 0,
-            id: item.id || 0,
-            salesInvoicesId: data.Header?.id || id, // Ensure header ID is used
-            packingDetailId: item.packingDetailId || 0,
-            deliveryNumber: item.deliveryNumber || "",
-            GasCodeId: item.gascodeid || 0,
-            gasCode: item.GasName || item.GasName || "",
-            Description: item.gasDescription || "",
-            Volume: item.Volume || "",
-            Pressure: item.Pressure || "",
-            Qty: item.qty || 1,
-            Uom: item.UOM || "",
-            UomId: item.uomid || 0,
-            CurrencyId: item.currencyId,
-            UnitPrice: item.unitPrice || 0,
-            TotalPrice: item.totalPrice || 0,
-            price: item.price || "",
-            ConvertedPrice: item.ConvertedPrice || item.price || 0,
-            Exchangerate: item.exchangerate || 0,
-            driverName: item.driverName || "",
-            truckName: item.truckName || "",
-            poNumber: item.poNumber,
-            doNumber: item.DOnumber || "",
-            requestDeliveryDate: item.requestDeliveryDate || new Date(),
-            deliveryAddress: item.deliveryAddress || "",
-            deliveryInstruction: item.deliveryInstruction || "",
-            soQty: item.soQty || 0,
-            pickedQty: item.pickedQty ?? item.qty ?? 0,
-            so_Issued_Qty: item.so_Issued_Qty || 0,
-            balance_Qty: item.balance_Qty || 0,
-            ConvertedCurrencyId: item.convertedCurrencyId,
-            isImportedDO: !!item.ref_do_id
-          }));
-          setmanualinvoiceDetails(mappedDetails);
+        // Set currency select based on first item
+        if (mappedDetails.length > 0) {
           setcurrencySelect(mappedDetails[0]?.ConvertedCurrencyId || null);
-        }
-
-        if (Array.isArray(data?.DoDetail)) {
-          setDoDetail(data.DoDetail);
-          const updatedOptions = data.DoDetail.map(item => ({
-            ...item,
-            value: item.packingId,
-            label: item.packno,
-          }));
-          handleDOSelectChange(updatedOptions);
         }
       }
+
+      // 3. DO DETAILS MAPPING (For existing DO links)
+      if (Array.isArray(data?.DoDetail)) {
+        setDoDetail(data.DoDetail);
+        const updatedOptions = data.DoDetail.map(item => ({
+          ...item,
+          value: item.packingId,
+          label: item.packno,
+        }));
+        handleDOSelectChange(updatedOptions);
+      }
+
     } catch (err) {
       console.error("Error fetching invoice details:", err.message);
     }
@@ -833,7 +826,10 @@ const AddManualInvoice = () => {
           ...updatedDetails[index],
           GasCodeId: selectedGas.GasCodeId,
           Description: gascodedetails[0]?.Descriptions || "",
-          gasCode: gascodedetails[0]?.Descriptions || "",
+
+          // 🟢 FIX: Ensure this is the NAME so the select displays correctly
+          gasCode: selectedGas.GasName,
+
           Volume: gascodedetails[0]?.Volume || "",
           Pressure: gascodedetails[0]?.pressure || "",
           Qty: 1,
@@ -1107,7 +1103,17 @@ const AddManualInvoice = () => {
                                                     options={gasCodeList
                                                       .filter(code => !manualinvoiceDetails.some((item, i) => i !== index && item.GasCodeId === code.GasCodeId))
                                                       .map(code => ({ value: code.GasCodeId, label: code.GasName }))}
-                                                    value={gasCodeList.find(option => option.GasCodeId === manualinvoiceDetails[index]?.GasCodeId) || null}
+
+                                                    // 🟢 FIX: Correctly construct the selected object for react-select
+                                                    value={
+                                                      manualinvoiceDetails[index]?.GasCodeId
+                                                        ? {
+                                                          value: manualinvoiceDetails[index].GasCodeId,
+                                                          label: manualinvoiceDetails[index].gasCode || gasCodeList.find(g => g.GasCodeId === manualinvoiceDetails[index].GasCodeId)?.GasName
+                                                        }
+                                                        : null
+                                                    }
+
                                                     onChange={option => handleGasCodeChange(index, option ? option.value : null)}
                                                     classNamePrefix="select"
                                                     isDisabled={isDisabled}
@@ -1307,4 +1313,3 @@ const AddManualInvoice = () => {
 };
 
 export default AddManualInvoice;
-

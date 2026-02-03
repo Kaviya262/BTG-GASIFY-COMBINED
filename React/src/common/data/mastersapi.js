@@ -28,17 +28,24 @@ export const fetchGasList = async (branchId, sq_Id, SearchText = "%") => {
     }
 };
 
+// 🟢 NEW: Fetches from Python API -> DB_NAME_USER_NEW
 export const fetchGasListDSI = async (branchId, sq_Id, SearchText = "%") => {
     try {
+        // 🟢 FIX: Change endpoint from '/GetGasItemFilter' to '/GetGasItems'
+        const response = await axios.get(`${PYTHON_API_URL}/pyapi/GetGasItems`);
 
-        const response = await get(`/OrderMngMaster/GetGasCode?BranchId=${branchId}&SearchText=${SearchText}&Sqid=${sq_Id}`);
-        if (response?.status) {
-            return transformData(response.data, "GasCodeId", "GasName");
+        if (response.data && response.data.status) {
+            // Map the Python response (Id) to the Frontend expectation (GasCodeId)
+            return response.data.data.map(item => ({
+                GasCodeId: item.Id,   // Maps ID 1928 (Correct) to GasCodeId
+                GasName: item.GasName
+            }));
         } else {
-            throw new Error(response?.message || "Failed to fetch gas codes");
+            console.error("Failed to fetch gas codes from Python API");
+            return [];
         }
     } catch (error) {
-        console.error("Error :", error);
+        console.error("Error fetching gas list:", error);
         return [];
     }
 };
@@ -4656,12 +4663,18 @@ export const SaveAddIRNGRNDet = async (payload) => {
 
 export const GenerateSPC = async (payload) => {
     try {
-        const response = await put("/InvoiceReceipt/InvoiceReceiptGenerateIRN", payload);
-        if (response) return response;
-        throw new Error(response?.message || "Failed to generate SPC");
+        // Point to the new Python endpoint
+        const response = await axios.post(`${PYTHON_API_URL}/api/claim/generate_spc`, payload);
+
+        if (response.data && response.data.status) {
+            return response.data;
+        } else {
+            throw new Error(response.data?.detail || response.data?.message || "Failed to generate SPC");
+        }
     } catch (error) {
         console.error("SPC Error:", error);
-        throw error;
+        // Return a safe error object so the UI handles it gracefully
+        return { status: false, message: error.message || "An error occurred" };
     }
 };
 

@@ -38,7 +38,6 @@ class CreateReceiptRequest(BaseModel):
 @router.get("/get-daily-entries")
 async def get_daily_entries(db: AsyncSession = Depends(get_db)):
     try:
-        # UPDATED: Filter where deposit_bank_id is NOT NULL, NOT Empty, and NOT '0'
         query = text(f"""
             SELECT 
                 r.receipt_id,
@@ -82,7 +81,7 @@ async def get_daily_entries(db: AsyncSession = Depends(get_db)):
     except Exception as e:
         return {"status": "error", "detail": str(e)}
 
-# --- NEW ENDPOINT: BANK BOOK REPORT ---
+# --- UPDATED ENDPOINT: BANK BOOK REPORT WITH DEBIT OPENING BALANCE ---
 @router.get("/get-report")
 async def get_bank_book_report(
     from_date: str,
@@ -91,10 +90,44 @@ async def get_bank_book_report(
     db: AsyncSession = Depends(get_db)
 ):
     try:
-        # Fetches data specifically for the Bank Book Report
-        sql = f"""
+        data = []
+        running_balance = 0.0
+
+        # 1. FETCH OPENING BALANCE IF BANK IS SELECTED
+        if bank_id and bank_id != 0:
+            opening_sql = text(f"""
+                SELECT 
+                    as_of_date as Date,
+                    '-' as VoucherNo,
+                    'OPENING BALANCE' as TransactionType,
+                    '-' as Account,
+                    '-' as Party,
+                    'Brought Forward' as Description,
+                    currency as Currency,
+                    0.00 as CreditIn, -- Ignoring Credit for now
+                    opening_balance as DebitOut, -- Map opening balance to Debit
+                    opening_balance as NetAmount
+                FROM {DB_NAME_FINANCE}.tbl_bank_opening_balance
+                WHERE bank_id = :bank_id
+                LIMIT 1
+            """)
+            opening_result = await db.execute(opening_sql, {"bank_id": bank_id})
+            opening_row = opening_result.mappings().first()
+
+            if opening_row:
+                op_item = dict(opening_row)
+                # Initialize running balance with the opening debit amount
+                op_debit = float(op_item["DebitOut"] or 0)
+                running_balance = op_debit
+                
+                op_item["CreditIn"] = 0.0
+                op_item["DebitOut"] = op_debit
+                op_item["Balance"] = running_balance
+                data.append(op_item)
+
+        # 2. FETCH TRANSACTIONS (Verified and Submitted Receipts)
+        sql = text(f"""
             SELECT 
-                r.receipt_id,
                 r.created_date as Date,
                 r.reference_no as VoucherNo,
                 'Receipt' as TransactionType, 
@@ -102,57 +135,67 @@ async def get_bank_book_report(
                 c.CustomerName as Party,
                 r.reference_no as Description,
                 COALESCE(mc.CurrencyCode, 'IDR') as Currency, 
-                
                 CASE WHEN r.bank_amount >= 0 THEN r.bank_amount ELSE 0 END as CreditIn,
                 CASE WHEN r.bank_amount < 0 THEN ABS(r.bank_amount) ELSE 0 END as DebitOut,
-                
                 r.bank_amount as NetAmount
-                
             FROM tbl_ar_receipt r
             LEFT JOIN {DB_NAME_USER_NEW}.master_customer c ON r.customer_id = c.Id
-            LEFT JOIN {DB_NAME_MASTER}.master_bank b ON r.deposit_bank_id = b.BankId
+            LEFT JOIN {DB_NAME_MASTER}.master_bank b ON CAST(NULLIF(r.deposit_bank_id, '') AS UNSIGNED) = b.BankId
             LEFT JOIN {DB_NAME_USER}.master_currency mc ON b.CurrencyId = mc.CurrencyId
-            WHERE r.created_date BETWEEN :from_date AND :to_date
-              AND r.is_active = 1
-              AND r.deposit_bank_id IS NOT NULL 
-              AND r.deposit_bank_id != '' 
-              AND r.deposit_bank_id != '0'
-        """
-        
-        params = {"from_date": from_date, "to_date": to_date}
-        
-        if bank_id and bank_id != 0:
-            sql += " AND r.deposit_bank_id = :bank_id"
-            params["bank_id"] = bank_id
-            
-        sql += " ORDER BY r.created_date ASC, r.receipt_id ASC"
-        
-        result = await db.execute(text(sql), params)
+            WHERE 
+                DATE(r.created_date) BETWEEN :from_date AND :to_date
+                AND r.is_active = 1
+                AND r.is_submitted = 1
+                AND CAST(NULLIF(r.deposit_bank_id, '') AS UNSIGNED) = :bank_id
+            ORDER BY r.created_date ASC, r.receipt_id ASC
+        """)
+
+        params = {
+            "from_date": from_date, 
+            "to_date": to_date, 
+            "bank_id": int(bank_id) 
+        }
+
+        result = await db.execute(sql, params)
         rows = result.mappings().all()
-        
-        # --- FIXED: Cast Decimal to Float for calculation ---
-        data = []
-        running_balance = 0.0 
         
         for row in rows:
             item = dict(row)
-            
-            # Cast to float to avoid "unsupported operand type" error
             credit_in = float(item["CreditIn"] or 0)
             debit_out = float(item["DebitOut"] or 0)
             
+            # Update running balance: Start from the initial Debit Opening Balance
+            # Formula: Previous Balance + Credits - Debits
             running_balance += (credit_in - debit_out)
             
             item["CreditIn"] = credit_in
             item["DebitOut"] = debit_out
             item["Balance"] = running_balance
-            
             data.append(item)
             
         return {"status": "success", "data": data}
 
     except Exception as e:
         print(f"Error fetching bank book report: {e}")
+        return {"status": "error", "detail": str(e)}
+
+# --- NEW ENDPOINT: VERIFY RECEIPT ---
+@router.put("/verify/{receipt_id}")
+async def verify_receipt(
+    receipt_id: int, 
+    payload: schemas.VerifyCustomerUpdate, 
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Called by VerifyCustomer.js to finalize verification.
+    Sets is_active=1 and is_submitted=1 so it appears in the Bank Book.
+    """
+    try:
+        record = await crud.update_customer_and_verify(db, receipt_id, payload)
+        if not record:
+            raise HTTPException(status_code=404, detail="Receipt not found or not in pending state")
+        return {"status": "success", "message": "Verification finalized"}
+    except Exception as e:
         return {"status": "error", "detail": str(e)}
 
 @router.put("/submit/{receipt_id}")
@@ -232,9 +275,6 @@ async def update_receipt(receipt_id: int, payload: CreateReceiptRequest, db: Asy
 @router.get("/get-sales-persons")
 async def get_sales_persons(db: AsyncSession = Depends(get_db)):
     try:
-        # Queries Live DB (users table)
-        # 1. Users in Department '9' (Sales)
-        # 2. OR Users who are assigned as a Sales Person in master_customer (regardless of department)
         query = text(f"""
             SELECT 
                 Id as value, 
@@ -263,12 +303,7 @@ async def get_sales_persons(db: AsyncSession = Depends(get_db)):
 
 @router.get("/get-customer-defaults")
 async def get_customer_defaults(db: AsyncSession = Depends(get_db)):
-    """
-    🔧 FIXED VERSION
-    Returns customer defaults with proper integer keys for reliable frontend lookups
-    """
     try:
-        # We fetch Id and SalesPersonId from the Customer Master table
         query = text(f"""
             SELECT Id, SalesPersonId 
             FROM {DB_NAME_USER_NEW}.master_customer 
@@ -278,19 +313,12 @@ async def get_customer_defaults(db: AsyncSession = Depends(get_db)):
         result = await db.execute(query)
         rows = result.mappings().all()
         
-        # 🔧 FIX: Explicitly convert to integers to ensure consistent types
-        # This prevents string/number mismatch in JavaScript lookups
         defaults = {}
-        
         for row in rows:
-            customer_id = int(row['Id'])  # Force to int
+            customer_id = int(row['Id'])
             sales_person_id = int(row['SalesPersonId']) if row['SalesPersonId'] else None
-            
-            if sales_person_id is not None:  # Only add if there's a sales person assigned
+            if sales_person_id is not None:
                 defaults[customer_id] = sales_person_id
-        
-        print(f"✅ Loaded {len(defaults)} customer defaults with integer keys")
-        print(f"Sample defaults: {dict(list(defaults.items())[:5])}")
         
         return {"status": "success", "data": defaults}
 

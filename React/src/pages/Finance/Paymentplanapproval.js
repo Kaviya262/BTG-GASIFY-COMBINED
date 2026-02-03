@@ -1102,8 +1102,8 @@ word-break: break-word;
       setSelectedDetail(res.data);
       setDetailVisible(true);
 
-      setPreviewUrl(res.data.header.AttachmentPath == undefined || res.data.header.AttachmentPath == null ? "" : res.data.header.AttachmentPath);
-      setFileName(res.data.header.AttachmentName == undefined || res.data.header.AttachmentName == null ? "" : res.data.header.AttachmentName);
+      setPreviewUrl(res.data?.header?.AttachmentPath || "");
+      setFileName(res.data?.header?.AttachmentName || "");
 
     }
     else {

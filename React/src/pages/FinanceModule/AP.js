@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react"; // Added useCallback
+import React, { useState, useEffect, useCallback } from "react";
 import {
     Container,
     Row,
@@ -14,14 +14,18 @@ import {
     TabContent,
     TabPane,
     Table,
+    Modal,
+    ModalHeader,
+    ModalBody,
+    ModalFooter
 } from "reactstrap";
 import Select from "react-select";
 import Flatpickr from "react-flatpickr";
 import "flatpickr/dist/themes/material_blue.css";
 import Breadcrumbs from "../../components/Common/Breadcrumb";
 import classnames from "classnames";
-import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
+import axios from "axios";
 
 // --- API IMPORTS ---
 import {
@@ -29,99 +33,149 @@ import {
     GetAllIRNList,
     GetAllSuppliers,
     GetAllCurrencies,
-    GenerateSPC
+    GenerateSPC,
+    GetGRNById,
+    GetByIdPurchaseOrder
 } from "../../common/data/mastersapi";
 
 const AP = () => {
-    // --- Auth Context (From LocalStorage) ---
+    // --- Auth Context ---
     const authUser = JSON.parse(localStorage.getItem("authUser"));
     const orgId = authUser?.orgId || 1;
     const branchId = authUser?.branchId || 1;
     const userId = authUser?.u_id || 1;
 
     // --- States ---
-    const [activeTab, setActiveTab] = useState("1"); // 1 = Accrued, 2 = Payable
+    const [activeTab, setActiveTab] = useState("1");
     const [filter, setFilter] = useState({
         supplier: null,
         currency: null,
-        fromDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1), // Start of current month
+        fromDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
         toDate: new Date(),
     });
 
-    // Dropdown Data
     const [supplierList, setSupplierList] = useState([]);
     const [currencyList, setCurrencyList] = useState([]);
+    const [poLookup, setPoLookup] = useState({});
 
-    // Grid Data
     const [accruedData, setAccruedData] = useState([]);
     const [payableData, setPayableData] = useState([]);
     const [selectedPayables, setSelectedPayables] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    // --- 1. Load Dropdowns on Mount ---
-    useEffect(() => {
-        const loadDropdowns = async () => {
-            try {
-                // Fetch Suppliers
-                const supRes = await GetAllSuppliers(orgId, branchId);
-                if (supRes?.data) {
-                    const sups = supRes.data.map(s => ({ value: s.SupplierId, label: s.SupplierName }));
-                    setSupplierList(sups);
-                }
+    // --- Modal States ---
+    const [modal, setModal] = useState(false);
+    const [modalType, setModalType] = useState("");
+    const [modalData, setModalData] = useState(null);
+    const [modalLoading, setModalLoading] = useState(false);
 
-                // Fetch Currencies
-                const curRes = await GetAllCurrencies({});
-                if (curRes?.data) {
-                    const curs = curRes.data.map(c => ({ value: c.CurrencyId, label: c.CurrencyCode }));
-                    setCurrencyList(curs);
-                }
-            } catch (error) {
-                console.error("Error loading dropdowns", error);
-            }
-        };
-        loadDropdowns();
-    }, [orgId, branchId]);
+    const [nestedModal, setNestedModal] = useState(false);
+    const [nestedPOData, setNestedPOData] = useState(null);
+    const [nestedPOLoading, setNestedPOLoading] = useState(false);
 
-    // --- Helper: Format Date ---
-    const formatDate = (date) => {
-        if (!date) return "";
-        const d = new Date(date);
-        return d.toISOString().split('T')[0];
+    // --- Styles ---
+    const gridHeaderStyle = {
+        backgroundColor: "#2c5096",
+        color: "#ffffff",
+        fontWeight: "600",
+        verticalAlign: "middle",
+        borderBottom: "none",
+        whiteSpace: "nowrap" // Single line column names
     };
 
-    // --- 2. Fetch Data Function (Wrapped in useCallback) ---
+    const filterIconStyle = {
+        float: "right",
+        cursor: "pointer",
+        opacity: 0.8,
+        fontSize: "14px",
+        marginTop: "2px",
+        marginLeft: "5px"
+    };
+
+    const blueLinkStyle = {
+        color: "#2c5096",
+        fontWeight: "bold",
+        textDecoration: "underline",
+        cursor: "pointer"
+    };
+
+    // Style for Modal Headers (Labels and Values in Firebrick)
+    const firebrickStyle = {
+        color: "firebrick",
+        fontWeight: "bold",
+        display: "inline-block"
+    };
+
+    // --- 1. Load Dropdowns & PO List ---
+    useEffect(() => {
+        const loadInitialData = async () => {
+            try {
+                const supRes = await GetAllSuppliers(orgId, branchId);
+                if (supRes?.data) {
+                    setSupplierList(supRes.data.map(s => ({ value: s.SupplierId, label: s.SupplierName })));
+                }
+                const curRes = await GetAllCurrencies({});
+                if (curRes?.data) {
+                    setCurrencyList(curRes.data.map(c => ({ value: c.CurrencyId, label: c.CurrencyCode })));
+                }
+
+                const poUrl = `https://btg.sogfusion.com/dnapi/api/PurchaseOrder/GetALL?BranchId=${branchId}&SupplierId=0&OrgId=${orgId}&UserId=${userId}`;
+                const poRes = await axios.get(poUrl);
+                if (poRes?.data?.data) {
+                    const lookup = {};
+                    poRes.data.data.forEach(po => {
+                        if (po.poid) lookup[po.poid] = po.pono;
+                    });
+                    setPoLookup(lookup);
+                }
+            } catch (error) {
+                console.error("Error loading initial data", error);
+            }
+        };
+        loadInitialData();
+    }, [orgId, branchId, userId]);
+
+    const formatDate = (date) => {
+        if (!date) return "-";
+        const d = new Date(date);
+        return isNaN(d.getTime()) ? "-" : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-');
+    };
+
+    // --- 2. Fetch Grid Data ---
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const fromDateStr = formatDate(filter.fromDate);
-            const toDateStr = formatDate(filter.toDate);
+            const fromDateStr = new Date(filter.fromDate).toISOString().split('T')[0];
+            const toDateStr = new Date(filter.toDate).toISOString().split('T')[0];
             const supplierId = filter.supplier ? filter.supplier.value : 0;
-            // const currencyId = filter.currency ? filter.currency.value : 0; 
 
             if (activeTab === "1") {
-                // --- FETCH ACCRUED PURCHASES (GRN) ---
                 const response = await GetAllGRNList(supplierId, 0, orgId, branchId, userId);
-
-                if (response?.data) {
-                    setAccruedData(response.data);
+                if (response?.data && Array.isArray(response.data)) {
+                    const mappedData = response.data.map(item => ({
+                        Id: item.grnid,
+                        CreatedDate: item.CreatedDate,
+                        Date: item.grndate,
+                        Reference: item.grnno,
+                        SupplierName: item.suppliername,
+                    }));
+                    setAccruedData(mappedData);
                 } else {
                     setAccruedData([]);
                 }
-
             } else {
-                // --- FETCH ACCOUNTS PAYABLE (IRN) ---
-                const response = await GetAllIRNList(
-                    branchId,
-                    orgId,
-                    supplierId,
-                    0, // irnId
-                    fromDateStr,
-                    toDateStr,
-                    userId
-                );
-
-                if (response?.data) {
-                    setPayableData(response.data);
+                const response = await GetAllIRNList(branchId, orgId, supplierId, 0, fromDateStr, toDateStr, userId);
+                if (response?.data && Array.isArray(response.data)) {
+                    const mappedData = response.data.map(item => ({
+                        Id: item.receiptnote_hdr_id,
+                        IRNId: item.receiptnote_hdr_id,
+                        Reference: item.receipt_no,
+                        POId: item.poid,
+                        DueDate: item.due_dt,
+                        SupplierName: item.suppliername,
+                        Amount: item.totalamount || 0
+                    }));
+                    setPayableData(mappedData);
                 } else {
                     setPayableData([]);
                 }
@@ -134,27 +188,30 @@ const AP = () => {
         }
     }, [activeTab, filter.fromDate, filter.toDate, filter.supplier, orgId, branchId, userId]);
 
-    // --- 3. Load Grid Data based on dependencies ---
     useEffect(() => {
         fetchData();
-    }, [fetchData]); // Dependency is now the memoized function
+    }, [fetchData]);
 
-    // --- Handlers ---
     const toggleTab = (tab) => {
         if (activeTab !== tab) {
             setActiveTab(tab);
-            setSelectedPayables([]); // Clear selections when switching tabs
+            setSelectedPayables([]);
         }
     };
 
-    const handleFilterChange = (key, value) => {
-        setFilter((prev) => ({ ...prev, [key]: value }));
+    const handleFilterChange = (key, value) => setFilter((prev) => ({ ...prev, [key]: value }));
+
+    const handleClearFilter = () => {
+        setFilter({
+            supplier: null,
+            currency: null,
+            fromDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+            toDate: new Date(),
+        });
     };
 
     const handleCheckboxChange = (id) => {
-        setSelectedPayables((prev) =>
-            prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-        );
+        setSelectedPayables((prev) => prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]);
     };
 
     const handleSelectAll = (e) => {
@@ -165,13 +222,110 @@ const AP = () => {
         }
     };
 
-    // --- ACTION: CREATE SUPPLIER PAYMENT CLAIM ---
-    const handleCreatePaymentClaim = async () => {
-        if (selectedPayables.length === 0) {
-            toast.warning("Please select at least one Invoice (IRN) to create a claim.");
+    const toggleModal = () => {
+        setModal(!modal);
+        if (modal) setModalData(null);
+    };
+
+    const toggleNestedModal = () => {
+        setNestedModal(!nestedModal);
+        if (nestedModal) setNestedPOData(null);
+    };
+
+    const handleGRNClick = async (grnId) => {
+        setModalType("GRN");
+        setModal(true);
+        setModalLoading(true);
+        try {
+            const res = await GetGRNById(grnId, branchId, orgId);
+            if (res.status && res.data) {
+                setModalData(res.data);
+            } else {
+                toast.error("Failed to fetch GRN details");
+                setModal(false);
+            }
+        } catch (err) {
+            console.error(err);
+            setModal(false);
+        } finally {
+            setModalLoading(false);
+        }
+    };
+
+    const handleIRNClick = async (poId) => {
+        if (!poId) {
+            toast.warning("No linked PO found.");
             return;
         }
+        setModalType("IRN");
+        setModal(true);
+        setModalLoading(true);
+        try {
+            const res = await GetByIdPurchaseOrder(poId, orgId, branchId);
+            if (res.status && res.data) {
+                setModalData(res.data);
+            } else {
+                toast.error("Failed to fetch details");
+                setModal(false);
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error("Error loading details");
+            setModal(false);
+        } finally {
+            setModalLoading(false);
+        }
+    };
 
+    const handlePOClick = async (poId) => {
+        if (!poId) {
+            toast.warning("No PO linked");
+            return;
+        }
+        setModalType("PO");
+        setModal(true);
+        setModalLoading(true);
+        try {
+            const res = await GetByIdPurchaseOrder(poId, orgId, branchId);
+            if (res.status && res.data) {
+                setModalData(res.data);
+            } else {
+                toast.error("Failed to fetch PO details");
+                setModal(false);
+            }
+        } catch (err) {
+            console.error(err);
+            setModal(false);
+        } finally {
+            setModalLoading(false);
+        }
+    };
+
+    const handleNestedPOClick = async (poId) => {
+        if (!poId) return;
+        setNestedModal(true);
+        setNestedPOLoading(true);
+        try {
+            const res = await GetByIdPurchaseOrder(poId, orgId, branchId);
+            if (res.status && res.data) {
+                setNestedPOData(res.data);
+            } else {
+                toast.error("Failed to fetch PO details");
+                setNestedModal(false);
+            }
+        } catch (err) {
+            console.error(err);
+            setNestedModal(false);
+        } finally {
+            setNestedPOLoading(false);
+        }
+    };
+
+    const handleCreatePaymentClaim = async () => {
+        if (selectedPayables.length === 0) {
+            toast.warning("Select items to claim.");
+            return;
+        }
         try {
             const payload = {
                 Ids: selectedPayables,
@@ -180,19 +334,17 @@ const AP = () => {
                 UserId: userId,
                 CreatedDate: new Date().toISOString()
             };
-
             const response = await GenerateSPC(payload);
-
             if (response && response.status) {
-                toast.success("Supplier Payment Claims generated and approved successfully!");
-                fetchData(); // Refresh grid
+                toast.success("Claims generated successfully!");
+                fetchData();
                 setSelectedPayables([]);
             } else {
-                toast.error(response?.message || "Failed to generate claims.");
+                toast.error(response?.message || "Failed.");
             }
         } catch (error) {
-            console.error("Error generating SPC:", error);
-            toast.error("An error occurred while creating claims.");
+            console.error("SPC Error:", error);
+            toast.error("An error occurred.");
         }
     };
 
@@ -201,228 +353,324 @@ const AP = () => {
             <Container fluid>
                 <Breadcrumbs title="Finance" breadcrumbItem="Accounts Payable (AP)" />
 
-                {/* --- FILTERS --- */}
+                {/* Filters */}
                 <Card>
                     <CardBody>
                         <Row>
                             <Col md={3}>
                                 <div className="mb-3">
                                     <Label>Supplier</Label>
-                                    <Select
-                                        options={supplierList}
-                                        value={filter.supplier}
-                                        onChange={(opt) => handleFilterChange("supplier", opt)}
-                                        isClearable
-                                        placeholder="Select Supplier"
-                                    />
+                                    <Select options={supplierList} value={filter.supplier} onChange={(opt) => handleFilterChange("supplier", opt)} isClearable placeholder="Select Supplier" />
                                 </div>
                             </Col>
                             <Col md={3}>
                                 <div className="mb-3">
                                     <Label>Currency</Label>
-                                    <Select
-                                        options={currencyList}
-                                        value={filter.currency}
-                                        onChange={(opt) => handleFilterChange("currency", opt)}
-                                        isClearable
-                                        placeholder="Select Currency"
-                                    />
+                                    <Select options={currencyList} value={filter.currency} onChange={(opt) => handleFilterChange("currency", opt)} isClearable placeholder="Select Currency" />
                                 </div>
                             </Col>
                             <Col md={3}>
                                 <div className="mb-3">
                                     <Label>From Date</Label>
-                                    <Flatpickr
-                                        className="form-control"
-                                        value={filter.fromDate}
-                                        onChange={(date) => handleFilterChange("fromDate", date[0])}
-                                        options={{ dateFormat: "Y-m-d" }}
-                                    />
+                                    <Flatpickr className="form-control" value={filter.fromDate} onChange={(date) => handleFilterChange("fromDate", date[0])} options={{ dateFormat: "Y-m-d" }} />
                                 </div>
                             </Col>
                             <Col md={3}>
                                 <div className="mb-3">
                                     <Label>To Date</Label>
-                                    <Flatpickr
-                                        className="form-control"
-                                        value={filter.toDate}
-                                        onChange={(date) => handleFilterChange("toDate", date[0])}
-                                        options={{ dateFormat: "Y-m-d" }}
-                                    />
+                                    <Flatpickr className="form-control" value={filter.toDate} onChange={(date) => handleFilterChange("toDate", date[0])} options={{ dateFormat: "Y-m-d" }} />
                                 </div>
                             </Col>
-                            <Col md={12} className="d-flex justify-content-end">
+                            <Col md={12} className="d-flex justify-content-end align-items-center gap-2">
                                 <Button color="primary" onClick={fetchData} disabled={loading}>
-                                    {loading ? <i className="bx bx-loader bx-spin me-1"></i> : <i className="bx bx-search-alt-2 me-1"></i>}
-                                    Search
+                                    {loading ? <i className="bx bx-loader bx-spin me-1"></i> : <i className="bx bx-search-alt-2 me-1"></i>} Search
+                                </Button>
+                                <Button color="danger" onClick={handleClearFilter} disabled={loading}>
+                                    <i className="bx bx-x me-1"></i> Cancel
                                 </Button>
                             </Col>
                         </Row>
                     </CardBody>
                 </Card>
 
-                {/* --- TABS --- */}
+                {/* Grid */}
                 <Card>
                     <CardBody>
                         <Nav tabs className="nav-tabs-custom">
                             <NavItem>
-                                <NavLink
-                                    className={classnames({ active: activeTab === "1" })}
-                                    onClick={() => toggleTab("1")}
-                                    style={{ cursor: "pointer" }}
-                                >
-                                    <span className="d-block d-sm-none"><i className="fas fa-home"></i></span>
+                                <NavLink className={classnames({ active: activeTab === "1" })} onClick={() => toggleTab("1")} style={{ cursor: "pointer" }}>
                                     <span className="d-none d-sm-block">Accrued Purchases (GRN)</span>
                                 </NavLink>
                             </NavItem>
                             <NavItem>
-                                <NavLink
-                                    className={classnames({ active: activeTab === "2" })}
-                                    onClick={() => toggleTab("2")}
-                                    style={{ cursor: "pointer" }}
-                                >
-                                    <span className="d-block d-sm-none"><i className="far fa-user"></i></span>
+                                <NavLink className={classnames({ active: activeTab === "2" })} onClick={() => toggleTab("2")} style={{ cursor: "pointer" }}>
                                     <span className="d-none d-sm-block">Accounts Payable (IRN)</span>
                                 </NavLink>
                             </NavItem>
                         </Nav>
 
                         <TabContent activeTab={activeTab} className="p-3 text-muted">
-
-                            {/* TAB 1: ACCRUED PURCHASES */}
+                            {/* GRN Tab */}
                             <TabPane tabId="1">
-                                <Row>
-                                    <Col sm="12">
-                                        <div className="table-responsive">
-                                            <Table className="table table-bordered mb-0">
-                                                <thead className="table-light">
-                                                    <tr>
-                                                        <th>Date</th>
-                                                        <th>Reference (GRN)</th>
-                                                        <th>PO Number</th>
-                                                        <th>Supplier</th>
-                                                        <th className="text-end">Amount</th>
+                                <div className="table-responsive">
+                                    <Table className="table table-bordered mb-0 align-middle">
+                                        <thead>
+                                            <tr style={gridHeaderStyle}>
+                                                <th>GRN No <i className="bx bx-filter" style={filterIconStyle}></i></th>
+                                                <th>GRN Date <i className="bx bx-filter" style={filterIconStyle}></i></th>
+                                                <th>Supplier <i className="bx bx-filter" style={filterIconStyle}></i></th>
+                                                <th>Created Date <i className="bx bx-filter" style={filterIconStyle}></i></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {loading ? <tr><td colSpan="4" className="text-center">Loading...</td></tr> :
+                                                accruedData.length > 0 ? accruedData.map((item, key) => (
+                                                    <tr key={key}>
+                                                        <td>
+                                                            <span style={blueLinkStyle} onClick={() => handleGRNClick(item.Id)}>
+                                                                {item.Reference}
+                                                            </span>
+                                                        </td>
+                                                        <td>{formatDate(item.Date)}</td>
+                                                        <td>{item.SupplierName}</td>
+                                                        <td>{formatDate(item.CreatedDate)}</td>
                                                     </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {loading ? (
-                                                        <tr><td colSpan="5" className="text-center">Loading...</td></tr>
-                                                    ) : accruedData.length > 0 ? (
-                                                        accruedData.map((item, key) => (
-                                                            <tr key={key}>
-                                                                {/* Adjust keys below based on actual API response properties */}
-                                                                <td>{item.GrnDate ? formatDate(item.GrnDate) : "-"}</td>
-                                                                <td>{item.GrnNumber || item.GRNNO}</td>
-                                                                <td>
-                                                                    {item.PONumber ? (
-                                                                        <Link to={`/procurementspurchase-order/${item.POId}`} className="text-primary font-weight-bold">
-                                                                            {item.PONumber}
-                                                                        </Link>
-                                                                    ) : "-"}
-                                                                </td>
-                                                                <td>{item.SupplierName}</td>
-                                                                <td className="text-end">
-                                                                    {new Intl.NumberFormat().format(item.TotalAmount || 0)}
-                                                                </td>
-                                                            </tr>
-                                                        ))
-                                                    ) : (
-                                                        <tr>
-                                                            <td colSpan="5" className="text-center">No Accrued Purchases Found</td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </Table>
-                                        </div>
-                                    </Col>
-                                </Row>
+                                                )) : <tr><td colSpan="4" className="text-center">No Data Found</td></tr>
+                                            }
+                                        </tbody>
+                                    </Table>
+                                </div>
                             </TabPane>
 
-                            {/* TAB 2: ACCOUNTS PAYABLE */}
+                            {/* IRN Tab */}
                             <TabPane tabId="2">
-                                <Row>
-                                    <Col sm="12">
-                                        <div className="d-flex justify-content-end mb-2">
-                                            <Button
-                                                color="success"
-                                                disabled={selectedPayables.length === 0}
-                                                onClick={handleCreatePaymentClaim}
-                                            >
-                                                <i className="bx bx-check-double me-1"></i> Create Payment Claim
-                                            </Button>
-                                        </div>
-                                        <div className="table-responsive">
-                                            <Table className="table table-bordered mb-0">
-                                                <thead className="table-light">
-                                                    <tr>
-                                                        <th style={{ width: "3%" }}>
-                                                            <Input
-                                                                type="checkbox"
-                                                                onChange={handleSelectAll}
-                                                                checked={
-                                                                    payableData.length > 0 &&
-                                                                    selectedPayables.length === payableData.length
-                                                                }
-                                                            />
-                                                        </th>
-                                                        <th>Date</th>
-                                                        <th>Reference (IRN)</th>
-                                                        <th>PO Number</th>
-                                                        <th>Due Date</th>
-                                                        <th>Supplier</th>
-                                                        <th className="text-end">Amount</th>
+                                <div className="d-flex justify-content-end mb-2">
+                                    <Button color="success" disabled={selectedPayables.length === 0} onClick={handleCreatePaymentClaim}>
+                                        <i className="bx bx-check-double me-1"></i> Create Payment Claim
+                                    </Button>
+                                </div>
+                                <div className="table-responsive">
+                                    <Table className="table table-bordered mb-0 align-middle">
+                                        <thead>
+                                            <tr style={gridHeaderStyle}>
+                                                <th style={{ width: "3%" }}>
+                                                    <Input type="checkbox" onChange={handleSelectAll} checked={payableData.length > 0 && selectedPayables.length === payableData.length} />
+                                                </th>
+                                                <th>Reference (IRN) <i className="bx bx-filter" style={filterIconStyle}></i></th>
+                                                <th>PO Number <i className="bx bx-filter" style={filterIconStyle}></i></th>
+                                                <th>Due Date <i className="bx bx-filter" style={filterIconStyle}></i></th>
+                                                <th>Supplier <i className="bx bx-filter" style={filterIconStyle}></i></th>
+                                                <th className="text-end">Amount <i className="bx bx-filter" style={filterIconStyle}></i></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {loading ? <tr><td colSpan="6" className="text-center">Loading...</td></tr> :
+                                                payableData.length > 0 ? payableData.map((item, key) => (
+                                                    <tr key={key}>
+                                                        <td>
+                                                            <Input type="checkbox" checked={selectedPayables.includes(item.Id)} onChange={() => handleCheckboxChange(item.Id)} />
+                                                        </td>
+                                                        <td>
+                                                            {/* 🟢 Reverted: Plain Text, Original Color */}
+                                                            <span className="fw-bold">
+                                                                {item.Reference}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            {/* 🟢 Reverted: Link Style Blue */}
+                                                            {poLookup[item.POId] ? (
+                                                                <span style={blueLinkStyle} onClick={() => handlePOClick(item.POId)}>
+                                                                    {poLookup[item.POId]}
+                                                                </span>
+                                                            ) : "-"}
+                                                        </td>
+                                                        <td>{formatDate(item.DueDate)}</td>
+                                                        <td>{item.SupplierName}</td>
+                                                        <td className="text-end">{new Intl.NumberFormat().format(item.Amount)}</td>
                                                     </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {loading ? (
-                                                        <tr><td colSpan="7" className="text-center">Loading...</td></tr>
-                                                    ) : payableData.length > 0 ? (
-                                                        payableData.map((item, key) => {
-                                                            const itemId = item.IRNId || item.Id; // Ensure we get a unique ID
-                                                            return (
-                                                                <tr key={key}>
-                                                                    <td>
-                                                                        <Input
-                                                                            type="checkbox"
-                                                                            checked={selectedPayables.includes(itemId)}
-                                                                            onChange={() => handleCheckboxChange(itemId)}
-                                                                        />
-                                                                    </td>
-                                                                    {/* Adjust keys based on actual GetAllIRNList response */}
-                                                                    <td>{item.IRNDate ? formatDate(item.IRNDate) : "-"}</td>
-                                                                    <td>{item.IRNNumber || item.ReferenceNo}</td>
-                                                                    <td>
-                                                                        <Link to={`/procurementspurchase-order`} className="text-primary font-weight-bold">
-                                                                            {item.PONumber || "-"}
-                                                                        </Link>
-                                                                    </td>
-                                                                    <td>
-                                                                        <span className="badge badge-soft-warning font-size-12">
-                                                                            {item.DueDate ? formatDate(item.DueDate) : "N/A"}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td>{item.SupplierName}</td>
-                                                                    <td className="text-end">
-                                                                        {new Intl.NumberFormat().format(item.TotalAmount || item.Amount || 0)}
-                                                                    </td>
-                                                                </tr>
-                                                            );
-                                                        })
-                                                    ) : (
-                                                        <tr>
-                                                            <td colSpan="7" className="text-center">No Payable Items Found</td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </Table>
-                                        </div>
-                                    </Col>
-                                </Row>
+                                                )) : <tr><td colSpan="6" className="text-center">No Data Found</td></tr>
+                                            }
+                                        </tbody>
+                                    </Table>
+                                </div>
                             </TabPane>
-
                         </TabContent>
                     </CardBody>
                 </Card>
+
+                {/* --- DETAILS POPUP MODAL (Main) --- */}
+                <Modal isOpen={modal} toggle={toggleModal} size="xl" centered>
+                    <ModalHeader toggle={toggleModal}>
+                        {modalType === "GRN" ? "GRN Details" : modalType === "IRN" ? "Invoice (IRN) Details" : "Purchase Order Details"}
+                    </ModalHeader>
+                    <ModalBody>
+                        {modalLoading ? <div className="text-center p-5"><i className="bx bx-loader bx-spin font-size-24"></i></div> : modalData ? (
+                            <>
+                                {/* HEADER INFO SECTION - Structured with Proper Colon Alignment */}
+                                <div className="mb-4">
+                                    <Row className="mb-2">
+                                        <Col md={6} className="d-flex">
+                                            <span style={{ minWidth: "120px", ...firebrickStyle }}>
+                                                {modalType === "PO" ? "PO No." : "Number"}
+                                            </span>
+                                            <span style={firebrickStyle}>
+                                                : {modalType === "GRN" ? modalData.Header?.grnno : modalData.Header?.pono}
+                                            </span>
+                                        </Col>
+                                        <Col md={6} className="d-flex">
+                                            <span style={{ minWidth: "120px", ...firebrickStyle }}>
+                                                {modalType === "PO" ? "PO Date" : "Date"}
+                                            </span>
+                                            <span style={firebrickStyle}>
+                                                : {formatDate(modalType === "GRN" ? modalData.Header?.grndate : modalData.Header?.podate)}
+                                            </span>
+                                        </Col>
+                                    </Row>
+
+                                    <Row className="mb-2">
+                                        <Col md={6} className="d-flex">
+                                            <span style={{ minWidth: "120px", ...firebrickStyle }}>Supplier</span>
+                                            <span style={firebrickStyle}>: {modalData.Header?.suppliername}</span>
+                                        </Col>
+
+                                        <Col md={6} className="d-flex">
+                                            <span style={{ minWidth: "120px", ...firebrickStyle }}>
+                                                {modalType === "PO" ? "PR No." : "Total Amount"}
+                                            </span>
+                                            <span style={firebrickStyle}>
+                                                : {modalType === "PO" ? (modalData.Requisition?.[0]?.prnumber || "-") : new Intl.NumberFormat().format(modalData.Header?.nettotal || 0)}
+                                            </span>
+                                        </Col>
+                                    </Row>
+
+                                    <Row className="mb-2">
+                                        <Col md={6} className="d-flex">
+                                            <span style={{ minWidth: "120px", ...firebrickStyle }}>Currency</span>
+                                            <span style={firebrickStyle}>: {modalData.Header?.currencycode || "SGD"}</span>
+                                        </Col>
+                                    </Row>
+                                </div>
+
+                                {/* DETAILS TABLE */}
+                                <div className="table-responsive border">
+                                    <Table className="table mb-0">
+                                        <thead>
+                                            <tr style={gridHeaderStyle}>
+                                                <th>#</th>
+                                                {(modalType === "PO" || modalType === "IRN") && <th>PR No.</th>}
+                                                {(modalType === "PO" || modalType === "IRN") && <th>Item Group</th>}
+                                                <th>{modalType === "GRN" ? "Item Description" : "Item Name"}</th>
+                                                <th>Qty</th>
+                                                <th>UOM</th>
+                                                {modalType === "GRN" && <th>Recd Qty</th>}
+                                                {modalType === "GRN" && <th>Bal Qty</th>}
+                                                {(modalType === "PO" || modalType === "IRN") && <th className="text-end">Unit Price</th>}
+                                                {(modalType === "PO" || modalType === "IRN") && <th className="text-end">Discount</th>}
+                                                {(modalType === "PO" || modalType === "IRN") && <th className="text-end">Tax %</th>}
+                                                {(modalType === "PO" || modalType === "IRN") && <th className="text-end">Tax Amt</th>}
+                                                {(modalType === "PO" || modalType === "IRN") && <th className="text-end">VAT %</th>}
+                                                {(modalType === "PO" || modalType === "IRN") && <th className="text-end">VAT Amt</th>}
+                                                {(modalType === "PO" || modalType === "IRN") && <th className="text-end">Total Amt</th>}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {((modalType === "GRN") ? modalData.Details : modalData.Requisition)?.map((row, i) => (
+                                                <tr key={i}>
+                                                    <td>{i + 1}</td>
+                                                    {(modalType === "PO" || modalType === "IRN") && <td>{row.prnumber}</td>}
+                                                    {(modalType === "PO" || modalType === "IRN") && <td>{row.groupname}</td>}
+                                                    <td>{row.itemDescription || row.itemname || "-"}</td>
+                                                    <td>{row.poqty || row.qty}</td>
+                                                    <td>{row.UOM || row.uom}</td>
+                                                    {modalType === "GRN" && <td>{row.alreadyrecqty || 0}</td>}
+                                                    {modalType === "GRN" && <td>{row.balanceqty || 0}</td>}
+                                                    {(modalType === "PO" || modalType === "IRN") && <td className="text-end">{new Intl.NumberFormat().format(row.unitprice || 0)}</td>}
+                                                    {(modalType === "PO" || modalType === "IRN") && <td className="text-end">{new Intl.NumberFormat().format(row.discountvalue || 0)}</td>}
+                                                    {(modalType === "PO" || modalType === "IRN") && <td className="text-end">{row.taxperc}</td>}
+                                                    {(modalType === "PO" || modalType === "IRN") && <td className="text-end">{new Intl.NumberFormat().format(row.taxvalue || 0)}</td>}
+                                                    {(modalType === "PO" || modalType === "IRN") && <td className="text-end">{row.vatperc}</td>}
+                                                    {(modalType === "PO" || modalType === "IRN") && <td className="text-end">{new Intl.NumberFormat().format(row.vatvalue || 0)}</td>}
+                                                    {(modalType === "PO" || modalType === "IRN") && <td className="text-end"><strong>{new Intl.NumberFormat().format(row.totalvalue || 0)}</strong></td>}
+                                                </tr>
+                                            ))}
+                                            {(modalType === "PO" || modalType === "IRN") && (
+                                                <tr className="fw-bold bg-light">
+                                                    <td colSpan={(modalType === "PO" || modalType === "IRN") ? 14 : 6} className="text-end">Total:</td>
+                                                    <td className="text-end">{new Intl.NumberFormat().format(modalData.Header?.nettotal || 0)}</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </Table>
+                                </div>
+                            </>
+                        ) : <p className="text-center">No details available.</p>}
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button color="danger" style={{ backgroundColor: "#d9534f", borderColor: "#d43f3a" }} onClick={toggleModal}>Close</Button>
+                    </ModalFooter>
+                </Modal>
+
+                {/* Nested PO Modal (Also Styled in Firebrick) */}
+                <Modal isOpen={nestedModal} toggle={toggleNestedModal} size="xl" centered backdrop="static">
+                    <ModalHeader toggle={toggleNestedModal}>Purchase Order Details (Linked)</ModalHeader>
+                    <ModalBody>
+                        {nestedPOLoading ? <div className="text-center p-5"><i className="bx bx-loader bx-spin font-size-24"></i></div> : nestedPOData ? (
+                            <>
+                                <div className="mb-4">
+                                    <Row className="mb-2">
+                                        <Col md={6} className="d-flex">
+                                            <span style={{ minWidth: "120px", ...firebrickStyle }}>PO No.</span>
+                                            <span style={firebrickStyle}>: {nestedPOData.Header?.pono}</span>
+                                        </Col>
+                                        <Col md={6} className="d-flex">
+                                            <span style={{ minWidth: "120px", ...firebrickStyle }}>PO Date</span>
+                                            <span style={firebrickStyle}>: {formatDate(nestedPOData.Header?.podate)}</span>
+                                        </Col>
+                                    </Row>
+                                    <Row className="mb-2">
+                                        <Col md={6} className="d-flex">
+                                            <span style={{ minWidth: "120px", ...firebrickStyle }}>Supplier</span>
+                                            <span style={firebrickStyle}>: {nestedPOData.Header?.suppliername}</span>
+                                        </Col>
+                                        <Col md={6} className="d-flex">
+                                            <span style={{ minWidth: "120px", ...firebrickStyle }}>Status</span>
+                                            <span style={firebrickStyle}>: {nestedPOData.Header?.isactive ? "Active" : "Inactive"}</span>
+                                        </Col>
+                                    </Row>
+                                </div>
+                                <div className="table-responsive border">
+                                    <Table className="table mb-0">
+                                        <thead>
+                                            <tr style={gridHeaderStyle}>
+                                                <th>#</th>
+                                                <th>Item Name</th>
+                                                <th>Qty</th>
+                                                <th>UOM</th>
+                                                <th className="text-end">Unit Price</th>
+                                                <th className="text-end">Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {nestedPOData.Requisition?.map((row, i) => (
+                                                <tr key={i}>
+                                                    <td>{i + 1}</td>
+                                                    <td>{row.itemname}</td>
+                                                    <td>{row.qty}</td>
+                                                    <td>{row.uom}</td>
+                                                    <td className="text-end">{new Intl.NumberFormat().format(row.unitprice || 0)}</td>
+                                                    <td className="text-end">{new Intl.NumberFormat().format(row.totalvalue || 0)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </Table>
+                                </div>
+                            </>
+                        ) : <p className="text-center">No data found.</p>}
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button color="secondary" onClick={toggleNestedModal}>Close</Button>
+                    </ModalFooter>
+                </Modal>
             </Container>
         </div>
     );

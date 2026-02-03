@@ -26,7 +26,7 @@ const gastransformData = (data, valueParam, labelParam) => {
 
 export const GetInvoiceDetails = async (invoicesid) => {
     try {
-        const response = await axios.get(`${PYTHON_API_URL}/GetInvoiceDetails?invoiceid=${invoicesid}`);
+        const response = await axios.get(`${PYTHON_API_URL}/pyapi/GetInvoiceDetails?invoiceid=${invoicesid}`);
 
         if (response.status === 200) {
             return response.data;
@@ -41,7 +41,7 @@ export const GetInvoiceDetails = async (invoicesid) => {
 
 export const CreatenewInvoice = async (orderData) => {
     try {
-        const response = await axios.post(`${PYTHON_API_URL}/CreateInvoice`, orderData);
+        const response = await axios.post(`${PYTHON_API_URL}/pyapi/CreateInvoice`, orderData);
 
         if (response.status === 200 && response.data.status === "success") {
             // Ensure consistent response format for Frontend
@@ -58,7 +58,7 @@ export const CreatenewInvoice = async (orderData) => {
 export const UpdateInvoice = async (orderData) => {
     try {
         // Point to Python Update Endpoint
-        const response = await axios.post(`${PYTHON_API_URL}/UpdateInvoice`, orderData);
+        const response = await axios.post(`${PYTHON_API_URL}/pyapi/UpdateInvoice`, orderData);
 
         if (response.status === 200 && response.data.status === true) {
             return { status: true, data: response.data.data, message: response.data.message };
@@ -92,7 +92,7 @@ export const GetALLInvoices = async (customerid, FromDate, ToDate, branchId, IsA
             },
         };
 
-        const response = await axios.post(`${PYTHON_API_URL}/GetALLInvoices`, payload, config);
+        const response = await axios.post(`${PYTHON_API_URL}/pyapi/GetALLInvoices`, payload, config);
 
         if (response.status === 200) {
             if (response.data && response.data.status === false) {
@@ -125,7 +125,7 @@ export const GetALLInvoices = async (customerid, FromDate, ToDate, branchId, IsA
 
 export const GetSalesDetails = async (filterData) => {
     try {
-        const response = await axios.post(`${PYTHON_API_URL}/GetSalesDetails`, filterData);
+        const response = await axios.post(`${PYTHON_API_URL}/pyapi/GetSalesDetails`, filterData);
 
         if (response.status === 200) {
             return response.data;
@@ -139,7 +139,7 @@ export const GetSalesDetails = async (filterData) => {
 
 export const GetItemFilter = async () => {
     try {
-        const response = await axios.get(`${PYTHON_API_URL}/GetItemFilter`);
+        const response = await axios.get(`${PYTHON_API_URL}/pyapi/GetItemFilter`);
         if (response.status === 200) {
             return response.data;
         } else {
@@ -153,7 +153,7 @@ export const GetItemFilter = async () => {
 
 export const GetGasItems = async () => {
     try {
-        const response = await axios.get(`${PYTHON_API_URL}/GetGasItems`);
+        const response = await axios.get(`${PYTHON_API_URL}/pyapi/GetGasItems`);
 
         if (response.status === 200 && response.data.status) {
             return response.data.data.map(item => ({
@@ -171,10 +171,10 @@ export const GetGasItems = async () => {
 
 export const GetAvailableDOs = async (filterData) => {
     try {
-        const response = await axios.post(`${PYTHON_API_URL}/GetAvailableDOs`, filterData);
+        const response = await axios.post(`${PYTHON_API_URL}/pyapi/GetAvailableDOs`, filterData);
 
         if (response.status === 200 && response.data.status) {
-            return response.data.data;
+            return response.data.data; // Return array directly
         }
         return [];
     } catch (error) {
@@ -185,7 +185,7 @@ export const GetAvailableDOs = async (filterData) => {
 
 export const CreateInvoiceFromDO = async (payload) => {
     try {
-        const response = await axios.post(`${PYTHON_API_URL}/CreateInvoiceFromDO`, payload);
+        const response = await axios.post(`${PYTHON_API_URL}/pyapi/CreateInvoiceFromDO`, payload);
 
         if (response.status === 200 && response.data.status) {
             return response.data;
