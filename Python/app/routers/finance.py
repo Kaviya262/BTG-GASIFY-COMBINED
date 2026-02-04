@@ -162,8 +162,21 @@ async def create_ar_receipt(
 # GET ALL PENDING RECEIPTS
 # --------------------------------------------------
 @router.get("/get-pending-list")
-async def get_pending_list(db: AsyncSession = Depends(database.get_db)):
+async def get_pending_list(
+    user_id: Optional[int] = None, 
+    department: Optional[str] = None, 
+    db: AsyncSession = Depends(database.get_db)
+):
     try:
+        # Base WHERE clause
+        where_clause = "WHERE r.pending_verification = 1 AND r.is_active = 1"
+        query_params = {}
+
+        # LOGIC: If Department is '9' (Sales), filter by sales_person_id
+        if department == '9' and user_id is not None:
+            where_clause += " AND r.sales_person_id = :user_id"
+            query_params["user_id"] = user_id
+
         query = text(f"""
             SELECT 
                 r.*, 
@@ -173,12 +186,11 @@ async def get_pending_list(db: AsyncSession = Depends(database.get_db)):
             LEFT JOIN {DB_NAME_USER_NEW}.master_customer c ON r.customer_id = c.Id
             LEFT JOIN {DB_NAME_MASTER}.master_bank b ON r.deposit_bank_id = b.BankId
             LEFT JOIN {DB_NAME_USER}.master_currency mc ON b.CurrencyId = mc.CurrencyId
-            WHERE r.pending_verification = 1 
-              AND r.is_active = 1
+            {where_clause}
             ORDER BY r.receipt_id DESC
         """)
         
-        result = await db.execute(query)
+        result = await db.execute(query, query_params)
         results = result.mappings().all()
         
         return {

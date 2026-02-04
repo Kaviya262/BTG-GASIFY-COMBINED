@@ -21,6 +21,7 @@ class ReceiptItem(BaseModel):
     bank_amount: float
     bank_charges: float
     deposit_bank_id: int
+    receipt_date: Optional[str] = None
     reference_no: Optional[str] = None
     sales_person_id: Optional[int] = None
     send_notification: bool = False
@@ -41,7 +42,7 @@ async def get_daily_entries(db: AsyncSession = Depends(get_db)):
         query = text(f"""
             SELECT 
                 r.receipt_id,
-                r.created_date as date,
+                r.receipt_date as date,
                 r.customer_id,
                 c.CustomerName as customerName,
                 r.bank_amount,
@@ -250,6 +251,12 @@ async def update_receipt(receipt_id: int, payload: CreateReceiptRequest, db: Asy
 
         entry.customer_id = data.customer_id
         entry.deposit_bank_id = str(data.deposit_bank_id)
+
+        # --- 👇 ADD THIS BLOCK 👇 ---
+        if data.receipt_date:
+            entry.receipt_date = data.receipt_date 
+        # -----------------------------
+
         entry.bank_amount = data.bank_amount
         entry.bank_charges = data.bank_charges
         entry.reference_no = data.reference_no

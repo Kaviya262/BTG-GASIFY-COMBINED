@@ -37,7 +37,8 @@ import "primereact/resources/themes/lara-light-blue/theme.css";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css";
 import { useHistory } from "react-router-dom";
-import {GetPaymentMethods,
+import {
+  GetPaymentMethods,
   GetPurchaseRequisitionSupplierList, GetGRNList, GetSupplierList, GetIRList, SaveIRN, EditIRN, UpdateIRN, GetInvoiceReceiptAddDetails, SaveAddIRNGRNDet, GenerateSPC, GetAllIRNList, uploadIRNAttachment, GetGRNById, DownloadInvoiceReceiptFile, IRNGetBy
 
 } from "common/data/mastersapi";
@@ -100,13 +101,13 @@ const AddInvoiceReceipt = () => {
   const [currentRow, setCurrentRow] = useState(null); // which row we are uploading for
   const [newFiles, setNewFiles] = useState([]);
   const [existingFiles, setExistingFiles] = useState([]);
-    const [modeOfPaymentOptions, setModeOfPaymentOptions] = useState([]);
+  const [modeOfPaymentOptions, setModeOfPaymentOptions] = useState([]);
 
   const toggleModal = () => setShowModal(!showModal);
 
   // useEffect(() => {
   //   handleSearch(dueFromDate, dueToDate);
-  // }, [defaultFromDate,defaultToDate]); 
+  // }, [defaultFromDate,defaultToDate]);
 
   const validationSchema = (selectedItems) =>
     Yup.object().shape({
@@ -129,15 +130,15 @@ const AddInvoiceReceipt = () => {
             otherwise: (schema) => schema.nullable(),
           }),
           modeOfPaymentId: Yup.number()
-          .nullable()
-          .when("grnId", {
-            is: (grnId) => selectedItems.includes(grnId),   // GRN checkbox selected
-            then: Yup.number()
-              .min(1, "Mode of Payment is required")
-              .required("Mode of Payment is required"),
-            otherwise: Yup.number().nullable(),             // Not selected → ignore
-          }),
-      
+            .nullable()
+            .when("grnId", {
+              is: (grnId) => selectedItems.includes(grnId),   // GRN checkbox selected
+              then: Yup.number()
+                .min(1, "Mode of Payment is required")
+                .required("Mode of Payment is required"),
+              otherwise: Yup.number().nullable(),             // Not selected → ignore
+            }),
+
           dueDate: Yup.date().nullable().when("grnId", {
             is: (grnId) => selectedItems.includes(grnId),
             then: (schema) =>
@@ -235,7 +236,7 @@ const AddInvoiceReceipt = () => {
           const formValues = {
             items: [
               {
-                 modeOfPaymentId:header.ModeOfPaymentId,
+                modeOfPaymentId: header.ModeOfPaymentId,
                 receiptnote_hdr_id: header.receiptnote_hdr_id,
                 supplierId: header.supplier_id,
                 supplierName: header.suppliername,
@@ -466,18 +467,18 @@ const AddInvoiceReceipt = () => {
       loadEditData(irnid);
     }
     const fetchDropdownData = async () => {
-    var paymentModes=await GetPaymentMethods(1,0);
+      var paymentModes = await GetPaymentMethods(1, 0);
 
-    const paymentOptions = Array.isArray(paymentModes)?
-            paymentModes.map((mode)=>({
-                 value:  mode.PaymentMethodId,
-                 label: mode.PaymentMethod
-            })):[];
+      const paymentOptions = Array.isArray(paymentModes) ?
+        paymentModes.map((mode) => ({
+          value: mode.PaymentMethodId,
+          label: mode.PaymentMethod
+        })) : [];
 
-            setModeOfPaymentOptions(paymentOptions);
-    
-          }
-          fetchDropdownData();
+      setModeOfPaymentOptions(paymentOptions);
+
+    }
+    fetchDropdownData();
     // load();
   }, []);
   const loadEditData = async (id) => {
@@ -559,7 +560,7 @@ const AddInvoiceReceipt = () => {
             poNo: po,
             grnNo: null,
             poid: inv.po_id,
-            modeOfPaymentId:0,
+            modeOfPaymentId: 0,
             grnid: 0,
             spc: inv.spc,
             // 🔹 all items for this PO
@@ -583,7 +584,7 @@ const AddInvoiceReceipt = () => {
             poNo: null,
             grnNo: grn,
             poid: 0,
-            modeOfPaymentId:0,
+            modeOfPaymentId: 0,
             spc: inv.spc,
             grnid: inv.grn_id,
             // 🔹 all items for this GRN
@@ -623,8 +624,8 @@ const AddInvoiceReceipt = () => {
   //       receiptnote_hdr_id: 0,
   //       supplier_id: safeNum(supplier),
   //       category_id: category === "PO" ? 1 : 2,
-  //       po_id: "", 
-  //       receipt_no: "", 
+  //       po_id: "",
+  //       receipt_no: "",
   //       receipt_date: new Date().toISOString(),
   //       isactive: 1,
   //       userid: 1,
@@ -950,7 +951,7 @@ const AddInvoiceReceipt = () => {
           grnId: item.grnid,
           grnNo: item.grnno,
           poid: item.poid,
-          modeOfPaymentId:item.modeOfPaymentId,
+          modeOfPaymentId: item.modeOfPaymentId,
           pono: item.pono,
           grnDate: item.grndate,
           supplierId: item.supplierid,
@@ -1157,7 +1158,7 @@ const AddInvoiceReceipt = () => {
 
   //     const res = spcFlag
   //         ? await GenerateSPC(payload)
-  //         : await SaveAddIRNGRNDet(payload); 
+  //         : await SaveAddIRNGRNDet(payload);
 
   //         if (res?.status) {
   //         Swal.fire(
@@ -1209,7 +1210,7 @@ const AddInvoiceReceipt = () => {
           receiptnote_hdr_id: row.receiptnote_hdr_id || 0,
           grnid: row.grnId,
           poid: row.poid || 0,
-          modeOfPaymentId:row.modeOfPaymentId ||0,
+          modeOfPaymentId: row.modeOfPaymentId || 0,
           supplierid: row.supplierId,
           invoiceno: row.invoiceNo || "",
           invoicedate: searchFormatDate(row.invoiceDate) || "",
@@ -1320,10 +1321,10 @@ const AddInvoiceReceipt = () => {
     const handleDownload = (e) => {
       e.preventDefault();
       let fullPath = rowData.filepath;
-    if (!fullPath.endsWith('/') && !fullPath.endsWith('\\')) {
-      fullPath += '/';
-    }
-    fullPath += rowData.filename;
+      if (!fullPath.endsWith('/') && !fullPath.endsWith('\\')) {
+        fullPath += '/';
+      }
+      fullPath += rowData.filename;
       DownloadInvoiceReceiptFile(rowData.receiptnote_hdr_id, fullPath);
     };
 
@@ -1555,32 +1556,32 @@ const AddInvoiceReceipt = () => {
                                   />
                                 </td>
                                 <td>
-  <Select
-     className={` ${errors.items?.[index]?.modeOfPaymentId && touched.items?.[index]?.modeOfPaymentId
-      ? "is-invalid"
-      : ""
-      }`}
+                                  <Select
+                                    className={` ${errors.items?.[index]?.modeOfPaymentId && touched.items?.[index]?.modeOfPaymentId
+                                      ? "is-invalid"
+                                      : ""
+                                      }`}
 
-    name={`items[${index}].modeOfPaymentId`}
-    options={modeOfPaymentOptions}
-    value={
-      modeOfPaymentOptions.find(
-        (opt) => opt.value === values.items[index].modeOfPaymentId
-      ) || null
-    }
-    placeholder="Select"
-    onChange={(selected) => {
-      setFieldValue(`items[${index}].modeOfPaymentId`, selected?.value || 0);
-     }}
-    menuPortalTarget={document.body} // avoid dropdown clipping inside table
-    styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
-  />
-  <ErrorMessage
+                                    name={`items[${index}].modeOfPaymentId`}
+                                    options={modeOfPaymentOptions}
+                                    value={
+                                      modeOfPaymentOptions.find(
+                                        (opt) => opt.value === values.items[index].modeOfPaymentId
+                                      ) || null
+                                    }
+                                    placeholder="Select"
+                                    onChange={(selected) => {
+                                      setFieldValue(`items[${index}].modeOfPaymentId`, selected?.value || 0);
+                                    }}
+                                    menuPortalTarget={document.body} // avoid dropdown clipping inside table
+                                    styles={{ menuPortal: base => ({ ...base, zIndex: 9999 }) }}
+                                  />
+                                  <ErrorMessage
                                     name={`items[${index}].modeOfPaymentId`}
                                     component="div"
                                     className="invalid-feedback"
                                   />
-</td>
+                                </td>
 
                                 <td style={{ textAlign: "right" }}>
                                   {/* {values.items[index].poAmount || "0.00"} */}
@@ -1842,8 +1843,8 @@ const AddInvoiceReceipt = () => {
   //   name="Supplier"
   //   id="Supplier"
   //   value={suppliers?.find(opt => opt.value === supplier) || null}
-  //   onChange={(opt) => { 
-  //     setSupplier(opt.value); 
+  //   onChange={(opt) => {
+  //     setSupplier(opt.value);
   //     setSelectedPOs([]);      // reset POs when supplier changes
   //     setSelectedGRNs([]);     // reset GRNs when supplier changes
   //     loadpo(opt.value);

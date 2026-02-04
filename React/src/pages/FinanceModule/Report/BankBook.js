@@ -53,7 +53,7 @@ const BankBook = () => {
     const history = useHistory();
     const [bankBook, setBankBook] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [btgBankOptions, setbtgBankOptions] = useState([]);
+    const [btgBankOptions, setBtgBankOptions] = useState([]);
 
     const [filters, setFilters] = useState({
         description: { value: null, matchMode: FilterMatchMode.CONTAINS },
@@ -73,10 +73,10 @@ const BankBook = () => {
     });
     const [currency, setCurrency] = useState(null);
     const [currencyList, setCurrencyList] = useState([]);
-    const [globalFilter, setGlobalFilter] = useState(""); // global filter
+    const [globalFilter, setGlobalFilter] = useState("");
     const [fromDate, setFromDate] = useState(firstDayOfMonth);
     const [toDate, setToDate] = useState(today);
-    const [bankid, setbankid] = useState(null);
+    const [bankid, setBankid] = useState(null);
 
     const fetchBankBook = async () => {
         try {
@@ -99,7 +99,7 @@ const BankBook = () => {
 
             setCurrencyList(uniqueCurrency);
 
-            // --- AUTO SELECT CURRENCY LOGIC START ---
+            // --- AUTO SELECT CURRENCY LOGIC ---
             if (bankid) {
                 const selectedBank = btgBankOptions.find(opt => opt.value === bankid);
                 if (selectedBank) {
@@ -118,10 +118,8 @@ const BankBook = () => {
                     }
                 }
             } else {
-                // FIX: Reset currency if no bank is selected so "All" logic applies
                 setCurrency(null);
             }
-            // --- AUTO SELECT CURRENCY LOGIC END ---
 
             const transformed = resultData.map((item) => ({
                 date: item.Date ? new Date(item.Date) : null,
@@ -153,13 +151,12 @@ const BankBook = () => {
             value: item.value,
             label: item.BankName
         }));
-        setbtgBankOptions(options);
+        setBtgBankOptions(options);
     }
 
-    // --- FIX: Logic to show ALL records if currency is null ---
     const filtered = currency
         ? bankBook.filter(item => item.currency === currency.value)
-        : bankBook; // Changed from [] to bankBook
+        : bankBook;
 
     const exportToExcel = () => {
         const exportData = filtered.map((ex) => ({
@@ -169,8 +166,9 @@ const BankBook = () => {
             "Account": ex.account,
             "Party": ex.party,
             Description: ex.description,
-            "Credit In (IDR)": ex.creditIn,
+            // 🟢 Swapped Order: Debit first, then Credit
             "Debit Out (IDR)": ex.debitOut,
+            "Credit In (IDR)": ex.creditIn,
             "Balance (IDR)": ex.balance,
         }));
 
@@ -226,7 +224,7 @@ const BankBook = () => {
         setCurrency(null);
         setFromDate(firstDayOfMonth);
         setToDate(today);
-        setbankid(null); // Ensure this resets to null, not 0
+        setBankid(null);
         setFilters({
             description: { value: null, matchMode: FilterMatchMode.CONTAINS },
             voucherNo: { value: null, matchMode: FilterMatchMode.CONTAINS },
@@ -236,9 +234,6 @@ const BankBook = () => {
             date: { value: null, matchMode: FilterMatchMode.DATE_IS },
         });
         setGlobalFilter("");
-        // fetchBankBook will be called by useEffect when bankid changes or we can call it manually
-        // Since setbankid is async, best to rely on useEffect or call a refresh function that reads current state carefully. 
-        // For simplicity here, we can trigger a manual fetch with default params.
         setTimeout(() => fetchBankBook(), 100);
     };
 
@@ -246,10 +241,6 @@ const BankBook = () => {
         fetchBankBook();
         Bankmaster();
     }, []);
-
-    const addBankBook = () => {
-        history.push("/AddBankBook");
-    };
 
     const dateBodyTemplate = (rowData) => {
         return formatPrintDate(rowData.date);
@@ -260,17 +251,16 @@ const BankBook = () => {
             <Container fluid>
                 <Breadcrumbs title="Finance" breadcrumbItem="Bank Book" />
 
-                {/* Filter Section */}
                 <Row className="pt-2 pb-3 align-items-end">
                     <Col md="3">
                         <Select
                             name="depositBankId"
                             id="depositBankId"
                             options={btgBankOptions}
-                            isClearable={true} // Allow clearing the bank selection
+                            isClearable={true}
                             value={btgBankOptions.find((o) => o.value === bankid) || null}
                             onChange={(option) => {
-                                setbankid(option?.value || null);
+                                setBankid(option?.value || null);
                             }}
                             placeholder="Select BTG Bank"
                         />
@@ -313,7 +303,6 @@ const BankBook = () => {
                     </Col>
                 </Row>
 
-                {/* DataTable with global filter */}
                 <Row>
                     <Col lg="12">
                         <Card>
@@ -342,30 +331,31 @@ const BankBook = () => {
                                     filter
                                 >
                                     <Column field="date" header="Date" body={dateBodyTemplate} style={{ width: '120px' }} />
-
                                     <Column field="voucherNo" header="Voucher No" filter filterPlaceholder="Search Voucher" />
-
                                     <Column field="transactionType" header="Transaction Type" filter filterPlaceholder="Search Type" />
                                     <Column field="account" header="Account" filter filterPlaceholder="Search Account" />
                                     <Column field="party" header="Party" filter filterPlaceholder="Search Party" />
                                     <Column field="description" header="Description" filter filterPlaceholder="Search Description" />
 
-                                    <Column field="currency" header="Currency" filter filterPlaceholder="Search Currency" />
+                                    {/* 🟢 Swapped Order Here: Debit (D) First */}
+                                    <Column field="debitOut" header="Debit" body={(d) => d.debitOut.toLocaleString('en-US', {
+                                        style: 'decimal',
+                                        minimumFractionDigits: 2
+                                    })} className="text-end" />
 
-                                    <Column field="creditIn" header="Credit (In)" body={(d) => d.creditIn.toLocaleString('en-US', {
+                                    {/* 🟢 Swapped Order Here: Credit (C) Second */}
+                                    <Column field="creditIn" header="Credit" body={(d) => d.creditIn.toLocaleString('en-US', {
                                         style: 'decimal',
                                         minimumFractionDigits: 2
                                     })} className="text-end" />
-                                    <Column field="debitOut" header="Debit (Out)" body={(d) => d.debitOut.toLocaleString('en-US', {
-                                        style: 'decimal',
-                                        minimumFractionDigits: 2
-                                    })} className="text-end" />
-                                    <Column field="balance" header="Balance (IDR)" body={(d) => d.balance.toLocaleString('en-US', {
+
+                                    <Column field="balance" header="Balance" body={(d) => d.balance.toLocaleString('en-US', {
                                         style: 'decimal',
                                         minimumFractionDigits: 2
                                     })} className="text-end" />
                                 </DataTable>
 
+                                {/* Print Section Updated Order */}
                                 <div id="print-section" style={{ display: "none" }}>
                                     <table>
                                         <thead>
@@ -377,8 +367,8 @@ const BankBook = () => {
                                                 <th>Account</th>
                                                 <th>Party</th>
                                                 <th>Description</th>
-                                                <th>Credit (In)</th>
-                                                <th>Debit (Out)</th>
+                                                <th>D</th> {/* Swapped */}
+                                                <th>C</th> {/* Swapped */}
                                                 <th>Balance (IDR)</th>
                                             </tr>
                                         </thead>
@@ -392,11 +382,11 @@ const BankBook = () => {
                                                     <td>{item.account}</td>
                                                     <td>{item.party}</td>
                                                     <td>{item.description}</td>
-                                                    <td className="text-end">{item.creditIn.toLocaleString('en-US', {
+                                                    <td className="text-end">{item.debitOut.toLocaleString('en-US', {
                                                         style: 'decimal',
                                                         minimumFractionDigits: 2
                                                     })}</td>
-                                                    <td className="text-end">{item.debitOut.toLocaleString('en-US', {
+                                                    <td className="text-end">{item.creditIn.toLocaleString('en-US', {
                                                         style: 'decimal',
                                                         minimumFractionDigits: 2
                                                     })}</td>

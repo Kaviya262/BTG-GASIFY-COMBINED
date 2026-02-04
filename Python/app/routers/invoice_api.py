@@ -365,12 +365,12 @@ async def get_all_invoices(filter_data: InvoiceFilter):
         print(f"Error fetching invoices: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# --- Get Single Invoice Details ---
 @router.get("/GetInvoiceDetails", response_model=InvoiceFullDetail)
 async def get_invoice_details(invoiceid: str):
     try:
         async with engine.connect() as conn:
             # 1. Fetch Headers
+            # 🟢 FIX: Added 'AND h.isactive = 1' to prevent fetching duplicates/history
             header_query = text(f"""
                 SELECT 
                     h.id AS RealHeaderId, 
@@ -383,8 +383,8 @@ async def get_invoice_details(invoiceid: str):
                     CASE WHEN h.IsSubmitted = 1 THEN 'Posted' ELSE 'Saved' END AS Status
                 FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header h
                 LEFT JOIN {DB_NAME_USER_NEW}.master_customer c ON h.customerid = c.Id
-                WHERE h.salesinvoicenbr = :input_val 
-                   OR h.id = :input_val
+                WHERE (h.salesinvoicenbr = :input_val OR h.id = :input_val)
+                  AND h.isactive = 1 
             """)
             
             result = await conn.execute(header_query, {"input_val": invoiceid})
@@ -393,6 +393,7 @@ async def get_invoice_details(invoiceid: str):
             if not headers:
                 raise HTTPException(status_code=404, detail=f"Invoice '{invoiceid}' not found")
 
+            # ... (Rest of the function remains exactly the same)
             primary_header = headers[0]
             
             aggregated_total_amount = 0.0
@@ -405,7 +406,7 @@ async def get_invoice_details(invoiceid: str):
                 all_header_ids.append(h.RealHeaderId)
 
             header_dict = dict(primary_header._mapping)
-            header_dict["InvoiceId"] = header_dict.pop("RealHeaderId")
+            header_dict["InvoiceId"] = header_dict.pop("RealHeaderId") 
             header_dict["TotalAmount"] = aggregated_total_amount
             header_dict["CalculatedPrice"] = aggregated_calc_price
 
@@ -419,7 +420,7 @@ async def get_invoice_details(invoiceid: str):
                         COALESCE(d.UnitPrice, 0) AS UnitPrice,
                         COALESCE(d.TotalPrice, 0) AS TotalPrice,
                         COALESCE(d.Currencyid, 1) AS Currencyid,
-                        COALESCE(d.ExchangeRate, 1) AS ExchangeRate,
+                        COALESCE(d.ExchangeRate, 1) AS ExchangeRate, 
                         COALESCE(d.DOnumber, '') AS DOnumber,
                         COALESCE(d.PONumber, '') AS PONumber,
                         COALESCE(d.uomid, 0) AS uomid

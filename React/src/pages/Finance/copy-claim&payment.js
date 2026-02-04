@@ -379,12 +379,28 @@ const Copyclaimpayment = () => {
                 setFileName("")
                 setSelectedClaimTypes(detailResult.selectedClaimTypes);
                 setSelectedDescriptions(detailResult.selectedDescriptions);
-                debugger;
                 var claimtypedtl = await GetClaimTypeList(claim_id, branchId, orgId, header.ClaimCategoryId, "%");
-
-                setClaimTypeSuggestions(claimtypedtl);
+                if (Array.isArray(claimtypedtl)) {
+                    setClaimTypeSuggestions(claimtypedtl);
+                } else if (claimtypedtl?.status && Array.isArray(claimtypedtl.data)) {
+                    setClaimTypeSuggestions(claimtypedtl.data);
+                } else {
+                    setClaimTypeSuggestions([]);
+                }
                 loadClaimPOList(header.SupplierId);
-                setEditableRows([-1]);
+
+                // Load description suggestions for the first row if it has a claim type
+                if (detailResult.items.length > 0 && detailResult.items[0].claimType) {
+                    const firstClaimTypeId = detailResult.items[0].claimType;
+                    const descRes = await GetPaymentDescriptionList(claim_id, branchId, orgId, firstClaimTypeId, "%");
+                    if (Array.isArray(descRes)) {
+                        setDescriptionSuggestions(descRes);
+                    } else if (descRes?.status && Array.isArray(descRes.data)) {
+                        setDescriptionSuggestions(descRes.data);
+                    }
+                }
+
+                setEditableRows(detailResult.items.map((_, index) => index));
             }
         } catch (err) {
             console.error("Error fetching claim details", err);
@@ -498,7 +514,9 @@ const Copyclaimpayment = () => {
 
     const loadClaimType = async (categoryid) => {
         const res = await GetClaimTypeList(claim_id, branchId, orgId, categoryid == null || categoryid == undefined ? 0 : categoryid, "%");
-        if (res.status && Array.isArray(res.data)) {
+        if (Array.isArray(res)) {
+            setClaimTypeSuggestions(res);
+        } else if (res?.status && Array.isArray(res.data)) {
             setClaimTypeSuggestions(res.data);
         } else {
             setClaimTypeSuggestions([]);
@@ -514,9 +532,13 @@ const Copyclaimpayment = () => {
 
     const loadDescription = async (e, rowIndex, claimTypeId) => {
         const res = await GetPaymentDescriptionList(claim_id, branchId, orgId, claimTypeId, "%");
-
-        setDescriptionSuggestions(res);
-
+        if (Array.isArray(res)) {
+            setDescriptionSuggestions(res);
+        } else if (res?.status && Array.isArray(res.data)) {
+            setDescriptionSuggestions(res.data);
+        } else {
+            setDescriptionSuggestions([]);
+        }
     };
 
     // const initialValues = {
@@ -756,8 +778,13 @@ const Copyclaimpayment = () => {
     const handleEditRow = async (index, typeid) => {
         if (typeid != undefined && typeid != null && typeid != 0) {
             const res = await GetPaymentDescriptionList(claim_id, branchId, orgId, typeid, "%");
-
-            setDescriptionSuggestions(res);
+            if (Array.isArray(res)) {
+                setDescriptionSuggestions(res);
+            } else if (res?.status && Array.isArray(res.data)) {
+                setDescriptionSuggestions(res.data);
+            } else {
+                setDescriptionSuggestions([]);
+            }
             // loadDescription(null,0,typeid);
         }
         setEditableRows([index]);
@@ -1611,16 +1638,25 @@ const Copyclaimpayment = () => {
 
 
                                                                                                 <Select
+                                                                                                    key={`claim-type-${i}-${claimTypeSuggestions?.length || 0}`}
                                                                                                     name="claimType"
                                                                                                     id="claimType"
-                                                                                                    options={claimTypeSuggestions?.map(category => ({
+                                                                                                    options={(claimTypeSuggestions || []).map(category => ({
                                                                                                         value: category.typeid,
                                                                                                         label: category.claimtype,
                                                                                                         typeid: category.typeid,
                                                                                                         claimtype: category.claimtype,
                                                                                                         typename: category.typename,
                                                                                                     }))}
-                                                                                                    value={claimTypeSuggestions?.find((option) => option.typeid === item?.claimType) || null}
+                                                                                                    value={
+                                                                                                        ((claimTypeSuggestions || []).map(category => ({
+                                                                                                            value: category.typeid,
+                                                                                                            label: category.claimtype,
+                                                                                                            typeid: category.typeid,
+                                                                                                            claimtype: category.claimtype,
+                                                                                                            typename: category.typename,
+                                                                                                        })) || []).find(option => option.value === item?.claimType) || null
+                                                                                                    }
                                                                                                     onChange={(option) => {
                                                                                                         const newSelection = [...selectedClaimTypes];
                                                                                                         newSelection[i] = option;
@@ -1646,8 +1682,6 @@ const Copyclaimpayment = () => {
                                                                                                     components={animatedComponents}
                                                                                                     placeholder="Select Claim Type"
                                                                                                     menuPortalTarget={document.body} // portal the dropdown outside the table
-
-
                                                                                                 />
                                                                                                 {/* 
                                                                                     <AutoComplete
@@ -1692,7 +1726,14 @@ const Copyclaimpayment = () => {
                                                                                                         })) : []
                                                                                                         }
                                                                                                         menuPortalTarget={document.body}
-                                                                                                        value={Array.isArray(descriptionSuggestions) ? descriptionSuggestions?.find((option) => option.PaymentId === item?.description) || null : {}}
+                                                                                                        value={
+                                                                                                            (Array.isArray(descriptionSuggestions) ? descriptionSuggestions?.map(category => ({
+                                                                                                                value: category.PaymentId,
+                                                                                                                label: category.PaymentDescription,
+                                                                                                                PaymentId: category.PaymentId,
+                                                                                                                PaymentDescription: category.PaymentDescription,
+                                                                                                            })) : []).find(option => option.value === item?.description) || null
+                                                                                                        }
                                                                                                         onChange={(option) => {
                                                                                                             const newSelection = [...selectedDescriptions];
                                                                                                             newSelection[i] = option;

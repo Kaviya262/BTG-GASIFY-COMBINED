@@ -4663,18 +4663,12 @@ export const SaveAddIRNGRNDet = async (payload) => {
 
 export const GenerateSPC = async (payload) => {
     try {
-        // Point to the new Python endpoint
-        const response = await axios.post(`${PYTHON_API_URL}/api/claim/generate_spc`, payload);
-
-        if (response.data && response.data.status) {
-            return response.data;
-        } else {
-            throw new Error(response.data?.detail || response.data?.message || "Failed to generate SPC");
-        }
+        const response = await put("/InvoiceReceipt/InvoiceReceiptGenerateIRN", payload);
+        if (response) return response;
+        throw new Error(response?.message || "Failed to generate SPC");
     } catch (error) {
         console.error("SPC Error:", error);
-        // Return a safe error object so the UI handles it gracefully
-        return { status: false, message: error.message || "An error occurred" };
+        throw error;
     }
 };
 

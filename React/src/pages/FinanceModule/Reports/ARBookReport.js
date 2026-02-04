@@ -24,7 +24,7 @@ const ARBookReport = () => {
   const [arBook, setArBook] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-  
+
   const [items, setItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
 
@@ -43,6 +43,13 @@ const ARBookReport = () => {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
 
+  // --- STYLES (Standard alignment, no firebrick in popup) ---
+  const popupLabelStyle = {
+    minWidth: "120px",
+    fontWeight: "bold",
+    color: "#495057" // Standard Bootstrap heading color
+  };
+
   useEffect(() => {
     const loadMasters = async () => {
       try {
@@ -52,11 +59,11 @@ const ARBookReport = () => {
           setSelectedCustomer(custRes[0]);
         }
 
-        const itemRes = await GetItemFilter(); 
+        const itemRes = await GetItemFilter();
         if (Array.isArray(itemRes)) {
-            setItems(itemRes);
+          setItems(itemRes);
         } else if (itemRes.data) {
-            setItems(itemRes.data);
+          setItems(itemRes.data);
         }
 
         const currRes = await GetAllCurrencies({ currencyCode: "", currencyName: "" });
@@ -90,7 +97,6 @@ const ARBookReport = () => {
   const fetchARBook = async () => {
     setLoadingData(true);
     try {
-      // 1. Fetch Basic AR Book Data
       const data = await getARBook(
         selectedCustomer ? selectedCustomer.value : 0,
         1, // OrgID
@@ -102,41 +108,38 @@ const ARBookReport = () => {
       if (data.status && data.data?.length > 0) {
         let rawData = data.data;
 
-        // 2. Sorting
         if (selectedItem) {
-             rawData.sort((a, b) => parseDate(b.ledger_date) - parseDate(a.ledger_date));
+          rawData.sort((a, b) => parseDate(b.ledger_date) - parseDate(a.ledger_date));
         } else {
-             rawData.sort((a, b) => parseDate(a.ledger_date) - parseDate(b.ledger_date));
+          rawData.sort((a, b) => parseDate(a.ledger_date) - parseDate(b.ledger_date));
         }
 
-        // 3. Filter by Item (Frontend Workaround)
         if (selectedItem) {
-            try {
-                const salesPayload = {
-                    customerid: selectedCustomer ? selectedCustomer.value : 0,
-                    FromDate: fromDate ? format(fromDate, "yyyy-MM-dd") : "",
-                    ToDate: toDate ? format(toDate, "yyyy-MM-dd") : "",
-                    ItemId: selectedItem.value,
-                    BranchId: 1,
-                    IsAR: 1
-                };
+          try {
+            const salesPayload = {
+              customerid: selectedCustomer ? selectedCustomer.value : 0,
+              FromDate: fromDate ? format(fromDate, "yyyy-MM-dd") : "",
+              ToDate: toDate ? format(toDate, "yyyy-MM-dd") : "",
+              ItemId: selectedItem.value,
+              BranchId: 1,
+              IsAR: 1
+            };
 
-                const salesRes = await GetSalesDetails(salesPayload);
-                const salesData = salesRes.data || salesRes;
-                const validInvoiceNos = new Set(salesData.map(x => x.InvoiceNo));
-                rawData = rawData.filter(row => validInvoiceNos.has(row.invoice_no));
+            const salesRes = await GetSalesDetails(salesPayload);
+            const salesData = salesRes.data || salesRes;
+            const validInvoiceNos = new Set(salesData.map(x => x.InvoiceNo));
+            rawData = rawData.filter(row => validInvoiceNos.has(row.invoice_no));
 
-            } catch (err) {
-                console.error("Error filtering by item:", err);
-                toast.warning("Could not filter by item. Showing all records.");
-            }
+          } catch (err) {
+            console.error("Error filtering by item:", err);
+            toast.warning("Could not filter by item. Showing all records.");
+          }
         }
 
         const uniqueCurrencies = [...new Set(rawData.map(item => item.currencycode || item.CurrencyCode))];
         const newCurrencyOptions = uniqueCurrencies.filter(c => c).map(c => ({ label: c, value: c }));
         setCurrencyOptions(newCurrencyOptions);
 
-        // --- STEP 4: PROCESS & CONVERT CURRENCY ---
         const convertedData = rawData.map(row => {
           const currency = row.currencycode || row.CurrencyCode || "IDR";
           const rate = (currency === "IDR") ? 1 : (currencyRates[currency] || 1);
@@ -144,54 +147,39 @@ const ARBookReport = () => {
           return {
             ...row,
             currencyCode: currency,
-            exchangeRate: rate, 
+            exchangeRate: rate,
             convertedInvoiceAmount: (parseFloat(row.invoice_amount) || 0) * rate,
             convertedReceiptAmount: (parseFloat(row.receipt_amount) || 0) * rate,
             convertedDebitNote: (parseFloat(row.debit_note_amount) || 0) * rate,
             convertedCreditNote: (parseFloat(row.credit_note_amount) || 0) * rate,
-            // We do NOT calculate balance here yet, we do it after grouping
           };
         });
 
-        // --- STEP 5: GROUPING LOGIC (The Fix) ---
         const groupedMap = new Map();
         const finalRows = [];
 
         convertedData.forEach(row => {
-            const refNo = row.invoice_no ? String(row.invoice_no).trim() : "";
-            
-            // Only group if it's a valid Invoice (Not a DO, Not a Receipt without reference)
-            // And ensure we don't group different currencies together accidentally
-            const shouldGroup = refNo && !refNo.startsWith("DO") && !refNo.startsWith("27") && row.convertedReceiptAmount === 0;
+          const refNo = row.invoice_no ? String(row.invoice_no).trim() : "";
+          const shouldGroup = refNo && !refNo.startsWith("DO") && !refNo.startsWith("27") && row.convertedReceiptAmount === 0;
 
-            if (shouldGroup) {
-                const key = `${refNo}_${row.currencyCode}`;
-                
-                if (groupedMap.has(key)) {
-                    // Update existing group entry
-                    const existing = groupedMap.get(key);
-                    existing.convertedInvoiceAmount += row.convertedInvoiceAmount;
-                    existing.convertedDebitNote += row.convertedDebitNote;
-                    existing.convertedCreditNote += row.convertedCreditNote;
-                    // Note: We sum the original amounts too for display in "Other Currency" column
-                    existing.invoice_amount = (parseFloat(existing.invoice_amount) || 0) + (parseFloat(row.invoice_amount) || 0);
-                    
-                    // Keep the first ID found for the click handler
-                } else {
-                    // Create new group entry
-                    // We clone the row to avoid mutating original data
-                    groupedMap.set(key, { ...row });
-                }
+          if (shouldGroup) {
+            const key = `${refNo}_${row.currencyCode}`;
+
+            if (groupedMap.has(key)) {
+              const existing = groupedMap.get(key);
+              existing.convertedInvoiceAmount += row.convertedInvoiceAmount;
+              existing.convertedDebitNote += row.convertedDebitNote;
+              existing.convertedCreditNote += row.convertedCreditNote;
+              existing.invoice_amount = (parseFloat(existing.invoice_amount) || 0) + (parseFloat(row.invoice_amount) || 0);
             } else {
-                // If it's a Receipt or a DO, just add it directly (no grouping)
-                finalRows.push(row);
+              groupedMap.set(key, { ...row });
             }
+          } else {
+            finalRows.push(row);
+          }
         });
 
-        // Merge grouped items back into the main array
         groupedMap.forEach(value => finalRows.push(value));
-
-        // Re-sort by date after merging
         finalRows.sort((a, b) => parseDate(a.ledger_date) - parseDate(b.ledger_date));
 
         setArBook(finalRows);
@@ -202,12 +190,11 @@ const ARBookReport = () => {
       toast.error("Failed to load AR data");
       setArBook([]);
     } finally {
-        setLoadingData(false);
+      setLoadingData(false);
     }
   };
 
   const handleInvoiceClick = async (rowData) => {
-    // We use the Invoice Number (string) to search because we merged multiple IDs into one row
     const invoiceIdentifier = rowData.invoice_no;
 
     if (!invoiceIdentifier) {
@@ -217,7 +204,7 @@ const ARBookReport = () => {
 
     setLoadingDetails(true);
     setShowInvoiceDialog(true);
-    setInvoiceDetails(null); 
+    setInvoiceDetails(null);
 
     try {
       const response = await GetInvoiceDetails(invoiceIdentifier);
@@ -230,11 +217,7 @@ const ARBookReport = () => {
       }
     } catch (err) {
       console.error("API Fetch Error:", err);
-      if (err.response && err.response.data && err.response.data.detail) {
-        toast.error(`Server Error: ${err.response.data.detail}`);
-      } else {
-        toast.error("Failed to fetch invoice details.");
-      }
+      toast.error("Failed to fetch invoice details.");
     } finally {
       setLoadingDetails(false);
     }
@@ -245,7 +228,6 @@ const ARBookReport = () => {
       ? arBook.filter((x) => (x.CurrencyCode || x.currencycode) === selectedCurrency.value)
       : arBook;
 
-    // Filter out DOs from this report (Double check)
     filtered = filtered.filter(item => {
       const ref = item.invoice_no ? String(item.invoice_no).trim().toUpperCase() : "";
       return !ref.startsWith("DO") && !ref.startsWith("27");
@@ -253,30 +235,25 @@ const ARBookReport = () => {
 
     let runningBalance = 0;
     return filtered.map(row => {
-      // Calculate Balance Due for this specific row (Inv + Debit - Credit - Receipt)
-      // This is needed for the "Balance ToReceive" column
-      const rowBalance = (row.convertedInvoiceAmount || 0) + (row.convertedDebitNote || 0) 
-                       - (row.convertedCreditNote || 0) - (row.convertedReceiptAmount || 0);
-      
-      // Calculate Cumulative Running Balance
+      const rowBalance = (row.convertedInvoiceAmount || 0) + (row.convertedDebitNote || 0)
+        - (row.convertedCreditNote || 0) - (row.convertedReceiptAmount || 0);
       runningBalance += rowBalance;
-      
-      return { 
-          ...row, 
-          balanceDue: rowBalance, // The amount specifically outstanding for this row
-          cumulativeBalance: runningBalance // The running total
+
+      return {
+        ...row,
+        balanceDue: rowBalance,
+        cumulativeBalance: runningBalance
       };
     });
   }, [arBook, selectedCurrency]);
 
   const totalARValue = useMemo(() => {
     if (finalProcessedData.length === 0) return 0;
-    // The total AR Value is usually the final cumulative balance
     return finalProcessedData[finalProcessedData.length - 1].cumulativeBalance;
   }, [finalProcessedData]);
 
   const hasForeignCurrency = useMemo(() => {
-      return finalProcessedData.some(row => row.currencyCode && row.currencyCode !== 'IDR');
+    return finalProcessedData.some(row => row.currencyCode && row.currencyCode !== 'IDR');
   }, [finalProcessedData]);
 
 
@@ -314,68 +291,23 @@ const ARBookReport = () => {
     );
   };
 
-  // --- UPDATED: Added Title Attribute for Exchange Rate ---
   const otherCurrencyBodyTemplate = (rowData) => {
-      if (rowData.currencyCode && rowData.currencyCode !== 'IDR') {
-          const originalAmt = rowData.convertedReceiptAmount > 0 
-                ? rowData.receipt_amount 
-                : (rowData.invoice_amount || rowData.credit_note_amount || rowData.debit_note_amount);
-          
-          return (
-              <span 
-                className="text-muted" 
-                style={{fontSize: '12px', cursor: 'pointer'}}
-                // This line adds the hover effect
-                title={`Ex. Rate: ${rowData.exchangeRate?.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
-              >
-                  {parseFloat(originalAmt).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-              </span>
-          );
-      }
-      return "";
-  };
+    if (rowData.currencyCode && rowData.currencyCode !== 'IDR') {
+      const originalAmt = rowData.convertedReceiptAmount > 0
+        ? rowData.receipt_amount
+        : (rowData.invoice_amount || rowData.credit_note_amount || rowData.debit_note_amount);
 
-  const receiptBodyTemplate = (rowData) => {
-    return (
-      <span style={{ color: "red" }} title={`Ex. Rate: ${rowData.exchangeRate?.toLocaleString()}`}>
-        {rowData.convertedReceiptAmount > 0 ? rowData.convertedReceiptAmount?.toLocaleString('en-US', { minimumFractionDigits: 2 }) : ""}
-      </span>
-    );
-  };
-
-  const creditNoteBodyTemplate = (rowData) => {
-    return (
-      <span style={{ color: "red" }} title={`Ex. Rate: ${rowData.exchangeRate?.toLocaleString()}`}>
-        {rowData.convertedCreditNote > 0 ? rowData.convertedCreditNote?.toLocaleString('en-US', { minimumFractionDigits: 2 }) : ""}
-      </span>
-    );
-  };
-
-  const invoiceAmountBodyTemplate = (rowData) => {
       return (
-        <span title={`Ex. Rate: ${rowData.exchangeRate?.toLocaleString()}`}>
-            {rowData.convertedInvoiceAmount > 0 ? rowData.convertedInvoiceAmount?.toLocaleString('en-US', { minimumFractionDigits: 2 }) : ""}
+        <span
+          className="text-muted"
+          style={{ fontSize: '12px', cursor: 'pointer' }}
+          title={`Ex. Rate: ${rowData.exchangeRate?.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+        >
+          {parseFloat(originalAmt).toLocaleString('en-US', { minimumFractionDigits: 2 })}
         </span>
       );
-  };
-
-  const debitNoteBodyTemplate = (rowData) => {
-      return (
-        <span title={`Ex. Rate: ${rowData.exchangeRate?.toLocaleString()}`}>
-            {rowData.convertedDebitNote > 0 ? rowData.convertedDebitNote?.toLocaleString('en-US', { minimumFractionDigits: 2 }) : ""}
-        </span>
-      );
-  };
-
-  const balanceDueBodyTemplate = (rowData) => {
-     if (rowData.convertedInvoiceAmount > 0) {
-        return (
-            <span title={`Ex. Rate: ${rowData.exchangeRate?.toLocaleString()}`}>
-                {rowData.balanceDue?.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-            </span>
-        );
-     }
-     return "";
+    }
+    return "";
   };
 
   return (
@@ -395,13 +327,13 @@ const ARBookReport = () => {
 
                   <Col md="4" className="d-flex align-items-center mb-2">
                     <Label className="me-2 mb-0" style={{ minWidth: "60px" }}>Item:</Label>
-                    <Select 
-                        options={items} 
-                        onChange={setSelectedItem} 
-                        value={selectedItem} 
-                        isClearable 
-                        placeholder="Select Item..."
-                        className="flex-grow-1" 
+                    <Select
+                      options={items}
+                      onChange={setSelectedItem}
+                      value={selectedItem}
+                      isClearable
+                      placeholder="Select Item..."
+                      className="flex-grow-1"
                     />
                   </Col>
 
@@ -417,7 +349,7 @@ const ARBookReport = () => {
                     <Label className="me-2 mb-0" style={{ minWidth: "80px" }}>From:</Label>
                     <Flatpickr className="form-control" value={fromDate} onChange={(date) => setFromDate(date[0])} options={{ altInput: true, altFormat: "d-M-Y", dateFormat: "Y-m-d" }} />
                   </Col>
-                  
+
                   <Col md="4" className="d-flex align-items-center mb-2">
                     <Label className="me-2 mb-0" style={{ minWidth: "60px" }}>To:</Label>
                     <Flatpickr className="form-control" value={toDate} onChange={(date) => setToDate(date[0])} options={{ altInput: true, altFormat: "d-M-Y", dateFormat: "Y-m-d" }} />
@@ -426,7 +358,7 @@ const ARBookReport = () => {
 
                 {/* --- Row 3: Totals & Actions --- */}
                 <Row>
-                   <Col md="12" className="d-flex justify-content-between align-items-center mt-2 border-top pt-3">
+                  <Col md="12" className="d-flex justify-content-between align-items-center mt-2 border-top pt-3">
                     <div className="d-flex align-items-center">
                       <h5 className="mb-0 me-2">Total AR Value:</h5>
                       <h4 className="mb-0 fw-bold" style={{ color: "firebrick" }}>
@@ -461,34 +393,20 @@ const ARBookReport = () => {
                     responsiveLayout="scroll"
                   >
                     <Column field="ledger_date" header="Date" body={(row) => format(new Date(row.ledger_date), "dd-MMM-yyyy")} headerStyle={{ whiteSpace: 'nowrap' }} />
-
                     <Column field="invoice_no" header="Reference No." body={referenceBodyTemplate} headerStyle={{ whiteSpace: 'nowrap' }} />
-
                     {hasForeignCurrency && (
-                        <Column 
-                            header="Other Currency" 
-                            body={otherCurrencyBodyTemplate} 
-                            className="text-end" 
-                            headerStyle={{ whiteSpace: 'nowrap', color: 'white' }}
-                        />
-                    )}
-
-                    <Column field="convertedInvoiceAmount" header="Invoice Amount (A)" body={invoiceAmountBodyTemplate} className="text-end" />
-                    
-                    <Column 
-                        field="balanceDue" 
-                        header="Balance ToReceive" 
-                        body={balanceDueBodyTemplate} 
+                      <Column
+                        header="Other Currency"
+                        body={otherCurrencyBodyTemplate}
                         className="text-end"
-                        headerStyle={{ color: 'white' }}
-                    />
-
-                    <Column field="convertedDebitNote" header="Debit Note (B)" body={debitNoteBodyTemplate} className="text-end" />
-                    
-                    <Column field="convertedReceiptAmount" header="Receipt (C)" body={receiptBodyTemplate} className="text-end" />
-                    
-                    <Column field="convertedCreditNote" header="Credit Note (D)" body={creditNoteBodyTemplate} className="text-end" />
-                    
+                        headerStyle={{ whiteSpace: 'nowrap', color: 'white' }}
+                      />
+                    )}
+                    <Column field="convertedInvoiceAmount" header="Invoice Amount (A)" body={(r) => r.convertedInvoiceAmount?.toLocaleString('en-US', { minimumFractionDigits: 2 })} className="text-end" />
+                    <Column field="balanceDue" header="Balance ToReceive" body={(r) => r.balanceDue?.toLocaleString('en-US', { minimumFractionDigits: 2 })} className="text-end" />
+                    <Column field="convertedDebitNote" header="Debit Note (B)" body={(r) => r.convertedDebitNote?.toLocaleString('en-US', { minimumFractionDigits: 2 })} className="text-end" />
+                    <Column field="convertedReceiptAmount" header="Receipt (C)" body={(r) => <span style={{ color: 'red' }}>{r.convertedReceiptAmount?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>} className="text-end" />
+                    <Column field="convertedCreditNote" header="Credit Note (D)" body={(r) => <span style={{ color: 'red' }}>{r.convertedCreditNote?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>} className="text-end" />
                     <Column field="cumulativeBalance" header="Balance ((A+B)-(C+D))" body={(d) => d.cumulativeBalance?.toLocaleString('en-US', { minimumFractionDigits: 2 })} className="text-end" />
                   </DataTable>
                 </div>
@@ -514,15 +432,32 @@ const ARBookReport = () => {
             </div>
           ) : invoiceDetails ? (
             <div>
-              <div className="bg-light p-3 mb-3 rounded border">
-                <Row>
-                  <Col md={6}><strong>Customer:</strong> {invoiceDetails.CustomerName}</Col>
-                  <Col md={6}><strong>Invoice Date:</strong> {invoiceDetails.Salesinvoicesdate ? format(new Date(invoiceDetails.Salesinvoicesdate), "dd-MMM-yyyy") : ''}</Col>
-                  <Col md={6} className="mt-2"><strong>Total Amount:</strong> {invoiceDetails.TotalAmount?.toLocaleString()}</Col>
-                  <Col md={6} className="mt-2"><strong>Status:</strong> <span className="badge bg-info">{invoiceDetails.Status}</span></Col>
+              {/* HEADER INFO SECTION - ALIGNED & STANDARD COLOR */}
+              <div className="mb-4">
+                <Row className="mb-2">
+                  <Col md={6} className="d-flex">
+                    <span style={popupLabelStyle}>Customer</span>
+                    <span>: {invoiceDetails.CustomerName}</span>
+                  </Col>
+                  <Col md={6} className="d-flex">
+                    <span style={popupLabelStyle}>Invoice Date</span>
+                    <span>: {invoiceDetails.Salesinvoicesdate ? format(new Date(invoiceDetails.Salesinvoicesdate), "dd-MMM-yyyy") : ''}</span>
+                  </Col>
+                </Row>
+
+                <Row className="mb-2">
+                  <Col md={6} className="d-flex">
+                    <span style={popupLabelStyle}>Total Amount</span>
+                    <span>: {invoiceDetails.TotalAmount?.toLocaleString()}</span>
+                  </Col>
+                  <Col md={6} className="d-flex">
+                    <span style={popupLabelStyle}>Status</span>
+                    <span>: <span className="badge bg-info">{invoiceDetails.Status}</span></span>
+                  </Col>
                 </Row>
               </div>
 
+              {/* TABLE WITHOUT FIREBRICK HEADERS */}
               <DataTable
                 value={invoiceDetails.Items || []}
                 className="p-datatable-sm p-datatable-gridlines"

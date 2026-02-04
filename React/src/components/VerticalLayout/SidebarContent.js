@@ -62,7 +62,7 @@ class SidebarContent extends Component {
                 //{ screenId: 99916, screenName: "Over Draft", url: "/ManageOverDraft", icon: "bx bx-transfer" },
                 { screenId: 99917, screenName: "Petty Cash", url: "/pettyCash", icon: "bx bx-coin-stack" },
                 // --- NEW AP SCREEN ADDED HERE ---
-                //{ screenId: 99919, screenName: "AP", url: "/AP", icon: "bx bx-file" }
+                { screenId: 99919, screenName: "AP", url: "/AP", icon: "bx bx-file" }
             ];
 
             missingScreens.forEach(item => {
@@ -164,25 +164,33 @@ class SidebarContent extends Component {
         }
 
         // ---------------------------------------------------------
-        // 4. Mktg Verify Logic
+        // 4. Mktg Verify Logic (User-Specific)
         // ---------------------------------------------------------
-        const testMenu = {
-            moduleId: 9999,
-            moduleName: "Mktg Verify",
-            icon: "bx bx-test-tube",
-            screen: [
-                {
-                    screenId: 99901,
-                    screenName: "Verify Customer",
-                    url: "/verify-customer",
-                    icon: "bx bx-file",
-                    module: []
-                }
-            ]
-        };
+        // Only show Mktg Verify menu for specific users
+        const authUserMktg = JSON.parse(localStorage.getItem("authUser"));
+        const currentUserIdMktg = authUserMktg ? (parseInt(authUserMktg.u_id) || 0) : 0;
+        const mktgVerifyUsers = [142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 188, 190];
 
-        if (!menuData.menus.find(m => m.moduleId === 9999)) {
-            menuData.menus.push(testMenu);
+        if (mktgVerifyUsers.includes(currentUserIdMktg)) {
+            const testMenu = {
+                moduleId: 9999,
+                moduleName: "Mktg Verify",
+                icon: "bx bx-test-tube",
+                screen: [
+                    {
+                        screenId: 99901,
+                        screenName: "Verify Customer",
+                        url: "/verify-customer",
+                        icon: "bx bx-file",
+                        module: []
+                    }
+                ]
+            };
+
+            if (!menuData.menus.find(m => m.moduleId === 9999)) {
+                menuData.menus.push(testMenu);
+                console.log(`[MKTG VERIFY] Added Mktg Verify menu for user ${currentUserIdMktg}`);
+            }
         }
 
         // ---------------------------------------------------------
@@ -649,6 +657,11 @@ class SidebarContent extends Component {
         // PRIORITY FILTER: FINANCE/INVOICE/REPORTS USERS (160, 161, 162, 163, 165, 191)
         // This runs FIRST to bypass default restrictions
         const financeInvoiceReportsUsers = [160, 161, 162, 163, 165, 191];
+
+        // CUSTOM USERS WITH FULL INITIAL ACCESS (158, 159)
+        // These users bypass universal filters and use final override blocks for configuration
+        const customFullAccessUsers = [158, 159];
+
         let skipUniversalFilters = false;
 
         if (financeInvoiceReportsUsers.includes(currentUserIdFilter)) {
@@ -704,6 +717,11 @@ class SidebarContent extends Component {
             // Skip the universal security filters below
             skipUniversalFilters = true;
         }
+        // CUSTOM FULL ACCESS USERS (158, 159) - Skip universal filters, use final override instead
+        else if (customFullAccessUsers.includes(currentUserIdFilter)) {
+            console.log(`--- CUSTOM FULL ACCESS USER (${currentUserIdFilter}): Bypassing universal filters, using final override ---`);
+            skipUniversalFilters = true;
+        }
 
         // Universal Security Filters (Skip if already handled above)
 
@@ -730,6 +748,11 @@ class SidebarContent extends Component {
             if (currentUserIdFilter === 138) {
                 const procIndex = allowedModules.indexOf("Procurement");
                 if (procIndex > -1) allowedModules.splice(procIndex, 1);
+            }
+            // Special Case: Mktg Verify users get Mktg Verify menu
+            const mktgVerifyUsers = [142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 188, 190];
+            if (mktgVerifyUsers.includes(currentUserIdFilter)) {
+                allowedModules.push("Mktg Verify");
             }
 
             menuData.menus = menuData.menus.filter(m => allowedModules.includes(m.moduleName));
@@ -794,8 +817,13 @@ class SidebarContent extends Component {
             if (masterAccessUsers.includes(currentUserIdFilter) || currentUserIdFilter === 1) {
                 allowedModules.push("Masters");
             }
-            if (currentUserIdFilter === 158) {
+            if (currentUserIdFilter === 158 || currentUserIdFilter === 159) {
                 allowedModules.push("Reports");
+            }
+            // Special Case: Mktg Verify users get Mktg Verify menu
+            const mktgVerifyUsers = [142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 188, 190];
+            if (mktgVerifyUsers.includes(currentUserIdFilter)) {
+                allowedModules.push("Mktg Verify");
             }
 
             menuData.menus = menuData.menus.filter(m => allowedModules.includes(m.moduleName));
@@ -843,9 +871,10 @@ class SidebarContent extends Component {
         // ---------------------------------------------------------
         // DEFINE RESTRICTED USER LIST (New Group)
         // ---------------------------------------------------------
-        // Users: 172, 145, 171, 152, 154, 174, 147, 151, 159, 185, 133, 168, 150, 143, 186, 155, 166, 164, 142, 148, 146, 153, 141, 157, 144, 149, 173, 167, 190
+        // Users: 172, 145, 171, 152, 154, 174, 147, 151, 185, 133, 168, 150, 143, 186, 155, 166, 164, 142, 148, 146, 153, 141, 157, 144, 149, 173, 167, 190
         // NOTE: Removed 160, 161, 162, 163, 165, 191 as they are handled by financeInvoiceReportsUsers
-        const claimOnlyUsers = [172, 145, 171, 152, 154, 174, 147, 151, 159, 133, 168, 150, 143, 155, 166, 164, 142, 148, 146, 153, 141, 157, 144, 149, 173, 167, 190];
+        // NOTE: Removed 159 as it has custom configuration matching user 158
+        const claimOnlyUsers = [172, 145, 171, 152, 154, 174, 147, 151, 133, 168, 150, 143, 155, 166, 164, 142, 148, 146, 153, 141, 157, 144, 149, 173, 167, 190];
 
 
 
@@ -1038,48 +1067,38 @@ class SidebarContent extends Component {
         }
 
         // ---------------------------------------------------------
-        // FINAL OVERRIDE FOR USER 159 (Custom Fix)
+        // FINAL OVERRIDE FOR USER 159 (Custom Fix - Same as User 158)
         // ---------------------------------------------------------
         if (currentUserIdFilter === 159) {
-            console.log("=== FINAL OVERRIDE (159): Custom Configuration ===");
+            console.log("=== FINAL OVERRIDE (159): Custom Configuration (Same as 158) ===");
 
-            // 1. Restore Procurement Module (it might have been deleted by claimOnlyUsers block)
-            let procurementMod = menuData.menus.find(m => m.moduleName === "Procurement");
-            if (!procurementMod) {
-                procurementMod = {
-                    moduleId: 99992,
-                    moduleName: "Procurement",
-                    icon: "bx bx-shopping-bag",
-                    screen: [],
-                    menuOrder: 3
-                };
-                menuData.menus.push(procurementMod);
+            // 1. Remove Forbidden Modules (Same as User 158)
+            // Keep: Masters, Finance, Invoices, Mktg Verify, Procurement, Claim, Reports
+            const modulesToRemove = ["Sales", "Employee", "Attendance", "Leaves", "Warehouse"];
+            menuData.menus = menuData.menus.filter(m => !modulesToRemove.includes(m.moduleName));
+
+            // 2. Configure Procurement: Show ALL except "Approval"
+            const procurementMod = menuData.menus.find(m => m.moduleName === "Procurement");
+            if (procurementMod) {
+                procurementMod.screen = procurementMod.screen.filter(s =>
+                    s.screenName !== "Approval" &&
+                    !s.url.includes("approval")
+                );
             }
 
-            // 2. Configure Procurement: Show ONLY "Purchase Requisition" and "Purchase Order"
-            const specificProcurementScreens = [
-                { screenName: "Purchase Requisition", url: "/procurementspurchase-requisition", icon: "bx bx-file" },
-                { screenName: "Purchase Order", url: "/procurementspurchase-order", icon: "bx bx-cart" }
-            ];
-
-            procurementMod.screen = specificProcurementScreens.map((item, idx) => ({
-                screenId: 99960 + idx,
-                screenName: item.screenName,
-                url: item.url,
-                icon: item.icon,
-                module: []
-            }));
-
-            // 3. Configure Claim: Show "Claim & Payment" and "PPP"
+            // 3. Configure Claim: Strictly "Claim & Payment", "Master Payment Plan", "PPP"
             const claimMod = menuData.menus.find(m => m.moduleName === "Claim" || m.moduleName === "Claims");
             if (claimMod) {
-                const specificClaimScreens = [
+                // Define the 3 specifics
+                const specificScreens = [
                     { screenName: "Claim & Payment", url: "/Manageclaim&Payment", icon: "bx bx-detail" },
+                    { screenName: "Master Payment Plan", url: "/paymentplanapproval", icon: "bx bx-calendar-check" },
                     { screenName: "PPP", url: "/PPP", icon: "bx bx-file" }
                 ];
 
-                claimMod.screen = specificClaimScreens.map((item, idx) => ({
-                    screenId: 99965 + idx,
+                // Rebuild Claim Screens
+                claimMod.screen = specificScreens.map((item, idx) => ({
+                    screenId: 99960 + idx, // arbitrary unique ID for this session
                     screenName: item.screenName,
                     url: item.url,
                     icon: item.icon,

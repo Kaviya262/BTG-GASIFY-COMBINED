@@ -25,7 +25,6 @@ import { GetCustomerFilter } from "../FinanceModule/service/financeapi";
 import { GetBankList } from "common/data/mastersapi";
 
 // --- IMPORT LOGO ---
-// Adjust the '../' depth if your file is deeper in the folder structure
 import logo from "../../assets/images/logo.png";
 
 // --- HELPER: Number to Words ---
@@ -97,24 +96,51 @@ const VerifyCustomer = () => {
     invoices: []
   });
 
+  // --- 1. INITIAL LOAD WITH AUTH CHECK ---
   useEffect(() => {
-    loadMasterData();
+    // Retrieve User from LocalStorage
+    // NOTE: 'authUser' is the standard key. If you use 'user' or 'userDetails', change it here.
+    const storedUser = localStorage.getItem("authUser");
+    let userId = null;
+    let dept = null;
+
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        // Based on your JSON, the properties are 'id' (int) and 'department' (string)
+        userId = parsedUser.id;
+        dept = parsedUser.department;
+      } catch (e) {
+        console.error("Error parsing user data", e);
+      }
+    }
+
+    loadMasterData(userId, dept);
   }, []);
 
-  const loadMasterData = async () => {
+  const loadMasterData = async (userId, dept) => {
     try {
       const banks = await GetBankList(1, 1);
       const customers = await GetCustomerFilter(1, "%");
       setBankList(banks.map(b => ({ value: b.value, label: b.BankName })));
       const custOptions = Array.isArray(customers) ? customers.map(c => ({ value: c.CustomerID, label: c.CustomerName })) : [];
       setCustomerList(custOptions);
-      loadPendingList(custOptions);
+
+      // Pass the user info to the list loader
+      loadPendingList(custOptions, userId, dept);
     } catch (err) { console.error(err); }
   };
 
-  const loadPendingList = async (customers) => {
+  // --- 2. UPDATED LOAD LIST TO SEND PARAMS ---
+  const loadPendingList = async (customers, userId, dept) => {
     try {
-      const response = await axios.get(`${PYTHON_API_URL}/AR/get-pending-list`);
+      const response = await axios.get(`${PYTHON_API_URL}/AR/get-pending-list`, {
+        params: {
+          user_id: userId,
+          department: dept
+        }
+      });
+
       if (response.data?.status === "success") {
         setRows(response.data.data.map(item => ({
           ...item,
