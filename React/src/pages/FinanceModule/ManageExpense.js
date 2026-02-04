@@ -20,11 +20,10 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { useHistory } from "react-router-dom";
 import { toast } from "react-toastify";
-import "primereact/resources/themes/bootstrap4-light-blue/theme.css";
-import "primereact/resources/primereact.min.css";
-
-import { getPettyCashList } from "../../../src/common/data/mastersapi";
-
+import Flatpickr from "react-flatpickr";
+import "flatpickr/dist/themes/material_blue.css";
+import { Label } from "reactstrap";
+import { getPettyCashList, getPettyCashCategories, getPettyCashExpenseTypes } from "../../../src/common/data/mastersapi";
 const Breadcrumbs = ({ title, breadcrumbItem }) => (
   <div className="page-title-box d-sm-flex align-items-center justify-content-between">
     <h4 className="mb-sm-0 font-size-18">{breadcrumbItem}</h4>
@@ -41,58 +40,75 @@ const ManageExpense = () => {
   const history = useHistory();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [pettyCashIdOptions, setPettyCashIdOptions] = useState([]);
-  const [expTypeOptions, setExpTypeOptions] = useState([]);
-  const [selectedExpDescription, setSelectedExpDescription] = useState(null);
-  const [selectedVoucherNo, setSelectedVoucherNo] = useState(null);
+
+  // Set default dates: fromDate = 1 week ago, toDate = today
+  const getDefaultFromDate = () => {
+    const date = new Date();
+    date.setDate(date.getDate() - 7);
+    return date;
+  };
+
+  const [fromDate, setFromDate] = useState(getDefaultFromDate());
+  const [toDate, setToDate] = useState(new Date());
 
   const [filters, setFilters] = useState({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS },
   });
   const [globalFilter, setGlobalFilter] = useState("");
 
-  useEffect(() => { fetchExpenses(); }, []);
+  useEffect(() => {
+    fetchExpenses(true); // Load data with default date range (last 7 days)
+  }, []);
 
-  const fetchExpenses = async () => {
+  const fetchExpenses = async (applyDateFilter = true) => {
     try {
       setLoading(true);
       const branchId = 1;
       const orgId = 1;
       const pettyIdValue = 0;
-      const expTypeValue = selectedExpDescription?.value ?? null;
-      const voucherNoValue = selectedVoucherNo?.value ?? null;
 
-      const data = await getPettyCashList(orgId, branchId, pettyIdValue, expTypeValue, voucherNoValue);
+      const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-CA') : null; // YYYY-MM-DD
+      // Only apply date filter if explicitly requested and dates are set
+      const fDate = (applyDateFilter && fromDate) ? formatDate(fromDate) : null;
+      const tDate = (applyDateFilter && toDate) ? formatDate(toDate) : null;
+
+      const [data, typesData] = await Promise.all([
+        getPettyCashList(orgId, branchId, pettyIdValue, null, null, null, fDate, tDate),
+        getPettyCashExpenseTypes(orgId, branchId),
+      ]);
+
+      const typeMap = {};
+      typesData.forEach(t => typeMap[t.id] = t.expense_type);
+
+
 
       const transformed = data.map(item => ({
-        voucherNo: item.VoucherNo,
+        voucherNo: item.pc_number,
         expDate: new Date(item.ExpDate),
-        expenseType: item.ExpenseType,
-        expenseTypename:item.ExpenseTypename,
+        expenseType: typeMap[item.expense_type_id] || "-",
+        expenseTypename: typeMap[item.expense_type_id] || "-",
         expenseDescription: item.ExpenseDescription || "-",
         expenseDescriptionId: item.ExpenseDescriptionId,
-        glcode:item.glcode || "",
+        glcode: item.glcode || "",
         CurrencyCode: item.CurrencyCode,
-        billNumber: item.BillNumber,
+        billNumber: item.VoucherNo,
         amountIDR: item.AmountIDR,
         amount: item.Amount,
         attachment: item.ExpenseFileName ? { name: item.ExpenseFileName } : null,
         status: item.IsSubmitted ? "Posted" : "Saved",
         pettyCashId: item.PettyCashId,
+        expense_type_id: item.expense_type_id, // Keep ID for reference
+        raw: item // Store raw data for editing
       }));
 
-      setExpenses(transformed); // ✅ replace, don’t append
+      setExpenses(transformed);
 
       // Populate dropdowns
-      setPettyCashIdOptions(
-        [...new Set(data.map(x => x.VoucherNo))].map(id => ({ value: id, label: `PC-${id}` }))
-      );
-      setExpTypeOptions(
-        [...new Set(data.map(x => x.ExpenseDescription))].map(type => ({ value: type, label: type }))
-      );
+      // Populate dropdowns - Metadata only for table display now
+      // setPettyCashIdOptions([...]) - Removed
+      // setExpTypeOptions([...]) - Removed
 
       setLoading(false);
     } catch (error) {
@@ -115,32 +131,29 @@ const ManageExpense = () => {
     return <Tag value={statusShort} severity={getSeverity(rowData.status)} />;
   };
 
+  const clearFilter = () => {
+    setFilters({
+      global: { value: null, matchMode: FilterMatchMode.CONTAINS },
+    });
+    setGlobalFilter("");
+  };
+
   const actionBodyTemplate = (rowData) => (
     <div className="d-flex gap-2 justify-content-center">
       <Button
         color="link"
         size="sm"
         disabled={rowData.status !== "Saved"}
-        onClick={() => handleEdit(rowData.pettyCashId)}
+        onClick={() => handleEdit(rowData)}
       >
         <i className="mdi mdi-pencil"></i>
       </Button>
     </div>
   );
 
-  const handleEdit = async (pettyCashId) => {
-    try {
-      const data = await getPettyCashList(1, 1, pettyCashId, null, null);
-      if (data && data.length > 0) {
-        const pettyCashData = data[0];
-        history.push(`/pettyCash/edit/${pettyCashId}`, { pettyCashData });
-      } else {
-        toast.error("No data found for selected Petty Cash ID");
-      }
-    } catch (error) {
-      console.error("Error loading petty cash data:", error);
-      toast.error("Failed to load data for editing");
-    }
+  const handleEdit = (rowData) => {
+    const pettyCashData = rowData.raw;
+    history.push(`/pettyCash/edit/${rowData.pettyCashId}`, { pettyCashData });
   };
 
   const exportToExcel = () => {
@@ -148,7 +161,7 @@ const ManageExpense = () => {
       "Date": new Date(ex.expDate).toLocaleDateString(),
       "Expense Type": ex.expenseType,
       "Description": ex.expenseDescription,
-      "GL Code":ex.glcode,
+      "GL Code": ex.glcode,
       "Currency": ex.CurrencyCode,
       "Bill Number": ex.billNumber,
       "Amount": ex.amount,
@@ -168,20 +181,22 @@ const ManageExpense = () => {
   const dAddOrder = () => { history.push("/pettyCash/add"); };
 
   const handleCancelFilters = () => {
-    setSelectedExpDescription(null);
-    setSelectedVoucherNo(null);
+    setFromDate(getDefaultFromDate());
+    setToDate(new Date());
+    fetchExpenses(true); // Reload with default date range
   };
+
 
   const renderHeader = () => (
     <div className="row align-items-center g-3 clear-spa">
-      <div className="col-12 col-lg-3"></div>
-      <div className="col-12 col-lg-6 text-end">
-        <span className="me-3">
-          <Tag value="S" severity="danger" /> Saved
-        </span>
-        <span className="me-3">
-          <Tag value="P" severity="success" /> Posted
-        </span>
+      <div className="col-12 col-lg-6">
+        <Button className="btn btn-danger btn-label" onClick={clearFilter} >
+          <i className="mdi mdi-filter-off label-icon" /> Clear
+        </Button>
+      </div>
+      <div className="col-12 col-lg-3 text-end">
+        <span className="me-4"><Tag value="S" severity="danger" /> Saved</span>
+        <span className="me-1"><Tag value="P" severity="success" /> Posted</span>
       </div>
       <div className="col-12 col-lg-3">
         <InputText
@@ -200,32 +215,37 @@ const ManageExpense = () => {
       <Container fluid>
         <Breadcrumbs title="Finance" breadcrumbItem="PettyCash" />
 
-        <Row className="pt-2 pb-3 align-items-end">
+        <Row className="pt-2 pb-3 align-items-center">
           <Col md="3">
-            <Select
-              placeholder="Select Expense Desc"
-              value={selectedExpDescription}
-              onChange={(val) => setSelectedExpDescription(val)}
-              options={expTypeOptions}
-              isClearable
-            />
+            <div className="d-flex align-items-center gap-2">
+              <Label className="mb-0" style={{ minWidth: "60px" }}>From</Label>
+              <Flatpickr
+                className="form-control"
+                options={{ dateFormat: "d-m-Y" }}
+                value={fromDate}
+                onChange={([date]) => setFromDate(date)}
+              />
+            </div>
           </Col>
           <Col md="3">
-            <Select
-              placeholder="Select Voucher No"
-              value={selectedVoucherNo}
-              onChange={(val) => setSelectedVoucherNo(val)}
-              options={pettyCashIdOptions}
-              isClearable
-            />
+            <div className="d-flex align-items-center gap-2">
+              <Label className="mb-0" style={{ minWidth: "60px" }}>To</Label>
+              <Flatpickr
+                className="form-control"
+                options={{ dateFormat: "d-m-Y" }}
+                value={toDate}
+                onChange={([date]) => setToDate(date)}
+              />
+            </div>
           </Col>
-          <Col md="6" className="d-flex justify-content-end gap-2">
-            <button className="btn btn-primary me-2" onClick={fetchExpenses}>Search</button>
-            <button className="btn btn-danger me-2" onClick={handleCancelFilters}>Cancel</button>
-            <button className="btn btn-info me-2" onClick={dAddOrder} disabled={isSubmitting}>New</button>
-            <button className="btn btn-secondary" onClick={exportToExcel}>
-              <i className="bx bx-export me-2"></i> Export
-            </button>
+
+          <Col md="6" className="d-flex justify-content-end gap-2 align-items-center">
+            <div className="d-flex gap-2">
+              <button type="button" className="btn btn-info" onClick={() => fetchExpenses(true)}> <i className="bx bx-search-alt label-icon font-size-16 align-middle me-2"></i> Search</button>
+              <button type="button" className="btn btn-danger" onClick={handleCancelFilters}><i className="bx bx-window-close label-icon font-size-14 align-middle me-2"></i>Cancel</button>
+              <button type="button" className="btn btn-secondary" onClick={exportToExcel}> <i className="bx bx-export label-icon font-size-16 align-middle me-2"></i> Export</button>
+              <button type="button" className="btn btn-success" onClick={dAddOrder} disabled={isSubmitting}><i className="bx bx-plus label-icon font-size-16 align-middle me-2"></i>New</button>
+            </div>
           </Col>
         </Row>
 
@@ -244,28 +264,23 @@ const ManageExpense = () => {
                     "CurrencyCode", "expDate",
                     "amount", "amountIDR", "attachment",
                     "expenseDescription", "billNumber",
-                    "status", "voucherNo","expenseTypename","glcode"
+                    "status", "voucherNo", "expenseTypename", "glcode"
                   ]}
                   globalFilter={globalFilter}
                   emptyMessage="No expenses found."
                   showGridlines
                   header={renderHeader()}
                 >
-                  <Column header="S.No." body={(_, { rowIndex }) => rowIndex + 1} />
-                  <Column field="voucherNo" header="Sys Seq No." sortable />
+
+                  <Column field="voucherNo" header="PC Number" sortable />
+                  <Column field="billNumber" header="Voucher No" sortable />
                   <Column field="expDate" header="Date" body={(d) => new Date(d.expDate).toLocaleDateString()} sortable />
-                  <Column field="expenseTypename" header="Type" sortable />
-                  <Column field="expenseDescription" header="Description" sortable />
-                  <Column field="glcode" header="GL Code" sortable />
-                  
+                  <Column field="expenseTypename" header="Expense Type" sortable />
+
                   <Column field="CurrencyCode" header="Currency" sortable />
                   <Column field="amount" header="Amount" body={(d) => Number(d.amount).toLocaleString('en-US', {
                     style: 'decimal', minimumFractionDigits: 2
                   })} className="text-end" />
-                  <Column field="amountIDR" header="Amount in IDR" body={(d) => Number(d.amountIDR).toLocaleString('en-US', {
-                    style: 'decimal', minimumFractionDigits: 2
-                  })} className="text-end" />
-                  <Column field="attachment" header="Attachment" body={(d) => d.attachment ? d.attachment.name : "-"} />
                   <Column field="status" header="Status" style={{ textAlign: "center" }} body={statusBodyTemplate} sortable />
                   <Column header="Action" body={actionBodyTemplate} />
                 </DataTable>
@@ -286,7 +301,7 @@ const ManageExpense = () => {
           </ModalBody>
         </Modal>
       </Container>
-    </div>
+    </div >
   );
 };
 

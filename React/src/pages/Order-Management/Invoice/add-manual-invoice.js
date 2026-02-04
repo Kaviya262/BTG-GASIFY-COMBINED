@@ -261,10 +261,24 @@ const AddManualInvoice = () => {
       const response = await GetAvailableDOs(payload);
       const allData = response.data || response || [];
 
-      // Filter for Confirmed DOs
+      // 🟢 FIX: Get list of DOs already added to the grid
+      const addedDOs = new Set(
+        manualinvoiceDetails
+          .map(item => item.doNumber)
+          .filter(num => num && num.trim() !== "")
+      );
+
+      // Filter for Confirmed DOs AND exclude those already in the grid
       const filteredData = allData.filter(item => {
         const ref = item.do_number || "";
-        return ref.startsWith("DO") || ref.startsWith("27");
+
+        // 1. Must match DO pattern
+        const isValidRef = ref.startsWith("DO") || ref.startsWith("27");
+
+        // 2. Must NOT be already added
+        const isNotAdded = !addedDOs.has(ref);
+
+        return isValidRef && isNotAdded;
       });
 
       setAvailableDOs(filteredData);
@@ -1097,30 +1111,32 @@ const AddManualInvoice = () => {
 
                                                 {/* Gas Code Column */}
                                                 <td>
-                                                  <Select
-                                                    name="GasCodeId"
-                                                    id={`GasCodeId-${index}`}
-                                                    options={gasCodeList
-                                                      .filter(code => !manualinvoiceDetails.some((item, i) => i !== index && item.GasCodeId === code.GasCodeId))
-                                                      .map(code => ({ value: code.GasCodeId, label: code.GasName }))}
+                                                  <div title={manualinvoiceDetails[index].gasCode || gasCodeList.find(g => g.GasCodeId === manualinvoiceDetails[index].GasCodeId)?.GasName}>
+                                                    <Select
+                                                      name="GasCodeId"
+                                                      id={`GasCodeId-${index}`}
+                                                      options={gasCodeList
+                                                        .filter(code => !manualinvoiceDetails.some((item, i) => i !== index && item.GasCodeId === code.GasCodeId))
+                                                        .map(code => ({ value: code.GasCodeId, label: code.GasName }))}
 
-                                                    // 🟢 FIX: Correctly construct the selected object for react-select
-                                                    value={
-                                                      manualinvoiceDetails[index]?.GasCodeId
-                                                        ? {
-                                                          value: manualinvoiceDetails[index].GasCodeId,
-                                                          label: manualinvoiceDetails[index].gasCode || gasCodeList.find(g => g.GasCodeId === manualinvoiceDetails[index].GasCodeId)?.GasName
-                                                        }
-                                                        : null
-                                                    }
+                                                      // 🟢 FIX: Correctly construct the selected object for react-select
+                                                      value={
+                                                        manualinvoiceDetails[index]?.GasCodeId
+                                                          ? {
+                                                            value: manualinvoiceDetails[index].GasCodeId,
+                                                            label: manualinvoiceDetails[index].gasCode || gasCodeList.find(g => g.GasCodeId === manualinvoiceDetails[index].GasCodeId)?.GasName
+                                                          }
+                                                          : null
+                                                      }
 
-                                                    onChange={option => handleGasCodeChange(index, option ? option.value : null)}
-                                                    classNamePrefix="select"
-                                                    isDisabled={isDisabled}
-                                                    isLoading={isLoading}
-                                                    isClearable={isClearable}
-                                                    isSearchable={isSearchable}
-                                                  />
+                                                      onChange={option => handleGasCodeChange(index, option ? option.value : null)}
+                                                      classNamePrefix="select"
+                                                      isDisabled={isDisabled}
+                                                      isLoading={isLoading}
+                                                      isClearable={isClearable}
+                                                      isSearchable={isSearchable}
+                                                    />
+                                                  </div>
                                                   <ErrorMessage name={`manualinvoiceDetails.${index}.GasCodeId`} component="div" className="text-danger" />
                                                 </td>
 

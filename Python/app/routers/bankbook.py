@@ -82,7 +82,7 @@ async def get_daily_entries(db: AsyncSession = Depends(get_db)):
     except Exception as e:
         return {"status": "error", "detail": str(e)}
 
-# --- UPDATED ENDPOINT: BANK BOOK REPORT WITH DEBIT OPENING BALANCE ---
+# --- UPDATED ENDPOINT: BANK BOOK REPORT ---
 @router.get("/get-report")
 async def get_bank_book_report(
     from_date: str,
@@ -105,8 +105,11 @@ async def get_bank_book_report(
                     '-' as Party,
                     'Brought Forward' as Description,
                     currency as Currency,
-                    0.00 as CreditIn, -- Ignoring Credit for now
-                    opening_balance as DebitOut, -- Map opening balance to Debit
+                    
+                    -- Opening Balance goes to DebitOut (Debit column / Money In)
+                    0.00 as CreditIn, 
+                    opening_balance as DebitOut, 
+                    
                     opening_balance as NetAmount
                 FROM {DB_NAME_FINANCE}.tbl_bank_opening_balance
                 WHERE bank_id = :bank_id
@@ -117,7 +120,7 @@ async def get_bank_book_report(
 
             if opening_row:
                 op_item = dict(opening_row)
-                # Initialize running balance with the opening debit amount
+                # Initialize running balance
                 op_debit = float(op_item["DebitOut"] or 0)
                 running_balance = op_debit
                 
@@ -129,26 +132,36 @@ async def get_bank_book_report(
         # 2. FETCH TRANSACTIONS (Verified and Submitted Receipts)
         sql = text(f"""
             SELECT 
-                r.created_date as Date,
+                -- 🟢 FIX: Use user-entered receipt_date, fallback to created_date
+                COALESCE(r.receipt_date, r.created_date) as Date,
+                
                 r.reference_no as VoucherNo,
                 'Receipt' as TransactionType, 
                 b.BankName as Account,
                 c.CustomerName as Party,
                 r.reference_no as Description,
                 COALESCE(mc.CurrencyCode, 'IDR') as Currency, 
-                CASE WHEN r.bank_amount >= 0 THEN r.bank_amount ELSE 0 END as CreditIn,
-                CASE WHEN r.bank_amount < 0 THEN ABS(r.bank_amount) ELSE 0 END as DebitOut,
+                
+                -- DebitOut maps to "Debit" Column (Money In / Positive)
+                CASE WHEN r.bank_amount >= 0 THEN r.bank_amount ELSE 0 END as DebitOut,
+
+                -- CreditIn maps to "Credit" Column (Money Out / Negative)
+                CASE WHEN r.bank_amount < 0 THEN ABS(r.bank_amount) ELSE 0 END as CreditIn,
+                
                 r.bank_amount as NetAmount
             FROM tbl_ar_receipt r
             LEFT JOIN {DB_NAME_USER_NEW}.master_customer c ON r.customer_id = c.Id
             LEFT JOIN {DB_NAME_MASTER}.master_bank b ON CAST(NULLIF(r.deposit_bank_id, '') AS UNSIGNED) = b.BankId
             LEFT JOIN {DB_NAME_USER}.master_currency mc ON b.CurrencyId = mc.CurrencyId
             WHERE 
-                DATE(r.created_date) BETWEEN :from_date AND :to_date
+                -- 🟢 FIX: Filter based on receipt_date
+                DATE(COALESCE(r.receipt_date, r.created_date)) BETWEEN :from_date AND :to_date
                 AND r.is_active = 1
                 AND r.is_submitted = 1
                 AND CAST(NULLIF(r.deposit_bank_id, '') AS UNSIGNED) = :bank_id
-            ORDER BY r.created_date ASC, r.receipt_id ASC
+            
+            -- 🟢 FIX: Sort by receipt_date
+            ORDER BY COALESCE(r.receipt_date, r.created_date) ASC, r.receipt_id ASC
         """)
 
         params = {
@@ -162,15 +175,15 @@ async def get_bank_book_report(
         
         for row in rows:
             item = dict(row)
-            credit_in = float(item["CreditIn"] or 0)
-            debit_out = float(item["DebitOut"] or 0)
             
-            # Update running balance: Start from the initial Debit Opening Balance
-            # Formula: Previous Balance + Credits - Debits
-            running_balance += (credit_in - debit_out)
+            credit_val = float(item["CreditIn"] or 0) # Credit Column (Money Out)
+            debit_val = float(item["DebitOut"] or 0)  # Debit Column (Money In)
             
-            item["CreditIn"] = credit_in
-            item["DebitOut"] = debit_out
+            # Running Balance Formula: Previous + Debit (In) - Credit (Out)
+            running_balance += (debit_val - credit_val)
+            
+            item["CreditIn"] = credit_val
+            item["DebitOut"] = debit_val
             item["Balance"] = running_balance
             data.append(item)
             
@@ -187,10 +200,6 @@ async def verify_receipt(
     payload: schemas.VerifyCustomerUpdate, 
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Called by VerifyCustomer.js to finalize verification.
-    Sets is_active=1 and is_submitted=1 so it appears in the Bank Book.
-    """
     try:
         record = await crud.update_customer_and_verify(db, receipt_id, payload)
         if not record:
@@ -252,10 +261,8 @@ async def update_receipt(receipt_id: int, payload: CreateReceiptRequest, db: Asy
         entry.customer_id = data.customer_id
         entry.deposit_bank_id = str(data.deposit_bank_id)
 
-        # --- 👇 ADD THIS BLOCK 👇 ---
         if data.receipt_date:
             entry.receipt_date = data.receipt_date 
-        # -----------------------------
 
         entry.bank_amount = data.bank_amount
         entry.bank_charges = data.bank_charges

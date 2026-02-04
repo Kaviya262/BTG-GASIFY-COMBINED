@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .database import engine, Base
 
 # 1. IMPORT THE ROUTERS
-from .routers import finance, invoice_api, bankbook, procurement, ppp, claim_payment, cashbook
+from .routers import finance, invoice_api,petty_cash, bankbook, procurement, ppp, claim_payment, cashbook
 from .routers import procurement_memo
 app = FastAPI(title="Finance API (Python)")
 
@@ -22,6 +22,8 @@ app.add_middleware(
 
 # Existing Finance Router
 app.include_router(finance.router)
+
+app.include_router(petty_cash.router)
 
 # Existing Invoice Router (Prefix removed as per user request)
 app.include_router(invoice_api.router, prefix="/pyapi", tags=["Invoices"])

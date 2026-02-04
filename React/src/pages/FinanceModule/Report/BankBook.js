@@ -59,7 +59,7 @@ const BankBook = () => {
         description: { value: null, matchMode: FilterMatchMode.CONTAINS },
         voucherNo: { value: null, matchMode: FilterMatchMode.CONTAINS },
         transactionType: { value: null, matchMode: FilterMatchMode.CONTAINS },
-        account: { value: null, matchMode: FilterMatchMode.CONTAINS },
+        // account removed from filters
         party: { value: null, matchMode: FilterMatchMode.CONTAINS },
         date: { value: null, matchMode: FilterMatchMode.DATE_IS },
 
@@ -126,7 +126,7 @@ const BankBook = () => {
                 voucherNo: item.VoucherNo || "-",
                 transactionType: item.TransactionType || "-",
                 glcode: "",
-                account: item.Account || "-",
+                // account removed from mapping
                 party: item.Party || "-",
                 description: item.Description || "-",
                 currency: item.Currency || "IDR",
@@ -163,10 +163,9 @@ const BankBook = () => {
             Date: ex.date ? ex.date.toLocaleDateString() : "",
             "Voucher No": ex.voucherNo,
             "Transaction Type": ex.transactionType,
-            "Account": ex.account,
+            // "Account" removed
             "Party": ex.party,
             Description: ex.description,
-            // 🟢 Swapped Order: Debit first, then Credit
             "Debit Out (IDR)": ex.debitOut,
             "Credit In (IDR)": ex.creditIn,
             "Balance (IDR)": ex.balance,
@@ -229,7 +228,7 @@ const BankBook = () => {
             description: { value: null, matchMode: FilterMatchMode.CONTAINS },
             voucherNo: { value: null, matchMode: FilterMatchMode.CONTAINS },
             transactionType: { value: null, matchMode: FilterMatchMode.CONTAINS },
-            account: { value: null, matchMode: FilterMatchMode.CONTAINS },
+            // account removed from default filters
             party: { value: null, matchMode: FilterMatchMode.CONTAINS },
             date: { value: null, matchMode: FilterMatchMode.DATE_IS },
         });
@@ -323,7 +322,8 @@ const BankBook = () => {
                                     rows={20}
                                     filters={filters}
                                     onFilter={(e) => setFilters(e.filters)}
-                                    globalFilterFields={["glcode", "currency", "actamount", "date", "creditIn", "debitOut", "balance", "description", "voucherNo", "account", "party", "transactionType"]}
+                                    // "account" removed from global filter fields
+                                    globalFilterFields={["glcode", "currency", "actamount", "date", "creditIn", "debitOut", "balance", "description", "voucherNo", "party", "transactionType"]}
                                     globalFilter={globalFilter}
                                     emptyMessage="No records found."
                                     showGridlines
@@ -333,17 +333,17 @@ const BankBook = () => {
                                     <Column field="date" header="Date" body={dateBodyTemplate} style={{ width: '120px' }} />
                                     <Column field="voucherNo" header="Voucher No" filter filterPlaceholder="Search Voucher" />
                                     <Column field="transactionType" header="Transaction Type" filter filterPlaceholder="Search Type" />
-                                    <Column field="account" header="Account" filter filterPlaceholder="Search Account" />
+                                    {/* Account Column Removed Here */}
                                     <Column field="party" header="Party" filter filterPlaceholder="Search Party" />
                                     <Column field="description" header="Description" filter filterPlaceholder="Search Description" />
 
-                                    {/* 🟢 Swapped Order Here: Debit (D) First */}
+                                    {/* Debit First */}
                                     <Column field="debitOut" header="Debit" body={(d) => d.debitOut.toLocaleString('en-US', {
                                         style: 'decimal',
                                         minimumFractionDigits: 2
                                     })} className="text-end" />
 
-                                    {/* 🟢 Swapped Order Here: Credit (C) Second */}
+                                    {/* Credit Second */}
                                     <Column field="creditIn" header="Credit" body={(d) => d.creditIn.toLocaleString('en-US', {
                                         style: 'decimal',
                                         minimumFractionDigits: 2
@@ -355,7 +355,7 @@ const BankBook = () => {
                                     })} className="text-end" />
                                 </DataTable>
 
-                                {/* Print Section Updated Order */}
+                                {/* Print Section - Account Column Removed */}
                                 <div id="print-section" style={{ display: "none" }}>
                                     <table>
                                         <thead>
@@ -364,11 +364,11 @@ const BankBook = () => {
                                                 <th>Date</th>
                                                 <th>Voucher No</th>
                                                 <th>Transaction Type</th>
-                                                <th>Account</th>
+                                                {/* Account Removed */}
                                                 <th>Party</th>
                                                 <th>Description</th>
-                                                <th>D</th> {/* Swapped */}
-                                                <th>C</th> {/* Swapped */}
+                                                <th>D</th>
+                                                <th>C</th>
                                                 <th>Balance (IDR)</th>
                                             </tr>
                                         </thead>
@@ -379,7 +379,7 @@ const BankBook = () => {
                                                     <td>{formatPrintDate(item.date)}</td>
                                                     <td>{item.voucherNo}</td>
                                                     <td>{item.transactionType}</td>
-                                                    <td>{item.account}</td>
+                                                    {/* Account Value Removed */}
                                                     <td>{item.party}</td>
                                                     <td>{item.description}</td>
                                                     <td className="text-end">{item.debitOut.toLocaleString('en-US', {

@@ -302,6 +302,7 @@ import OverDraft from '../pages/FinanceModule/OverDraft';
 import ManageOverDraft from '../pages/FinanceModule/ManageOverDraft';
 import AssetRegister from '../pages/FinanceModule/AssetRegister';
 import AddExpense from '../pages/FinanceModule/AddExpense';
+import EditExpense from '../pages/FinanceModule/EditExpense';
 import OtherRevenues from '../pages/FinanceModule/OtherRevenues';
 import ManageRevenues from '../pages/FinanceModule/ManageRevenue';
 import TaxReport from '../pages/FinanceModule/TaxReport';
@@ -422,6 +423,14 @@ const authProtectedRoutes = [
     { path: "/ARBookReport", component: ARBookReport },
     { path: "/ar-book-do", component: ARBookDOReport },
     { path: "/AP", component: AP },
+
+
+
+    { path: "/pettyCash", component: ManageExpense },
+    { path: "/pettyCash/add", component: AddExpense },
+    { path: "/pettyCash/edit/:id", component: EditExpense },
+
+
 
     // --- ADDED NEW REPORT ROUTES HERE ---
     { path: "/sales-item-wise", component: SalesItemWise },

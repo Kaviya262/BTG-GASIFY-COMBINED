@@ -4793,12 +4793,31 @@ export const GetItemMasterSeqNo = async (orgId, branchId) => {
     }
 };
 
-export const saveOrUpdatePettyCash = async (payload, isEdit = false) => {
+export const saveOrUpdatePettyCash = async (payload, isEdit = false, file = null) => {
     try {
-        debugger
-        const url = isEdit ? "/PettyCash/update" : "/PettyCash/create";
-        const requestFn = isEdit ? put : post;
-        const response = await requestFn(url, payload);
+        const url = isEdit ? `${PYTHON_API_URL}/pettycash/update` : `${PYTHON_API_URL}/pettycash/create`;
+
+        const formData = new FormData();
+        formData.append("payload", JSON.stringify(payload));
+
+        if (file) {
+            formData.append("file", file);
+        }
+
+        // For Update, the backend explicitly requires PettyCashId as a form field
+        if (isEdit && payload.Header?.PettyCashId) {
+            formData.append("PettyCashId", payload.Header.PettyCashId);
+        }
+
+        const method = isEdit ? 'put' : 'post';
+
+        const response = await axios({
+            method: method,
+            url: url,
+            data: formData,
+            headers: { "Content-Type": "multipart/form-data" }
+        });
+
         return response.data;
     } catch (error) {
         console.error("Error saving/updating petty cash:", error);
@@ -4806,52 +4825,108 @@ export const saveOrUpdatePettyCash = async (payload, isEdit = false) => {
     }
 };
 
-export const getPettyCashList = async (orgId, branchId, pettycashId = null, expType = null, voucherNo = null) => {
+export const getPettyCashList = async (orgId, branchId, pettycashId = null, expType = null, voucherNo = null, categoryId = null, fromDate = null, toDate = null) => {
     try {
         debugger
-        const response = await get('/PettyCash/list', {
-            params: {
-                orgid: orgId,
-                branchid: branchId,
-                pettycashid: pettycashId ?? 0,
-                exptype: expType ?? null,
-                voucherno: voucherNo ?? null,
-            }
-        });
-        return response.data;
+        let url = `${PYTHON_API_URL}/pettycash/list?orgid=${orgId}&branchid=${branchId}&pettycashid=${pettycashId ?? 0}&exptype=${expType || 0}&category_id=${categoryId || 0}`;
+        if (voucherNo) url += `&voucherno=${encodeURIComponent(voucherNo)}`;
+        if (fromDate) url += `&FromDate=${fromDate}`;
+        if (toDate) url += `&ToDate=${toDate}`;
+        const response = await axios.get(url);
+        return response.data.data || [];
     } catch (error) {
         console.error("Failed to fetch expense list", error);
         return [];
     }
 };
 
+export const getPettyCashById = async (pettyCashId, branchId = 1, orgId = 1) => {
+    try {
+        const url = `${PYTHON_API_URL}/pettycash/get-by-id?pettycashid=${pettyCashId}&branchid=${branchId}&orgid=${orgId}`;
+        const response = await axios.get(url);
+        if (response.data.status) {
+            return response.data.data;
+        } else {
+            throw new Error(response.data.message || "Failed to fetch petty cash data");
+        }
+    } catch (error) {
+        console.error("Failed to fetch petty cash data by ID", error);
+        throw error;
+    }
+};
+
 export const getExpenseDescriptions = async (orgId, branchId) => {
     try {
         debugger
-        const response = await get('/PettyCash/expense-descriptions', {
-            params: {
-                branchId: branchId,
-                orgId: orgId
-            }
-        });
-        return response.data;
+        const url = `${PYTHON_API_URL}/pettycash/expense-descriptions?branchId=${branchId}&orgId=${orgId}`;
+        const response = await axios.get(url);
+        return response.data.data || [];
     } catch (error) {
         console.error("Failed to fetch expense descriptions", error);
         return [];
     }
 };
 
+export const getPettyCashCategories = async (orgId, branchId) => {
+    try {
+        const url = `${PYTHON_API_URL}/pettycash/master-expense-categories?branchId=${branchId}&orgId=${orgId}`;
+        const response = await axios.get(url);
+        return response.data.data || [];
+    } catch (error) {
+        console.error("Failed to fetch expense categories", error);
+        return [];
+    }
+};
+
+
+export const getPettyCashExpenseTypes = async (orgId, branchId, categoryId = null) => {
+    try {
+        const url = `${PYTHON_API_URL}/pettycash/master-expense-types?branchId=${branchId}&orgId=${orgId}&category_id=${categoryId || 0}`;
+        const response = await axios.get(url);
+        return response.data.data || [];
+    } catch (error) {
+        console.error("Failed to fetch expense types", error);
+        return [];
+    }
+};
 
 export const GetPettyCashSeqNum = async (branchId, orgId, userid) => {
     try {
         debugger
-        const response = await get(`/PettyCash/get-seq-num?branchId=${branchId}&orgid=${orgId}&userid=${userid}`);
-        return response;
+        const url = `${PYTHON_API_URL}/pettycash/get-seq-num?branchId=${branchId}&orgid=${orgId}&userid=${userid}`;
+        const response = await axios.get(url);
+        return response.data;
     } catch (error) {
         console.error('Failed to fetch Seq Num', error);
         return { status: false, message: error.message || 'Server error' };
     }
 };
+
+export const getPettyCashCurrency = async (orgId, branchId) => {
+    try {
+        const url = `${PYTHON_API_URL}/pettycash/master-currency?branchId=${branchId}&orgId=${orgId}`;
+        const response = await axios.get(url);
+        return response.data.data || [];
+    } catch (error) {
+        console.error("Failed to fetch currency", error);
+        return [];
+    }
+};
+
+export const getPettyCashImagePath = async (pettycashid, branchId = 1, orgId = 1) => {
+    try {
+        const url = `${PYTHON_API_URL}/pettycash/get-image-path?pettycashid=${pettycashid}&branchid=${branchId}&orgid=${orgId}`;
+        const response = await axios.get(url);
+        return response.data;
+    } catch (error) {
+        console.error("Failed to fetch image path", error);
+        return { status: false, message: "Failed to fetch image path" };
+    }
+};
+
+
+
+
 
 export const GetAllAccessRights = async (branchId = 1, orgId = 1) => {
     try {

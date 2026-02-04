@@ -177,6 +177,9 @@ async def submit_receipt(db: AsyncSession, receipt_id: int):
 # ----------------------------------------------------------
 # 6. Post to AR (UPSERT LOGIC)
 # ----------------------------------------------------------
+# ----------------------------------------------------------
+# 6. Post to AR (UPSERT LOGIC + AUTO CLEANUP)
+# ----------------------------------------------------------
 async def post_invoice_to_ar(db: AsyncSession, request: schemas.PostInvoiceToARRequest):
     try:
         # 1. Check if AR entry already exists for this Invoice ID
@@ -206,8 +209,6 @@ async def post_invoice_to_ar(db: AsyncSession, request: schemas.PostInvoiceToARR
             # --- INSERT SCENARIO ---
             print(f"Inserting new AR record for Invoice ID: {request.invoiceId}")
             
-            # FIX: We join tbl_salesinvoices_details (d) to get Currencyid 
-            # We use LIMIT 1 in a subquery or join to ensure we only get one row per header
             insert_sql = text(f"""
                 INSERT INTO {DB_NAME_FINANCE}.tbl_accounts_receivable (
                     orgid, branchid, 
@@ -232,7 +233,6 @@ async def post_invoice_to_ar(db: AsyncSession, request: schemas.PostInvoiceToARR
                     0, 
                     h.CalculatedPrice, 
                     
-                    # FIX: Get Currency from Details table (Default to 1/IDR if missing)
                     (SELECT COALESCE(d.Currencyid, 1) 
                      FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_details d 
                      WHERE d.salesinvoicesheaderid = h.id 
@@ -253,7 +253,25 @@ async def post_invoice_to_ar(db: AsyncSession, request: schemas.PostInvoiceToARR
             })
 
         # ---------------------------------------------------------
-        # 2. UPDATE HEADER FLAG
+        # 🟢 NEW LOGIC: Deactivate relevant DOs from AR Book
+        # ---------------------------------------------------------
+        # This prevents "Ghost" DOs from staying active after being converted to an Invoice.
+        deactivate_dos_sql = text(f"""
+            UPDATE {DB_NAME_FINANCE}.tbl_accounts_receivable
+            SET is_active = 0
+            WHERE is_active = 1
+              AND invoice_no IN (
+                  SELECT DISTINCT DOnumber 
+                  FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_details 
+                  WHERE salesinvoicesheaderid = :inv_id 
+                    AND DOnumber IS NOT NULL 
+                    AND DOnumber != ''
+              )
+        """)
+        await db.execute(deactivate_dos_sql, {"inv_id": str(request.invoiceId)})
+
+        # ---------------------------------------------------------
+        # 3. UPDATE HEADER FLAG
         # ---------------------------------------------------------
         update_header_flag_sql = text(f"""
             UPDATE {DB_NAME_USER_NEW}.tbl_salesinvoices_header 
@@ -261,7 +279,7 @@ async def post_invoice_to_ar(db: AsyncSession, request: schemas.PostInvoiceToARR
             WHERE id = :inv_id
         """)
         
-        await db.execute(update_header_flag_sql, {"inv_id": request.invoiceId})
+        await db.execute(update_header_flag_sql, {"inv_id": str(request.invoiceId)})
 
         await db.commit()
         return True
@@ -384,13 +402,9 @@ async def bulk_update_ar_reference(db: AsyncSession, ar_ids: List[int], new_refe
 
         updated_count = 0
 
-        # Loop through each ID to ensure we assign a unique reference number
-        # because the database has a UNIQUE Constraint on invoice_no.
-        for index, ar_id in enumerate(ar_ids):
-            # Logic: First item gets "test-6666", second "test-6666-1", etc.
+        for ar_id in ar_ids:
+            # 🟢 FIXED: Removed the if-index logic that added suffixes like -1, -2
             unique_ref = new_reference
-            if len(ar_ids) > 1 and index > 0:
-                unique_ref = f"{new_reference}-{index}"
 
             # 1. Update Details (Preserve DO Linkage)
             preserve_do_query = text(f"""
@@ -402,7 +416,7 @@ async def bulk_update_ar_reference(db: AsyncSession, ar_ids: List[int], new_refe
             """)
             await db.execute(preserve_do_query, {"id": ar_id, "ref": unique_ref})
             
-            # 2. Update Finance AR Table (The source of the Duplicate Error)
+            # 2. Update Finance AR Table
             query_finance = text(f"""
                 UPDATE {DB_NAME_FINANCE}.tbl_accounts_receivable 
                 SET invoice_no = :ref 
