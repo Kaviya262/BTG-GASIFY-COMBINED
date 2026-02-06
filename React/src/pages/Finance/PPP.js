@@ -613,8 +613,55 @@ const PPP = ({ selectedType, setSelectedType }) => {
   const handleShowDetails = async (row) => {
     const res = await ClaimAndPaymentGetById(row.id, 1, 1);
     if (res.status) {
+      let details = res.data.details || [];
 
-      setSelectedDetail(res.data);
+      // Logic to fetch PRs via POs (similar to Manageclaim&Payment.js)
+      try {
+        const uniquePOIds = [...new Set(details.map(d => d.poid).filter(id => id > 0))];
+
+        if (uniquePOIds.length > 0) {
+          const poToPrMap = {};
+
+          // Fetch details for each PO found in the claim lines
+          await Promise.all(uniquePOIds.map(async (poid) => {
+            try {
+              // Using default org/branch as 1, 1 similar to other calls in this file
+              const poRes = await GetByIdPurchaseOrder(poid, 1, 1);
+              if (poRes.status && poRes.data?.Requisition) {
+                const requisitions = poRes.data.Requisition;
+
+                // Collect unique PR numbers
+                // We map the PO to its PR(s). If multiple PRs exist for one PO, we concat them.
+                const prNumbers = [...new Set(requisitions.map(r => r.prnumber).filter(Boolean))].join(", ");
+                const firstPrId = requisitions.find(r => r.prid > 0)?.prid;
+
+                poToPrMap[poid] = {
+                  prnumber: prNumbers || "NA",
+                  prid: firstPrId
+                };
+              }
+            } catch (err) {
+              console.error(`Failed to fetch details for PO ${poid}`, err);
+            }
+          }));
+
+          // Enrich details with PR info from the map
+          details = details.map(d => {
+            if (d.poid && poToPrMap[d.poid]) {
+              return {
+                ...d,
+                prno: poToPrMap[d.poid].prnumber,
+                prid: poToPrMap[d.poid].prid
+              };
+            }
+            return { ...d, prno: "NA" };
+          });
+        }
+      } catch (error) {
+        console.error("Error enriching PR details:", error);
+      }
+
+      setSelectedDetail({ ...res.data, details: details });
       setDetailVisible(true);
 
       setPreviewUrl(res.data?.header?.AttachmentPath || "");
@@ -668,7 +715,7 @@ const PPP = ({ selectedType, setSelectedType }) => {
 
 
   const handlePrintPVs = async (groupRows) => {
-    // 1. Identify unique vouchers (filter out rows without voucherid)
+    // 1. Identify unique vouchers
     const uniqueVoucherIds = [...new Set(groupRows.map(r => r.voucherid).filter(id => id && id > 0))];
 
     if (uniqueVoucherIds.length === 0) {
@@ -676,21 +723,33 @@ const PPP = ({ selectedType, setSelectedType }) => {
       return;
     }
 
-    // Show loading state (optional: you could add a state variable for this button specifically)
+    // 2. Open window synchronously to avoid popup blockers
+    const newWin = window.open("", "Print-Window");
+    if (!newWin) {
+      toast.error("Pop-up blocker prevented printing. Please allow pop-ups for this site.");
+      return;
+    }
+
+    // Show initial loading state in the new window
+    newWin.document.write(`
+      <html>
+        <head><title>Preparing Vouchers...</title></head>
+        <body style="font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh;">
+          <h3>Preparing voucher preview... Please wait.</h3>
+        </body>
+      </html>
+    `);
+    newWin.document.close();
+
     const loadingToast = toast.info("Preparing vouchers for print...", { autoClose: false });
 
     try {
-      // 2. Fetch data for all vouchers in parallel using Promise.all
-      // This is much faster than sequential awaiting
+      // 3. Fetch data for all vouchers in parallel
       const voucherDataList = await Promise.all(
         uniqueVoucherIds.map(async (voucherId) => {
           try {
             const response = await GetPaymentVoucher(voucherId, 1, 1);
-            if (response.status && response.data) {
-              return response.data;
-            }
-            console.error(`Failed to fetch voucher ${voucherId}:`, response);
-            return null;
+            return response.status && response.data ? response.data : null;
           } catch (err) {
             console.error(`Error fetching voucher ${voucherId}:`, err);
             return null;
@@ -698,188 +757,165 @@ const PPP = ({ selectedType, setSelectedType }) => {
         })
       );
 
-      // Filter out any failed requests
       const validVoucherList = voucherDataList.filter(v => v !== null);
 
       if (validVoucherList.length === 0) {
         toast.dismiss(loadingToast);
-        toast.error("Failed to fetch voucher details. Please check connection.");
+        toast.error("Failed to fetch voucher details.");
+        newWin.close();
         return;
       }
 
-      if (validVoucherList.length < uniqueVoucherIds.length) {
-        toast.warning(`Some vouchers could not be loaded. Printing ${validVoucherList.length} of ${uniqueVoucherIds.length} vouchers.`);
-      }
-
-      // 3. Generate HTML for all vouchers
+      // 4. Generate HTML Mirroring your PaymentVoucher.js exactly
       let combinedHtml = "";
 
       validVoucherList.forEach((voucherData, index) => {
-        const { header, details, signatures } = voucherData;
-        const total = details.reduce((sum, item) => sum + item.amount, 0);
+        const header = voucherData?.header || {};
+        const details = Array.isArray(voucherData?.details) ? voucherData.details : [];
+        const signatures = Array.isArray(voucherData?.signatures) ? voucherData.signatures : [];
 
-        // Amount in words logic
-        const [dollars, cents] = total.toFixed(2).split('.');
-        const currencyNames = { IDR: 'Rupiah', USD: 'Dollar', MYR: 'Ringgit', SGD: 'Dollar', CNY: 'Yuan' };
-        const currencyName = currencyNames[header?.currencyCode] || header?.currencyCode;
-        let words = `${toWords(Number(dollars)).replace(/\b\w/g, c => c.toUpperCase())} ${Number(dollars) !== 1 ? '' : ''}`;
-        if (Number(cents) > 0) {
-          words += ` and ${toWords(Number(cents)).replace(/\b\w/g, c => c.toUpperCase())} Cent${Number(cents) !== 1 ? '' : ''}`;
-        }
-        words += ` ${currencyName}${Number(dollars) !== 1 ? '' : ''}`;
+        const total = details.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+        // Amount in Words Logic (Same as your PaymentVoucher component)
+        let words = "Zero";
+        try {
+          const [dollars, cents] = total.toFixed(2).split('.');
+          const currencyNames = { IDR: 'Rupiah', USD: 'Dollar', MYR: 'Ringgit', SGD: 'Dollar', CNY: 'Yuan' };
+          const currencyName = currencyNames[header?.currencyCode] || header?.currencyCode || "";
+
+          words = `${toWords(Number(dollars)).replace(/\b\w/g, c => c.toUpperCase())}`;
+          if (Number(cents) > 0) {
+            words += ` and ${toWords(Number(cents)).replace(/\b\w/g, c => c.toUpperCase())} Cent`;
+          }
+          words += ` ${currencyName}`;
+        } catch (err) { words = "Amount Error"; }
 
         const polist = Array.from(new Set(details.map(d => d.po).filter(Boolean))).join(', ');
-
-        // Page break logic
-        const pageBreakStyle = index < validVoucherList.length - 1
-          ? 'page-break-after: always; break-after: page;'
-          : '';
+        const pageBreakStyle = index < validVoucherList.length - 1 ? 'page-break-after: always; break-after: page;' : '';
 
         combinedHtml += `
-          <div class="voucher-page" style="position: relative; padding: 25px; font-family: Arial, sans-serif; font-size: 15px; color: #000; background-color: #fff; box-sizing: border-box; display: block; width: 100%; height: 100%; overflow: hidden; ${pageBreakStyle}">
-             
-             <!-- Header Content -->
-             <div class="header-top" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2px;">
-              <div class="header-left" style="display: flex; align-items: center; gap: 15px;">
-                <img src="/logo.png" alt="Logo" style="height: 100px; margin-bottom: 0px;" />
-                <div style="line-height: 1.2;">
-                   <p style="font-weight: bold; margin-bottom: 2px; font-size: 16px;"><strong>${header.companyName}</strong></p>
-                  <p style="margin-bottom: 1px; font-size: 13px;">${header.address1}, ${header.address2}, ${header.address3}</p>
-                   <p style="margin-bottom: 1px; font-size: 13px;">${header.webSite} ${header.email}</p>
-                   <p style="margin-bottom: 1px; font-size: 13px;">${header.telePhone}</p>
-                </div>
+          <div class="voucher-page" style="position: relative; padding: 30px; font-family: Arial, sans-serif; font-size: 14px; color: #000; background-color: #fff; box-sizing: border-box; width: 210mm; height: 148mm; ${pageBreakStyle}">
+            
+            <div style="display: flex; justify-content: flex-start; align-items: flex-start; margin-bottom: 5px; gap: 15px;">
+              <img src="/logo.png" alt="Logo" style="height: 90px; width: 100px;" />
+              <div style="line-height: 1.3;">
+                <p style="font-weight: bold; margin: 0; font-size: 15px;">${header?.companyName || ""}</p>
+                <p style="margin: 0; font-size: 13px;">${header?.address1 || ""}, ${header?.address2 || ""}, ${header?.address3 || ""}</p>
+                <p style="margin: 0; font-size: 13px;">WebSite ${header?.webSite || ""} E-mail ${header?.email || ""}</p>
+                <p style="margin: 0; font-size: 13px;">Telp ${header?.telePhone || ""}</p>
               </div>
             </div>
 
-             <div style="text-align: center; font-size: 20px; font-weight: bold; margin-top: 5px; margin-bottom: 10px; letter-spacing: 2px; text-transform: uppercase;">
-              ${header.header}
+            <div style="text-align: center; font-size: 18px; font-weight: bold; margin-top: 10px; margin-bottom: 10px; letter-spacing: 2px; text-transform: uppercase;">
+              ${header?.header || "PAYMENT VOUCHER"}
             </div>
 
-             <div style="width: 100%; display: flex; justify-content: space-between; margin-bottom: 10px;">
-              <table style="width: 100%; border-collapse: separate; font-size: 15px; border: none;">
-                <tbody>
-                  <tr>
-                    <td style="width: 100px; text-align: left; padding: 2px; vertical-align: top; border: none;"><strong>Payment To</strong></td>
-                     <td style="width: 5px; text-align: center; padding: 2px; vertical-align: top; border: none;"> : </td>
-                     <td style="width: 220px; padding: 2px; vertical-align: top; word-break: break-word; border: none;"> ${header.paymentTo}</td>
-                     <td style="width: 20px; padding: 2px; vertical-align: top; border: none;"> </td>
-
-                    <td style="width: 40px; text-align: left; padding: 2px; vertical-align: top; border: none;"><strong>PV #</strong></td>
-                     <td style="width: 5px; text-align: center; padding: 2px; vertical-align: top; border: none;"> : </td>
-                     <td style="width: 120px; padding: 2px; vertical-align: top; border: none;"> ${header.voucherNo}</td>
-                  </tr>
-                  <tr>
-                    <td style="width: 100px; text-align: left; padding: 2px; vertical-align: top; border: none;"><strong>Payment Method</strong></td>
-                     <td style="width: 5px; text-align: center; padding: 2px; vertical-align: top; border: none;"> : </td>
-                     <td style="width: 220px; padding: 2px; vertical-align: top; border: none;"> ${header.paymentMethod}</td>
-                     <td style="width: 20px; padding: 2px; vertical-align: top; border: none;"> </td>
-
-                    <td style="width: 40px; text-align: left; padding: 2px; vertical-align: top; border: none;"><strong>Date</strong></td>
-                     <td style="width: 5px; text-align: center; padding: 2px; vertical-align: top; border: none;"> : </td>
-                     <td style="width: 120px; padding: 2px; vertical-align: top; border: none;"> ${header.voucherDate}</td>
-                  </tr>
-                  ${header.isSupplier == 1 ? `
-                  <tr>
-                     <td style="width: 100px; text-align: left; padding: 2px; vertical-align: top; border: none;"><strong>Account Name</strong></td>
-                     <td style="width: 5px; text-align: center; padding: 2px; vertical-align: top; border: none;"> : </td>
-                     <td style="width: 220px; padding: 2px; vertical-align: top; border: none;"> ${details[0]?.accountName}</td>
-                  </tr>
-                  <tr>
-                     <td style="width: 100px; text-align: left; padding: 2px; vertical-align: top; border: none;"><strong>PO & WO</strong></td>
-                     <td style="width: 5px; text-align: center; padding: 2px; vertical-align: top; border: none;"> : </td>
-                     <td style="width: 220px; padding: 2px; vertical-align: top; border: none;" colspan="5"> ${polist}</td>
-                  </tr>
-                  ` : ''}
-                </tbody>
-              </table>
-            </div>
-
-            <table style="width: 100%; border-collapse: collapse; margin-top: 5px; border: 1px solid #000; font-size: 15px;">
-              <thead>
+            <table style="width: 100%; border-collapse: separate; font-size: 14px; margin-bottom: 15px;">
+              <tbody>
                 <tr>
-                   <th style="padding: 6px; border: 1px solid #000; text-align: center; width: 5%; background-color: #007bff; color: black;">No</th>
-                   <th style="padding: 6px; border: 1px solid #000; text-align: center; width: 15%; background-color: #007bff; color: black;">Claim No</th>
-                   <th style="padding: 6px; border: 1px solid #000; text-align: center; width: 55%; background-color: #007bff; color: black;">Purpose</th>
-                   <th style="padding: 6px; border: 1px solid #000; text-align: center; width: 25%; background-color: #007bff; color: black;">Amount ${header.currencyCode} </th>
+                  <td style="width: 120px; font-weight: bold;">Payment To</td>
+                  <td style="width: 10px;"> : </td>
+                  <td style="width: 250px;">${header?.paymentTo || ""}</td>
+                  <td></td>
+                  <td style="width: 50px; font-weight: bold;">PV #</td>
+                  <td style="width: 10px;"> : </td>
+                  <td>${header?.voucherNo || ""}</td>
+                </tr>
+                <tr>
+                  <td style="font-weight: bold;">Payment Method</td>
+                  <td> : </td>
+                  <td>${header?.paymentMethod || ""}</td>
+                  <td></td>
+                  <td style="font-weight: bold;">Date</td>
+                  <td> : </td>
+                  <td>${header?.voucherDate || ""}</td>
+                </tr>
+                ${header?.isSupplier == 1 ? `
+                <tr>
+                  <td style="font-weight: bold;">Account Name</td>
+                  <td> : </td>
+                  <td>${details[0]?.accountName || ""}</td>
+                  <td></td>
+                  <td></td><td></td><td></td>
+                </tr>
+                <tr>
+                  <td style="font-weight: bold;">PO & WO</td>
+                  <td> : </td>
+                  <td colspan="5">${polist}</td>
+                </tr>
+                ` : ''}
+              </tbody>
+            </table>
+
+            <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; font-size: 13px;">
+              <thead>
+                <tr style="background-color: #007bff;">
+                  <th style="border: 1px solid #000; padding: 6px; text-align: center; width: 3%;">No</th>
+                  <th style="border: 1px solid #000; padding: 6px; text-align: center; width: 15%;">Claim No</th>
+                  <th style="border: 1px solid #000; padding: 6px; text-align: center; width: 57%;">Purpose</th>
+                  <th style="border: 1px solid #000; padding: 6px; text-align: center; width: 25%;">Amount ${header?.currencyCode || ""}</th>
                 </tr>
               </thead>
               <tbody>
                 ${details.map((item, idx) => `
                   <tr>
-                     <td style="padding: 6px; border: 1px solid #000; text-align: center;">${idx + 1}</td>
-                     <td style="padding: 6px; border: 1px solid #000;">${item.claimno}</td>
-                     <td style="padding: 6px; border: 1px solid #000; text-align: left;">${item.purpose}</td>
-                     <td style="padding: 6px; border: 1px solid #000; text-align: right;">${item.amount.toLocaleString()}</td>
+                    <td style="border: 1px solid #000; padding: 6px; text-align: center;">${idx + 1}</td>
+                    <td style="border: 1px solid #000; padding: 6px;">${item?.claimno || ""}</td>
+                    <td style="border: 1px solid #000; padding: 6px; text-align: left;">${item?.purpose || ""}</td>
+                    <td style="border: 1px solid #000; padding: 6px; text-align: right;">${(item?.amount || 0).toLocaleString()}</td>
                   </tr>
                 `).join('')}
-                <tr>
-                   <td colspan="3" style="padding: 6px; border: 1px solid #000; text-align: center; fontWeight: bold;">TOTAL</td>
-                   <td style="padding: 6px; border: 1px solid #000; text-align: right; fontWeight: bold;">${total.toLocaleString()}</td>
+                <tr style="font-weight: bold; background-color: #f2f2f2;">
+                  <td colspan="3" style="border: 1px solid #000; padding: 6px; text-align: center;">TOTAL</td>
+                  <td style="border: 1px solid #000; padding: 6px; text-align: right;">${(total || 0).toLocaleString()}</td>
                 </tr>
               </tbody>
             </table>
 
-             <p style="margin-top: 15px; font-size: 15px;"><strong>Amount in Words :</strong> ${words}</p>
+            <p style="margin-top: 15px; font-size: 14px;"><strong>Amount in Words :</strong> ${words}</p>
 
-             <!-- Signatures -->
-             <div class="signature-section" style="display: flex; justifyContent: space-between; align-items: flex-end; margin-top: 15px; page-break-inside: avoid;">
-               <div style="display: flex; gap: 30px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 25px;">
+              <div style="display: flex; gap: 40px;">
                 ${signatures.map(sig => `
                   <div style="text-align: center;">
-                     <span style="font-size: 13px;">${sig.label}</span>
+                    <div style="height: 40px;"></div> <span style="font-size: 13px;">${sig?.label || ""}</span>
                   </div>
                 `).join('')}
               </div>
 
-               ${header.paymentMethod == "Cash" ? `
+              ${header?.paymentMethod == "Cash" || header?.paymentMethod == "Cheque" ? `
               <div style="text-align: center;">
-                 <div style="border: 1px solid black; width: 200px; height: 50px; margin-bottom: 5px;"></div>
-                 <span style="font-size: 13px;">Applicant's Signature</span>
+                <div style="border: 1px solid black; width: 200px; height: 50px; margin-bottom: 5px;"></div>
+                <span style="font-size: 13px;">Applicant's Signature</span>
               </div>
               ` : ''}
             </div>
-            
-            <div style="position: absolute; bottom: 20px; right: 25px; font-size: 10px;">
+
+            <div style="position: absolute; bottom: 15px; right: 30px; font-size: 10px;">
               Printed on ${new Date().toLocaleString()}
             </div>
-
           </div>
         `;
       });
 
-      // Dismiss loading toast before opening window
       toast.dismiss(loadingToast);
 
-      // 4. Open Print Window
-      const newWin = window.open("", "Print-Window");
+      // 5. Update the same window with final content
       newWin.document.open();
       newWin.document.write(`
         <html>
           <head>
             <title>Batch Print Vouchers</title>
-             <style>
-            @media print {
-              .header-top div, .header-top img { display: block !important; }
+            <style>
               @page { size: A5 landscape; margin: 0; }
-              body { margin: 0; }
-            }
-             body {
-              font-family: Arial, sans-serif;
-              font-size: 15px;
-              margin: 0;
-              color: #000;
-            }
-            .voucher-page { 
-               page-break-after: always; 
-               break-after: page; 
-               width: 210mm; 
-               height: 147mm; /* Force Landscape A5 height */
-            }
-            .voucher-page:last-child { page-break-after: auto; break-after: auto; }
-            .signature-section { page-break-inside: avoid; }
+              body { margin: 0; padding: 0; background-color: #fff; }
+              @media print {
+                body { -webkit-print-color-adjust: exact; }
+                .voucher-page { width: 100%; height: 100%; }
+              }
             </style>
           </head>
-           <body onload="window.print(); setTimeout(() => window.close(), 500);">
+          <body onload="window.print();">
             ${combinedHtml}
           </body>
         </html>
@@ -890,6 +926,7 @@ const PPP = ({ selectedType, setSelectedType }) => {
       toast.dismiss(loadingToast);
       console.error("Batch print error:", error);
       toast.error("An error occurred while printing vouchers.");
+      newWin.close();
     }
   };
 
@@ -986,6 +1023,11 @@ const PPP = ({ selectedType, setSelectedType }) => {
   const actionpoBodyTemplate = (rowData) => {
     return <span style={{ cursor: "pointer", color: "blue" }} className="btn-rounded btn btn-link"
       onClick={() => handleShowPODetails(rowData)}>{rowData.pono}</span>;
+  };
+
+  const actionprBodyTemplate = (rowData) => {
+    return <span style={{ cursor: "pointer", color: "blue" }} className="btn-rounded btn btn-link"
+      onClick={() => handlePRClick(rowData.prid)}>{rowData.prno}</span>;
   };
 
   const handleShowPODetails1 = async (row) => {
@@ -1091,56 +1133,56 @@ text-align: right;
 }
         @page {
           size: A4 landscape;
-       margin: 5mm; 
+       margin: 5mm;
        @bottom-center {
 content: element(pageFooter);
 }
         }
-  
+ 
         body {
           font-family: Arial, sans-serif;
           font-size: 11px;
           padding: 10px;
           color: #000;
         }
-  
+ 
         h2 {
           text-align: center;
           margin-bottom: 20px;
           font-size: 16px;
         }
-  
+ 
         .section-title {
           font-weight: bold;
           margin: 12px 0 5px;
           padding-bottom: 2px;
-        
+       
           font-size: 12px;
         }
-  
+ 
         .info-table {
           width: 100%;
           border-collapse: collapse;
           margin-bottom: 10px;
         }
-  
+ 
         .info-table td {
           padding: 4px 6px;
           vertical-align: top;
         }
-  
+ 
         .info-table td.label {
           font-weight: bold;
           width: 20%;
           white-space: nowrap;
         }
-  
+ 
         .claim-table {
           width: 100%;
           border-collapse: collapse;
           margin-bottom: 15px;
         }
-  
+ 
        .claim-table th,
 .claim-table td {
 border: 1px solid #ccc;
@@ -1158,14 +1200,14 @@ vertical-align: top;
 .claim-table td:nth-child(4) { width: 17%;text-align: right; }  /* Amount */
 .claim-table td:nth-child(5) { width: 13%; text-align: center;}  /* Expense Date */
 .claim-table td:nth-child(6) { width: 24%;text-align: left; }  /* Purpose */
-  
+ 
         .status-table {
           width: 100%;
           border-collapse: collapse;
           text-align: center;
           margin-top: 15px;
         }
-  
+ 
         .status-table th,
         .status-table td {
           border: 1px solid #ccc;
@@ -1175,12 +1217,12 @@ word-break: break-word;
 white-space: normal;
 vertical-align: top;
         }
-  
+ 
         .status-header {
           background-color: #eee;
           font-weight: bold;
         }
-  
+ 
         .btn-circle {
           display: inline-block;
           height: 12px;
@@ -1188,21 +1230,21 @@ vertical-align: top;
           border-radius: 50%;
           margin: auto;
         }
-  
+ 
         .btn-success { background-color: #28a745; }
         .btn-warning { background-color: #ffc107; }
         .btn-secondary { background-color: #6c757d; }
-  
+ 
         .legend {
           margin-top: 10px;
           font-size: 10px;
         }
-  
+ 
         .legend span {
           margin-right: 15px;
 
         }
-  
+ 
         .remarks-box {
           border: 1px solid #ccc;
           padding: 8px;
@@ -1289,7 +1331,7 @@ word-break: break-word;
     `;
 
     const statusIndicators = `
-    
+   
      <table class="status-table">
       <thead>
        <tr class="status-header">
@@ -1342,7 +1384,7 @@ word-break: break-word;
           ${claimTable}
           ${remarksSection}
           ${statusIndicators}
-          
+         
         </body>
       </html>
     `);
@@ -1438,7 +1480,7 @@ word-break: break-word;
     <i className="bx bx-chat label-icon font-size-16 align-middle me-2"></i> Discuss
   </button> */}
 
-                  {/* 
+                  {/*
 let severity = 'secondary'; // default gray
     if (approved === 1) severity = 'success';
     else if (discussed === 1) severity = 'warning';
@@ -1593,7 +1635,7 @@ let severity = 'secondary'; // default gray
  ))}
                     </AccordionTab>
 
-                    
+                   
                   ))}
                 </Accordion> */}
               </Card>
@@ -2237,6 +2279,15 @@ let severity = 'secondary'; // default gray
                     className="text-left"
                     style={{ width: "10%" }}
                     body={actionpoBodyTemplate}
+                  />
+                )}
+                {(selectedDetail.header?.ClaimCategoryId === 3) && (
+                  <Column
+                    field="prno"
+                    header="PR No"
+                    className="text-left"
+                    style={{ width: "10%" }}
+                    body={actionprBodyTemplate}
                   />
                 )}
                 <Column headerStyle={{ textAlign: 'center' }} field="claimtype" header="Claim Type" />
@@ -2934,7 +2985,7 @@ const ApprovalTable = ({
 
     setTableData(updated);
   }, [data, bankOptions]);
-  // 
+  //
 
 
   const flatpickrInstance = useRef(null);
@@ -3211,7 +3262,7 @@ const ApprovalTable = ({
       {/* <Column
         style={{ width: "10%" }}
         header="Payment Date"
-    
+   
         body={(rowData) => (
           <InputGroup>
 
@@ -3233,9 +3284,9 @@ const ApprovalTable = ({
 
               onChange={(selectedDates) => {
                 if (!selectedDates.length) return;
-                
+               
                 const newDate = selectedDates[0];
-              
+             
                 setData(prevData => {
                   const updated = [...prevData];
                   const index = updated.findIndex(row => row.id === rowData.id);
@@ -3244,7 +3295,7 @@ const ApprovalTable = ({
                   }
                   return updated;
                 });
-              
+             
                 setSelectedRows(prevSelected => {
                   const updated = [...prevSelected];
                   const index = updated.findIndex(row => row.id === rowData.id);
@@ -3255,7 +3306,7 @@ const ApprovalTable = ({
                 });
               }}
 
-          
+         
 
             />
           </InputGroup>

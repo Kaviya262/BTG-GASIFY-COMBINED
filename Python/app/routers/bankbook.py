@@ -44,7 +44,14 @@ async def get_daily_entries(db: AsyncSession = Depends(get_db)):
                 r.receipt_id,
                 r.receipt_date as date,
                 r.customer_id,
-                c.CustomerName as customerName,
+                
+                -- Dynamic Party Name Logic
+                CASE 
+                    WHEN r.bank_amount < 0 AND r.customer_id != 0 THEN COALESCE(s.SupplierName, 'Unknown Supplier')
+                    WHEN r.bank_amount < 0 AND r.customer_id = 0 THEN 'Bank Charges'
+                    ELSE COALESCE(c.CustomerName, 'Unknown Customer')
+                END as customerName,
+                
                 r.bank_amount,
                 r.bank_charges,
                 r.deposit_bank_id,
@@ -54,10 +61,8 @@ async def get_daily_entries(db: AsyncSession = Depends(get_db)):
                 r.is_posted, 
                 r.pending_verification, 
 
-                -- Status Code (S/P)
                 CASE WHEN r.is_posted = 1 THEN 'P' ELSE 'S' END as status_code,
                 
-                -- Verification Status Logic
                 CASE 
                     WHEN r.is_posted = 1 AND r.pending_verification = 1 THEN 'Pending'
                     WHEN r.is_posted = 1 AND r.pending_verification = 0 THEN 'Completed'
@@ -66,8 +71,9 @@ async def get_daily_entries(db: AsyncSession = Depends(get_db)):
 
             FROM tbl_ar_receipt r
             LEFT JOIN {DB_NAME_USER}.master_customer c ON r.customer_id = c.Id
+            -- 🟢 FIX: Join on SupplierId, not Id
+            LEFT JOIN {DB_NAME_MASTER}.master_supplier s ON r.customer_id = s.SupplierId
             
-            -- FILTER FOR BANK BOOK ENTRIES ONLY --
             WHERE r.deposit_bank_id IS NOT NULL 
               AND r.deposit_bank_id != '' 
               AND r.deposit_bank_id != '0'
@@ -94,7 +100,7 @@ async def get_bank_book_report(
         data = []
         running_balance = 0.0
 
-        # 1. FETCH OPENING BALANCE IF BANK IS SELECTED
+        # 1. FETCH OPENING BALANCE
         if bank_id and bank_id != 0:
             opening_sql = text(f"""
                 SELECT 
@@ -105,11 +111,8 @@ async def get_bank_book_report(
                     '-' as Party,
                     'Brought Forward' as Description,
                     currency as Currency,
-                    
-                    -- Opening Balance goes to DebitOut (Debit column / Money In)
                     0.00 as CreditIn, 
                     opening_balance as DebitOut, 
-                    
                     opening_balance as NetAmount
                 FROM {DB_NAME_FINANCE}.tbl_bank_opening_balance
                 WHERE bank_id = :bank_id
@@ -120,7 +123,6 @@ async def get_bank_book_report(
 
             if opening_row:
                 op_item = dict(opening_row)
-                # Initialize running balance
                 op_debit = float(op_item["DebitOut"] or 0)
                 running_balance = op_debit
                 
@@ -129,38 +131,45 @@ async def get_bank_book_report(
                 op_item["Balance"] = running_balance
                 data.append(op_item)
 
-        # 2. FETCH TRANSACTIONS (Verified and Submitted Receipts)
+        # 2. FETCH TRANSACTIONS
         sql = text(f"""
             SELECT 
-                -- 🟢 FIX: Use user-entered receipt_date, fallback to created_date
                 COALESCE(r.receipt_date, r.created_date) as Date,
-                
                 r.reference_no as VoucherNo,
-                'Receipt' as TransactionType, 
+                
+                CASE 
+                    WHEN r.bank_amount < 0 THEN 'Payment' 
+                    ELSE 'Receipt' 
+                END as TransactionType, 
+                
                 b.BankName as Account,
-                c.CustomerName as Party,
+                
+                -- 🟢 FIX: Dynamic Party Name for Report (Use s.SupplierName)
+                CASE 
+                    WHEN r.bank_amount < 0 AND r.customer_id != 0 THEN COALESCE(s.SupplierName, 'Unknown Supplier')
+                    WHEN r.bank_amount < 0 AND r.customer_id = 0 THEN 'Bank Charges'
+                    ELSE COALESCE(c.CustomerName, 'Unknown Customer') 
+                END as Party,
+                
                 r.reference_no as Description,
                 COALESCE(mc.CurrencyCode, 'IDR') as Currency, 
                 
-                -- DebitOut maps to "Debit" Column (Money In / Positive)
                 CASE WHEN r.bank_amount >= 0 THEN r.bank_amount ELSE 0 END as DebitOut,
-
-                -- CreditIn maps to "Credit" Column (Money Out / Negative)
                 CASE WHEN r.bank_amount < 0 THEN ABS(r.bank_amount) ELSE 0 END as CreditIn,
                 
                 r.bank_amount as NetAmount
             FROM tbl_ar_receipt r
-            LEFT JOIN {DB_NAME_USER_NEW}.master_customer c ON r.customer_id = c.Id
+            LEFT JOIN {DB_NAME_USER}.master_customer c ON r.customer_id = c.Id
+            -- 🟢 FIX: Join on SupplierId
+            LEFT JOIN {DB_NAME_MASTER}.master_supplier s ON r.customer_id = s.SupplierId
             LEFT JOIN {DB_NAME_MASTER}.master_bank b ON CAST(NULLIF(r.deposit_bank_id, '') AS UNSIGNED) = b.BankId
             LEFT JOIN {DB_NAME_USER}.master_currency mc ON b.CurrencyId = mc.CurrencyId
             WHERE 
-                -- 🟢 FIX: Filter based on receipt_date
                 DATE(COALESCE(r.receipt_date, r.created_date)) BETWEEN :from_date AND :to_date
                 AND r.is_active = 1
                 AND r.is_submitted = 1
                 AND CAST(NULLIF(r.deposit_bank_id, '') AS UNSIGNED) = :bank_id
             
-            -- 🟢 FIX: Sort by receipt_date
             ORDER BY COALESCE(r.receipt_date, r.created_date) ASC, r.receipt_id ASC
         """)
 
@@ -175,11 +184,9 @@ async def get_bank_book_report(
         
         for row in rows:
             item = dict(row)
+            credit_val = float(item["CreditIn"] or 0) 
+            debit_val = float(item["DebitOut"] or 0)  
             
-            credit_val = float(item["CreditIn"] or 0) # Credit Column (Money Out)
-            debit_val = float(item["DebitOut"] or 0)  # Debit Column (Money In)
-            
-            # Running Balance Formula: Previous + Debit (In) - Credit (Out)
             running_balance += (debit_val - credit_val)
             
             item["CreditIn"] = credit_val
@@ -191,6 +198,23 @@ async def get_bank_book_report(
 
     except Exception as e:
         print(f"Error fetching bank book report: {e}")
+        return {"status": "error", "detail": str(e)}
+
+# --- 🟢 UPDATED ENDPOINT: GET SUPPLIER FILTER ---
+@router.get("/get-supplier-filter")
+async def get_supplier_filter(db: AsyncSession = Depends(get_db)):
+    try:
+        # 🟢 FIX: Use SupplierId column & DB_NAME_MASTER
+        query = text(f"""
+            SELECT SupplierId, SupplierName 
+            FROM {DB_NAME_MASTER}.master_supplier 
+            WHERE IsActive = 1 
+            ORDER BY SupplierName ASC
+        """)
+        result = await db.execute(query)
+        data = result.mappings().all()
+        return {"status": "success", "data": data}
+    except Exception as e:
         return {"status": "error", "detail": str(e)}
 
 # --- NEW ENDPOINT: VERIFY RECEIPT ---

@@ -146,11 +146,24 @@ class UpdateInvoiceRequest(BaseModel):
 async def create_invoice(payload: CreateInvoiceRequest):
     async with engine.begin() as conn: 
         try:
+            # [FIX] Disable FK Checks for Cross-DB Reference
+            await conn.execute(text("SET FOREIGN_KEY_CHECKS=0"))
+
+            # [FIX 1] Check for Duplicate Invoice Number
+            if payload.header.salesInvoiceNbr:
+                dup_check = text(f"""
+                    SELECT count(*) FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header 
+                    WHERE salesinvoicenbr = :nbr AND isactive = 1
+                """)
+                dup_res = await conn.execute(dup_check, {"nbr": payload.header.salesInvoiceNbr})
+                if dup_res.scalar() > 0:
+                     raise HTTPException(status_code=400, detail=f"Invoice Number '{payload.header.salesInvoiceNbr}' already exists.")
+
             # 1. Create Header
             header_query = text(f"""
                 INSERT INTO {DB_NAME_USER_NEW}.tbl_salesinvoices_header 
-                (salesinvoicenbr, customerid, Salesinvoicesdate, TotalAmount, IsSubmitted, CalculatedPrice, createdby, OrgId, BranchId, IsManual, CreatedDate)
-                VALUES (:nbr, :cust, :date, 0, :submitted, 0, :user, :org, :branch, :manual, NOW())
+                (salesinvoicenbr, customerid, Salesinvoicesdate, TotalAmount, IsSubmitted, CalculatedPrice, createdby, OrgId, BranchId, IsManual, CreatedDate, isactive)
+                VALUES (:nbr, :cust, :date, 0, :submitted, 0, :user, :org, :branch, :manual, NOW(), 1)
             """)
             
             result = await conn.execute(header_query, {
@@ -180,9 +193,9 @@ async def create_invoice(payload: CreateInvoiceRequest):
                 rate_result = await conn.execute(rate_query, {"cid": cid})
                 exchange_rate = rate_result.scalar() or 1.0
 
-                # B. Calcs
-                line_total = item.pickedQty * item.UnitPrice
-                line_calculated_price = line_total * float(exchange_rate)
+                # [FIX 3] Rounding Calculations to 2 decimal places
+                line_total = round(item.pickedQty * item.UnitPrice, 2)
+                line_calculated_price = round(line_total * float(exchange_rate), 2)
 
                 total_header_amount += line_total
                 total_calculated_price_idr += line_calculated_price
@@ -223,9 +236,11 @@ async def create_invoice(payload: CreateInvoiceRequest):
                 "hid": new_header_id
             })
 
-            await conn.commit()  # Explicit commit for async
+            await conn.commit() 
             return {"status": "success", "message": "Invoice Created", "data": new_header_id, "InvoiceId": new_header_id}
 
+        except HTTPException as he:
+            raise he
         except Exception as e:
             print(f"Error creating invoice: {e}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -238,6 +253,19 @@ async def update_invoice(payload: UpdateInvoiceRequest):
             invoice_id = payload.header.id
             if not invoice_id:
                 raise HTTPException(status_code=400, detail="Invoice ID required for update")
+
+            # [FIX] Disable FK Checks for Cross-DB Reference
+            await conn.execute(text("SET FOREIGN_KEY_CHECKS=0"))
+
+            # [FIX 1] Check for Duplicate Invoice Number (Excluding Current ID)
+            if payload.header.salesInvoiceNbr:
+                dup_check = text(f"""
+                    SELECT count(*) FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header 
+                    WHERE salesinvoicenbr = :nbr AND id != :hid AND isactive = 1
+                """)
+                dup_res = await conn.execute(dup_check, {"nbr": payload.header.salesInvoiceNbr, "hid": invoice_id})
+                if dup_res.scalar() > 0:
+                     raise HTTPException(status_code=400, detail=f"Invoice Number '{payload.header.salesInvoiceNbr}' already exists.")
 
             # 1. Delete Existing Details
             await conn.execute(text(f"DELETE FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_details WHERE salesinvoicesheaderid = :hid"), {"hid": invoice_id})
@@ -253,9 +281,9 @@ async def update_invoice(payload: UpdateInvoiceRequest):
                 rate_result = await conn.execute(rate_query, {"cid": cid})
                 exchange_rate = rate_result.scalar() or 1.0
 
-                # Calcs
-                line_total = float(item.pickedQty) * float(item.UnitPrice)
-                line_calculated_price = line_total * float(exchange_rate)
+                # [FIX 3] Rounding Calculations
+                line_total = round(float(item.pickedQty) * float(item.UnitPrice), 2)
+                line_calculated_price = round(line_total * float(exchange_rate), 2)
 
                 total_header_amount += line_total
                 total_calculated_price_idr += line_calculated_price
@@ -308,9 +336,11 @@ async def update_invoice(payload: UpdateInvoiceRequest):
                 "hid": invoice_id
             })
 
-            await conn.commit()  # Explicit commit for async
+            await conn.commit() 
             return {"status": True, "message": "Invoice updated successfully", "data": invoice_id}
 
+        except HTTPException as he:
+            raise he
         except Exception as e:
             print(f"Error updating invoice: {e}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -425,7 +455,7 @@ async def get_invoice_details(invoiceid: str):
                         COALESCE(d.PONumber, '') AS PONumber,
                         COALESCE(d.uomid, 0) AS uomid
                     FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_details d
-                    LEFT JOIN {DB_NAME_USER_NEW}.master_gascode g ON d.gascodeid = g.Id
+                    LEFT JOIN {DB_NAME_USER}.master_gascode g ON d.gascodeid = g.Id
                     WHERE d.salesinvoicesheaderid IN :hids
                 """)
                 
@@ -467,7 +497,7 @@ async def get_available_dos(filter_data: DOFilter):
                     MAX(g.GasName) as GasName
                 FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header h
                 LEFT JOIN {DB_NAME_USER_NEW}.tbl_salesinvoices_details det ON h.id = det.salesinvoicesheaderid
-                LEFT JOIN {DB_NAME_USER_NEW}.master_gascode g ON det.gascodeid = g.Id
+                LEFT JOIN {DB_NAME_USER}.master_gascode g ON det.gascodeid = g.Id
                 WHERE h.customerid = :cust_id
                   AND h.isactive = 1 
                 GROUP BY h.id, h.salesinvoicenbr, h.Salesinvoicesdate, h.TotalQty, h.TotalAmount
@@ -493,11 +523,41 @@ async def create_invoice_from_do(payload: ConvertDORequest):
             if not payload.do_ids:
                  raise HTTPException(status_code=400, detail="No DOs selected")
 
-            # 1. Create Invoice Header
+            # [FIX] Disable FK Checks for Cross-DB Reference
+            await conn.execute(text("SET FOREIGN_KEY_CHECKS=0"))
+
+            # 1. [FIX 2] CHECK IF ANY DO IS ALREADY CONVERTED
+            # Logic: Look for any active invoice details that reference these DO Numbers
+            for do_id in payload.do_ids:
+                # Get the DO Number String first
+                do_num_q = text(f"SELECT salesinvoicenbr FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header WHERE id = :doid")
+                do_res = await conn.execute(do_num_q, {"doid": do_id})
+                do_num_str = do_res.scalar()
+
+                if do_num_str:
+                    # Check if this string exists in any ACTIVE invoice's details
+                    check_do_q = text(f"""
+                        SELECT h.salesinvoicenbr 
+                        FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_details d
+                        JOIN {DB_NAME_USER_NEW}.tbl_salesinvoices_header h ON d.salesinvoicesheaderid = h.id
+                        WHERE d.DOnumber = :do_num 
+                          AND h.isactive = 1
+                        LIMIT 1
+                    """)
+                    check_res = await conn.execute(check_do_q, {"do_num": do_num_str})
+                    existing_inv = check_res.scalar()
+                    
+                    if existing_inv:
+                        raise HTTPException(
+                            status_code=400, 
+                            detail=f"DO '{do_num_str}' is already linked to Invoice '{existing_inv}'. Cannot convert again."
+                        )
+
+            # 2. Create Invoice Header
             header_query = text(f"""
                 INSERT INTO {DB_NAME_USER_NEW}.tbl_salesinvoices_header 
-                (customerid, Salesinvoicesdate, TotalAmount, IsSubmitted, CalculatedPrice, createdby, invoice_type)
-                VALUES (:cust, CURDATE(), 0, 0, 0, :user, 'DSI')
+                (customerid, Salesinvoicesdate, TotalAmount, IsSubmitted, CalculatedPrice, createdby, invoice_type, isactive, CreatedDate)
+                VALUES (:cust, CURDATE(), 0, 0, 0, :user, 'DSI', 1, NOW())
             """)
             result = await conn.execute(header_query, {
                 "cust": payload.customerid,
@@ -508,7 +568,7 @@ async def create_invoice_from_do(payload: ConvertDORequest):
             total_amount = 0.0
             total_calculated_price = 0.0
 
-            # 2. Process selected DOs
+            # 3. Process selected DOs
             for do_id in payload.do_ids:
                 do_header_query = text(f"SELECT salesinvoicenbr FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header WHERE id = :doid")
                 do_header_res = await conn.execute(do_header_query, {"doid": do_id})
@@ -524,8 +584,10 @@ async def create_invoice_from_do(payload: ConvertDORequest):
                 
                 for row in do_rows:
                     rate_val = float(row.ExchangeRate or 1.0)
-                    line_total = row.PickedQty * row.UnitPrice
-                    line_calc_price = line_total * rate_val
+                    
+                    # [FIX 3] Rounding
+                    line_total = round(row.PickedQty * row.UnitPrice, 2)
+                    line_calc_price = round(line_total * rate_val, 2)
                     
                     total_amount += line_total
                     total_calculated_price += line_calc_price
@@ -547,7 +609,7 @@ async def create_invoice_from_do(payload: ConvertDORequest):
                         "do_str": do_number_str
                     })
 
-            # 3. Update Header Totals
+            # 4. Update Header Totals
             update_header = text(f"""
                 UPDATE {DB_NAME_USER_NEW}.tbl_salesinvoices_header
                 SET TotalAmount = :total, CalculatedPrice = :calc_total
@@ -559,9 +621,11 @@ async def create_invoice_from_do(payload: ConvertDORequest):
                 "hid": new_invoice_id
             })
 
-            await conn.commit()  # Explicit commit for async
+            await conn.commit() 
             return {"status": True, "message": "Invoice Created Successfully", "InvoiceId": new_invoice_id}
 
+        except HTTPException as he:
+            raise he
         except Exception as e:
             print(f"Error converting DO: {e}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -573,7 +637,7 @@ async def get_gas_items():
         async with engine.connect() as conn:
             query = text(f"""
                 SELECT Id, GasName 
-                FROM {DB_NAME_USER_NEW}.master_gascode 
+                FROM {DB_NAME_USER}.master_gascode 
                 WHERE IsActive = 1 
                 ORDER BY GasName ASC
             """)
@@ -605,7 +669,7 @@ async def get_sales_details(filter_data: InvoiceFilter):
         FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header h
         JOIN {DB_NAME_USER_NEW}.tbl_salesinvoices_details d ON h.id = d.salesinvoicesheaderid
         LEFT JOIN {DB_NAME_USER_NEW}.master_customer c ON h.customerid = c.Id
-        LEFT JOIN {DB_NAME_USER_NEW}.master_gascode g ON d.gascodeid = g.Id
+        LEFT JOIN {DB_NAME_USER}.master_gascode g ON d.gascodeid = g.Id
         LEFT JOIN {DB_NAME_USER}.master_currency mc ON d.Currencyid = mc.CurrencyId
         WHERE DATE(h.Salesinvoicesdate) BETWEEN :from_date AND :to_date 
           AND h.isactive = 1 
@@ -633,7 +697,7 @@ async def get_sales_details(filter_data: InvoiceFilter):
 @router.get("/GetItemFilter")
 async def get_item_filter():
     try:
-        sql = text(f"SELECT Id as value, GasName as label FROM {DB_NAME_USER_NEW}.master_gascode WHERE IsActive = 1 ORDER BY GasName")
+        sql = text(f"SELECT Id as value, GasName as label FROM {DB_NAME_USER}.master_gascode WHERE IsActive = 1 ORDER BY GasName")
         async with engine.connect() as conn:
             result = await conn.execute(sql)
             return [dict(row._mapping) for row in result.fetchall()]

@@ -175,39 +175,65 @@ async def submit_receipt(db: AsyncSession, receipt_id: int):
 
 
 # ----------------------------------------------------------
-# 6. Post to AR (UPSERT LOGIC)
-# ----------------------------------------------------------
-# ----------------------------------------------------------
-# 6. Post to AR (UPSERT LOGIC + AUTO CLEANUP)
+# 6. Post to AR (UPSERT & AGGREGATE LOGIC)
 # ----------------------------------------------------------
 async def post_invoice_to_ar(db: AsyncSession, request: schemas.PostInvoiceToARRequest):
     try:
-        # 1. Check if AR entry already exists for this Invoice ID
-        check_sql = text(f"SELECT ar_id, already_received FROM {DB_NAME_FINANCE}.tbl_accounts_receivable WHERE invoice_id = :inv_id")
-        result = await db.execute(check_sql, {"inv_id": str(request.invoiceId)})
+        # 1. Get the Invoice Number for the requested ID
+        get_nbr_sql = text(f"SELECT salesinvoicenbr FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header WHERE id = :inv_id")
+        nbr_res = await db.execute(get_nbr_sql, {"inv_id": str(request.invoiceId)})
+        invoice_number = nbr_res.scalar()
+
+        if not invoice_number:
+            return False
+
+        # 2. Calculate the GRAND TOTAL for this Invoice Number (Aggregation)
+        # We sum up ALL active headers that share this Invoice Number (e.g. 8008 + 8009 + ... + 8014)
+        sum_sql = text(f"""
+            SELECT 
+                SUM(TotalAmount) as GrandTotal, 
+                SUM(CalculatedPrice) as GrandTotalIDR,
+                MIN(id) as PrimaryID -- Keep the first ID as the main link
+            FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header
+            WHERE salesinvoicenbr = :nbr AND isactive = 1
+        """)
+        sum_res = await db.execute(sum_sql, {"nbr": invoice_number})
+        totals = sum_res.fetchone()
+        
+        grand_total = totals.GrandTotal or 0
+        grand_total_idr = totals.GrandTotalIDR or 0
+        primary_id = totals.PrimaryID or request.invoiceId
+
+        # 3. Check if AR entry already exists for this Invoice NUMBER
+        check_sql = text(f"SELECT ar_id, already_received FROM {DB_NAME_FINANCE}.tbl_accounts_receivable WHERE invoice_no = :nbr")
+        result = await db.execute(check_sql, {"nbr": invoice_number})
         existing_row = result.fetchone()
 
         if existing_row:
-            # --- UPDATE SCENARIO ---
-            print(f"Updating existing AR record for Invoice ID: {request.invoiceId}")
+            # --- UPDATE SCENARIO (Upsert / Aggregation Fix) ---
+            print(f"Aggregating AR record for Invoice No: {invoice_number}. New Total: {grand_total}")
             
             update_ar_sql = text(f"""
-                UPDATE {DB_NAME_FINANCE}.tbl_accounts_receivable ar
-                JOIN {DB_NAME_USER_NEW}.tbl_salesinvoices_header h ON ar.invoice_id = h.id
+                UPDATE {DB_NAME_FINANCE}.tbl_accounts_receivable
                 SET 
-                    ar.inv_amount = h.TotalAmount,
-                    ar.invoice_amt_idr = h.CalculatedPrice,
-                    ar.balance_amount = (h.TotalAmount - ar.already_received),
-                    ar.updated_by = :userId,
-                    ar.updated_date = NOW()
-                WHERE ar.invoice_id = :inv_id
+                    inv_amount = :total,
+                    invoice_amt_idr = :total_idr,
+                    balance_amount = (:total - already_received),
+                    updated_by = :userId,
+                    updated_date = NOW()
+                WHERE invoice_no = :nbr
             """)
             
-            await db.execute(update_ar_sql, {"userId": request.userId, "inv_id": str(request.invoiceId)})
+            await db.execute(update_ar_sql, {
+                "total": grand_total,
+                "total_idr": grand_total_idr,
+                "userId": request.userId,
+                "nbr": invoice_number
+            })
 
         else:
             # --- INSERT SCENARIO ---
-            print(f"Inserting new AR record for Invoice ID: {request.invoiceId}")
+            print(f"Inserting new AR record for Invoice No: {invoice_number}")
             
             insert_sql = text(f"""
                 INSERT INTO {DB_NAME_FINANCE}.tbl_accounts_receivable (
@@ -224,20 +250,20 @@ async def post_invoice_to_ar(db: AsyncSession, request: schemas.PostInvoiceToARR
                     :orgId, :branchId,
                     CONCAT('AR-', h.salesinvoicenbr), 
                     h.salesinvoicenbr, 
-                    h.id, 
+                    :primary_id,  -- Use the Min ID to keep the link stable
                     h.Salesinvoicesdate,
                     h.customerid, 
                     IFNULL(c.CustomerName, 'Unknown'), 
-                    h.TotalAmount, 
-                    h.TotalAmount, 
+                    :total,  -- Use Calculated Grand Total
+                    :total, 
                     0, 
-                    h.CalculatedPrice, 
+                    :total_idr, 
                     
                     (SELECT COALESCE(d.Currencyid, 1) 
                      FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_details d 
                      WHERE d.salesinvoicesheaderid = h.id 
                      LIMIT 1), 
-                     
+                      
                     :userId, '127.0.0.1', NOW(), 
                     1, 0
                 FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header h
@@ -249,13 +275,15 @@ async def post_invoice_to_ar(db: AsyncSession, request: schemas.PostInvoiceToARR
                 "orgId": request.orgId, 
                 "branchId": request.branchId, 
                 "userId": request.userId, 
-                "inv_id": str(request.invoiceId)
+                "inv_id": str(request.invoiceId),
+                "primary_id": str(primary_id),
+                "total": grand_total,
+                "total_idr": grand_total_idr
             })
 
         # ---------------------------------------------------------
-        # 🟢 NEW LOGIC: Deactivate relevant DOs from AR Book
+        # 4. Deactivate relevant DOs from AR Book
         # ---------------------------------------------------------
-        # This prevents "Ghost" DOs from staying active after being converted to an Invoice.
         deactivate_dos_sql = text(f"""
             UPDATE {DB_NAME_FINANCE}.tbl_accounts_receivable
             SET is_active = 0
@@ -271,7 +299,7 @@ async def post_invoice_to_ar(db: AsyncSession, request: schemas.PostInvoiceToARR
         await db.execute(deactivate_dos_sql, {"inv_id": str(request.invoiceId)})
 
         # ---------------------------------------------------------
-        # 3. UPDATE HEADER FLAG
+        # 5. UPDATE HEADER FLAG (For the specific ID posted)
         # ---------------------------------------------------------
         update_header_flag_sql = text(f"""
             UPDATE {DB_NAME_USER_NEW}.tbl_salesinvoices_header 

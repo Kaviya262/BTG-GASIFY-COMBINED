@@ -39,6 +39,7 @@ const AddBankBook = () => {
     // --- DATA STATES ---
     const [bankList, setBankList] = useState([]);
     const [customerList, setCustomerList] = useState([]);
+    const [supplierList, setSupplierList] = useState([]); // Added Supplier List
     const [entryList, setEntryList] = useState([]);
     const [salesList, setSalesList] = useState([]);
     const [customerDefaults, setCustomerDefaults] = useState({});
@@ -61,13 +62,23 @@ const AddBankBook = () => {
             const banks = await GetBankList(1, 1);
             setBankList(banks.map(item => ({ value: item.value, label: item.BankName })));
 
+            // 1. Load Customers
             const customers = await GetCustomerFilter(1, "%");
-
-            // --- FIX: Handle both 'Id' and 'CustomerID' keys to be safe ---
             setCustomerList(Array.isArray(customers) ? customers.map(c => ({
-                value: Number(c.Id || c.CustomerID), // Try c.Id first, then c.CustomerID
+                value: Number(c.Id || c.CustomerID),
                 label: c.CustomerName
             })) : []);
+
+            // 2. Load Suppliers (Added for Payments)
+            try {
+                const supResponse = await axios.get(`${PYTHON_API_URL}/AR/get-supplier-filter`);
+                if (supResponse.data?.status === "success") {
+                    setSupplierList(supResponse.data.data.map(s => ({
+                        value: s.SupplierId,
+                        label: s.SupplierName
+                    })));
+                }
+            } catch (err) { console.error("Failed to load suppliers", err); }
 
             loadSalesPersons();
             loadCustomerDefaults();
@@ -85,7 +96,7 @@ const AddBankBook = () => {
     useEffect(() => {
         const t = rows.reduce((acc, row) => {
             const amt = parseFloat(row.amount || 0);
-            if (row.type === 'Receipt') acc.receipt += amt;
+            if (row.type === 'Receipt' || row.type === 'Other Income') acc.receipt += amt;
             else acc.payment += amt;
             return acc;
         }, { receipt: 0, payment: 0 });
@@ -105,7 +116,6 @@ const AddBankBook = () => {
         try {
             const response = await axios.get(`${PYTHON_API_URL}/AR/get-customer-defaults`);
             if (response.data?.status === "success") {
-                console.log("Loaded Customer Defaults:", response.data.data); // Debug Log
                 setCustomerDefaults(response.data.data);
             }
         } catch (err) { console.error("Failed to load customer defaults", err); }
@@ -152,30 +162,34 @@ const AddBankBook = () => {
         setRows(newRows);
     };
 
+    // Helper to switch options based on type
+    const getOptionsForType = (type) => {
+        if (type === 'Receipt' || type === 'Other Income') return customerList;
+        if (type === 'Payment') return supplierList;
+        return [];
+    };
+
     const handleRowChange = (index, field, value) => {
         const newRows = [...rows];
+
+        // Reset selections if type changes (e.g. Receipt -> Payment)
+        if (field === 'type' && newRows[index].type !== value) {
+            newRows[index]['customerId'] = "";
+            newRows[index]['salesPersonId'] = "";
+        }
+
         newRows[index][field] = value;
 
-        if (field === 'customerId') {
-            console.log("Selected Customer ID:", value);
-
-            // 1. Get the assigned SP ID from the map (e.g., 100)
+        // Auto-populate Sales Person only for Receipts/Customers
+        if (field === 'customerId' && (newRows[index].type === 'Receipt' || newRows[index].type === 'Other Income')) {
             const defaultSP = customerDefaults[value] || customerDefaults[String(value)];
-            console.log("Found SalesPerson ID:", defaultSP);
-
             if (defaultSP) {
                 const spID = Number(defaultSP);
-
-                // 2. Check if this SP exists in our dropdown list
                 const exists = salesList.find(s => s.value === spID);
-
                 if (!exists) {
-                    // 3. OPTION A: If missing, create a temp option so the UI doesn't break
                     const tempOption = { value: spID, label: `Unknown User (${spID})` };
-                    setSalesList(prev => [...prev, tempOption]); // Add to list dynamically
+                    setSalesList(prev => [...prev, tempOption]);
                 }
-
-                // 4. Set the value
                 newRows[index]['salesPersonId'] = spID;
             } else {
                 newRows[index]['salesPersonId'] = "";
@@ -203,7 +217,7 @@ const AddBankBook = () => {
             sendNotification: false
         };
 
-        setRows([initialRow]);
+        setRows([initialRow]); // Ensures fresh start
         setIsModalOpen(true);
     };
 
@@ -242,25 +256,33 @@ const AddBankBook = () => {
 
         try {
             const isPosted = mode === "POST";
-            const headerPayload = rows.map(row => ({
-                receipt_id: row.rowId || 0,
-                customer_id: parseInt(row.customerId),
-                bank_amount: row.type === 'Payment' ? -Math.abs(parseFloat(row.amount)) : Math.abs(parseFloat(row.amount)),
-                bank_charges: parseFloat(row.bankCharges) || 0,
-                deposit_bank_id: parseInt(selectedBank.value),
-                receipt_date: format(row.date, "yyyy-MM-dd"),
-                reference_no: row.referenceNo,
-                sales_person_id: row.salesPersonId ? parseInt(row.salesPersonId) : null,
-                send_notification: row.sendNotification,
-                status: isPosted ? "Posted" : "Saved",
-                is_posted: isPosted,
-                payment_amount: 0,
-                cash_amount: 0,
-                contra_amount: 0,
-                tax_rate: 0,
-                bank_payment_via: 0,
-                proof_missing: false
-            }));
+            const headerPayload = rows.map(row => {
+                // Calculate amount (Negative for Payment/Charges)
+                let finalAmount = Math.abs(parseFloat(row.amount));
+                if (row.type === 'Payment' || row.type === 'Bank Charges') {
+                    finalAmount = -finalAmount;
+                }
+
+                return {
+                    receipt_id: row.rowId || 0,
+                    customer_id: row.type === 'Bank Charges' ? 0 : parseInt(row.customerId || 0),
+                    bank_amount: finalAmount,
+                    bank_charges: parseFloat(row.bankCharges) || 0,
+                    deposit_bank_id: parseInt(selectedBank.value),
+                    receipt_date: format(row.date, "yyyy-MM-dd"),
+                    reference_no: row.referenceNo,
+                    sales_person_id: row.salesPersonId ? parseInt(row.salesPersonId) : null,
+                    send_notification: row.sendNotification,
+                    status: isPosted ? "Posted" : "Saved",
+                    is_posted: isPosted,
+                    payment_amount: 0,
+                    cash_amount: 0,
+                    contra_amount: 0,
+                    tax_rate: 0,
+                    bank_payment_via: 0,
+                    proof_missing: false
+                };
+            });
 
             const payload = {
                 orgId: 1,
@@ -270,15 +292,11 @@ const AddBankBook = () => {
                 header: headerPayload
             };
 
-            // --- FIX: Correct URL construction for Updates ---
             if (editMode) {
-                // For updates, we need to append the Receipt ID to the URL
-                // In edit mode, we typically edit one row at a time or the first row's ID handles the transaction
                 const idToUpdate = rows[0].rowId;
                 const endpoint = `${PYTHON_API_URL}/AR/update/${idToUpdate}`;
                 await axios.put(endpoint, payload);
             } else {
-                // For create
                 const endpoint = `${PYTHON_API_URL}/AR/create`;
                 await axios.post(endpoint, payload);
             }
@@ -308,7 +326,7 @@ const AddBankBook = () => {
         setLoadingInvoices(true);
         setInvoiceList([]);
 
-        if (rowData.customerId) {
+        if (rowData.customerId && parseFloat(rowData.bank_amount) > 0) { // Only preview for receipts
             try {
                 const response = await axios.get(`${PYTHON_API_URL}/AR/get-outstanding-invoices/${rowData.customerId}`);
                 if (response.data && response.data.status === "success") {
@@ -349,68 +367,28 @@ const AddBankBook = () => {
         const isCompleted = rowData.verificationStatus === 'Completed';
         const isPending = rowData.verificationStatus === 'Pending';
 
-        if (isPending) {
-            return (
-                <div className="d-flex justify-content-center">
-                    <span className="circle-badge bg-danger" title="Verification Pending">P</span>
-                </div>
-            );
-        }
-        if (isCompleted) {
-            return (
-                <div className="d-flex justify-content-center">
-                    <span className="circle-badge bg-success" title="Verification Completed">C</span>
-                </div>
-            );
-        }
+        if (isPending) return (<div className="d-flex justify-content-center"><span className="circle-badge bg-danger" title="Verification Pending">P</span></div>);
+        if (isCompleted) return (<div className="d-flex justify-content-center"><span className="circle-badge bg-success" title="Verification Completed">C</span></div>);
         return null;
     };
 
     const actionBodyTemplate = (rowData) => {
-        const isPosted = rowData.is_posted;
-        const isCompleted = rowData.verificationStatus === 'Completed';
-        const isEditable = !isPosted;
+        const isEditable = !rowData.is_posted;
         const isPreviewable = true;
-        const isActionable = isCompleted;
+        const isActionable = rowData.verificationStatus === 'Completed';
 
         return (
             <div className="d-flex justify-content-center gap-3 align-items-center table-actions">
-                {/* Edit */}
-                <button
-                    className={`btn-icon ${isEditable ? 'text-primary' : 'text-muted'}`}
-                    onClick={() => { if (isEditable) openEditModal(rowData); }}
-                    disabled={!isEditable}
-                    title="Edit"
-                >
+                <button className={`btn-icon ${isEditable ? 'text-primary' : 'text-muted'}`} onClick={() => { if (isEditable) openEditModal(rowData); }} disabled={!isEditable} title="Edit">
                     <i className="bx bx-pencil font-size-18"></i>
                 </button>
-
-                {/* Preview */}
-                <button
-                    className={`btn-icon ${isPreviewable ? 'text-info' : 'text-muted'}`}
-                    onClick={() => { if (isPreviewable) handlePreview(rowData); }}
-                    disabled={!isPreviewable}
-                    title="Preview Invoice"
-                >
+                <button className={`btn-icon ${isPreviewable ? 'text-info' : 'text-muted'}`} onClick={() => { if (isPreviewable) handlePreview(rowData); }} disabled={!isPreviewable} title="Preview Invoice">
                     <i className="bx bx-show font-size-18"></i>
                 </button>
-
-                {/* Query */}
-                <button
-                    className={`btn-icon ${isActionable ? 'text-warning' : 'text-muted'}`}
-                    disabled={!isActionable}
-                    title="Query"
-                >
+                <button className={`btn-icon ${isActionable ? 'text-warning' : 'text-muted'}`} disabled={!isActionable} title="Query">
                     <i className="bx bx-question-mark font-size-18"></i>
                 </button>
-
-                {/* Submit */}
-                <button
-                    className={`btn-icon ${isActionable ? 'text-success' : 'text-muted'}`}
-                    onClick={() => { if (isActionable) handleSubmitRow(rowData.receipt_id); }}
-                    disabled={!isActionable}
-                    title="Submit to Finance"
-                >
+                <button className={`btn-icon ${isActionable ? 'text-success' : 'text-muted'}`} onClick={() => { if (isActionable) handleSubmitRow(rowData.receipt_id); }} disabled={!isActionable} title="Submit to Finance">
                     <i className="bx bx-check-circle font-size-18"></i>
                 </button>
             </div>
@@ -439,7 +417,6 @@ const AddBankBook = () => {
                     <CardBody>
                         <DataTable value={entryList} paginator rows={10} loading={loading} globalFilter={globalFilter} className="p-datatable-modern" responsiveLayout="scroll">
                             <Column field="displayDate" header="Date" sortable filter style={{ width: '10%' }} />
-                            {/* REMOVED COA COLUMN HERE */}
                             <Column field="customerName" header="Party" sortable filter style={{ width: '25%' }} />
                             <Column field="reference_no" header="Reference" sortable filter style={{ width: '10%' }} />
                             <Column field="bank_amount" header="Amount" textAlign="right" body={(d) => parseFloat(d.bank_amount || 0).toLocaleString()} style={{ width: '10%' }} />
@@ -492,7 +469,7 @@ const AddBankBook = () => {
                                 <tr>
                                     <th style={{ width: '90px' }} className="text-center">Type</th>
                                     <th style={{ width: '110px' }} className="text-center">Date</th>
-                                    <th style={{ width: '220px' }}>Customer</th>
+                                    <th style={{ width: '220px' }}>Party</th>
                                     <th style={{ width: '120px' }}>Reference No.</th>
                                     <th style={{ width: '130px' }} className="text-end">Amount</th>
                                     <th style={{ width: '100px' }} className="text-end">Charges</th>
@@ -512,6 +489,8 @@ const AddBankBook = () => {
                                             >
                                                 <option value="Receipt">Receipt</option>
                                                 <option value="Payment">Payment</option>
+                                                <option value="Other Income">Other Income</option>
+                                                <option value="Bank Charges">Bank Charges</option>
                                             </select>
                                         </td>
                                         <td>
@@ -525,12 +504,13 @@ const AddBankBook = () => {
                                         </td>
                                         <td>
                                             <Select
-                                                options={customerList}
-                                                value={customerList.find(c => c.value === row.customerId)}
+                                                options={getOptionsForType(row.type)}
+                                                value={getOptionsForType(row.type).find(c => c.value === row.customerId)}
                                                 onChange={(opt) => handleRowChange(index, 'customerId', opt?.value)}
                                                 styles={customSelectStyles}
                                                 menuPortalTarget={document.body}
-                                                placeholder="Select..."
+                                                placeholder={row.type === 'Bank Charges' ? "Disabled" : (row.type === 'Payment' ? "Select Supplier..." : "Select Customer...")}
+                                                isDisabled={row.type === 'Bank Charges'}
                                             />
                                         </td>
                                         <td>
@@ -550,6 +530,7 @@ const AddBankBook = () => {
                                                 styles={customSelectStyles}
                                                 menuPortalTarget={document.body}
                                                 placeholder="Select..."
+                                                isDisabled={row.type !== 'Receipt' && row.type !== 'Other Income'}
                                             />
                                         </td>
                                         <td className="text-center">
@@ -587,7 +568,7 @@ const AddBankBook = () => {
                     {selectedEntry && (
                         <div className="pt-2">
                             <div className="p-3 bg-light rounded mb-3">
-                                <span className="fw-bold text-secondary me-2">Customer:</span>
+                                <span className="fw-bold text-secondary me-2">Party:</span>
                                 <span className="fw-bold text-dark">{selectedEntry.customerName}</span>
                             </div>
 
@@ -627,7 +608,9 @@ const AddBankBook = () => {
                     )}
                     <ModalFooter className="border-0 pt-3">
                         <Button color="secondary" onClick={() => setIsPreviewOpen(false)}>Close</Button>
-                        <Button color="primary" onClick={handleGenerateVerification}>Generate Mktg Verification</Button>
+                        {selectedEntry && selectedEntry.bank_amount > 0 && (
+                            <Button color="primary" onClick={handleGenerateVerification}>Generate Mktg Verification</Button>
+                        )}
                     </ModalFooter>
                 </Dialog>
 
@@ -670,8 +653,6 @@ const AddBankBook = () => {
                 .btn-save { background: white; border: 1px solid #556ee6; color: #556ee6; }
                 .btn-save:hover { background: #556ee6; color: white; }
                 .btn-post { background: #34c38f; color: white; }
-                
-                /* Icon Button Styling */
                 .btn-icon { background: none; border: none; cursor: pointer; padding: 2px; transition: transform 0.2s; }
                 .btn-icon:hover { transform: scale(1.15); }
                 .btn-icon:disabled { opacity: 0.4; cursor: not-allowed; }

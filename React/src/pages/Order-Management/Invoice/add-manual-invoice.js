@@ -13,6 +13,7 @@ import useAccess from "../../../common/access/useAccess";
 import { postInvoiceToAR } from "../../FinanceModule/service/financeapi";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
+import { InputText } from "primereact/inputtext"; // [ADDED] For Search Bar
 
 const AddManualInvoice = () => {
   const { access, applyAccessUI } = useAccess("Invoice", " Direct Sales Invoice");
@@ -51,6 +52,7 @@ const AddManualInvoice = () => {
   const [availableDOs, setAvailableDOs] = useState([]);
   const [selectedDOs, setSelectedDOs] = useState([]);
   const [doLoading, setDoLoading] = useState(false);
+  const [globalFilter, setGlobalFilter] = useState(""); // [ADDED] State for Search
 
   const [invoiceHeader, SetInvoiceHeader] = useState({
     doid: [],
@@ -113,6 +115,15 @@ const AddManualInvoice = () => {
       isImportedDO: false
     },
   ]);
+
+  // [FIX] Helper to Format Number with Commas for Display (e.g. 1000 -> 1,000)
+  const formatInputNumber = (val) => {
+    if (val === undefined || val === null || val === "") return "";
+    // Split integer and decimal parts to handle typing like "100."
+    const parts = val.toString().split(".");
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return parts.join(".");
+  };
 
   useEffect(() => {
     if (!access.loading) {
@@ -247,6 +258,7 @@ const AddManualInvoice = () => {
     setConvertModal(isOpening);
 
     if (isOpening) {
+      setGlobalFilter(""); // [ADDED] Reset search on open
       fetchAvailableDOs();
     }
   };
@@ -792,6 +804,7 @@ const AddManualInvoice = () => {
 
   const handleUnitPriceChange = async (index, uprice) => {
     const updatedDetails = [...manualinvoiceDetails];
+    // Store as plain number/string in state to ensure calculation consistency
     updatedDetails[index].UnitPrice = uprice;
     updatedDetails[index].ConvertedPrice = uprice;
     setmanualinvoiceDetails(updatedDetails);
@@ -1099,7 +1112,7 @@ const AddManualInvoice = () => {
                                             // --- ALL ROWS ARE NOW EDITABLE ---
 
                                             return (
-                                              <tr key={item.GasCodeId || index}>
+                                              <tr key={index}>
                                                 <td>
                                                   {/* Always allow delete if user has permission */}
                                                   {access.canDelete && (
@@ -1109,17 +1122,15 @@ const AddManualInvoice = () => {
                                                   )}
                                                 </td>
 
-                                                {/* Gas Code Column */}
+                                                {/* Gas Code Column - [FIX 2] Removed .filter() to allow duplicate item selection */}
                                                 <td>
                                                   <div title={manualinvoiceDetails[index].gasCode || gasCodeList.find(g => g.GasCodeId === manualinvoiceDetails[index].GasCodeId)?.GasName}>
                                                     <Select
                                                       name="GasCodeId"
                                                       id={`GasCodeId-${index}`}
                                                       options={gasCodeList
-                                                        .filter(code => !manualinvoiceDetails.some((item, i) => i !== index && item.GasCodeId === code.GasCodeId))
                                                         .map(code => ({ value: code.GasCodeId, label: code.GasName }))}
 
-                                                      // 🟢 FIX: Correctly construct the selected object for react-select
                                                       value={
                                                         manualinvoiceDetails[index]?.GasCodeId
                                                           ? {
@@ -1189,12 +1200,12 @@ const AddManualInvoice = () => {
                                                   <ErrorMessage name={`manualinvoiceDetails.${index}.UomId`} component="div" className="text-danger" />
                                                 </td>
 
-                                                {/* Unit Price Column */}
+                                                {/* Unit Price Column - [FIX 3] Formatted Value */}
                                                 <td>
                                                   <Input type="text" name={`manualinvoiceDetails.${index}.UnitPrice`} inputMode="decimal" className="text-end" maxLength={15}
-                                                    value={manualinvoiceDetails[index]?.UnitPrice || ""}
+                                                    value={formatInputNumber(manualinvoiceDetails[index]?.UnitPrice || "")} // [FIX] Show formatted string
                                                     onChange={e => {
-                                                      const raw = e.target.value.replace(/[^0-9.]/g, "");
+                                                      const raw = e.target.value.replace(/[^0-9.]/g, ""); // [FIX] Strip non-numeric for state
                                                       if ((raw.match(/\./g) || []).length > 1) return;
                                                       if (raw.length <= 15) handleUnitPriceChange(index, raw);
                                                     }}
@@ -1270,7 +1281,19 @@ const AddManualInvoice = () => {
       <Modal isOpen={convertModal} toggle={toggleConvertModal} size="lg" centered>
         <ModalHeader toggle={toggleConvertModal}>Select DO to Convert</ModalHeader>
         <ModalBody>
-          <p className="text-muted mb-2">Select confirmed Delivery Orders to import items from.</p>
+          {/* [ADDED] Search Bar */}
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <p className="text-muted mb-0">Select confirmed Delivery Orders to import items from.</p>
+            <InputText
+              type="search"
+              value={globalFilter}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              placeholder="Search DO Number or Date..."
+              style={{ width: '250px' }}
+              className="p-inputtext-sm"
+            />
+          </div>
+
           <div className="table-responsive border rounded" style={{ minHeight: '300px' }}>
             <DataTable
               value={availableDOs}
@@ -1281,6 +1304,7 @@ const AddManualInvoice = () => {
               showGridlines
               className="p-datatable-sm"
               loading={doLoading}
+              globalFilter={globalFilter} // [ADDED] Pass filter
             >
               <Column selectionMode="multiple" headerStyle={{ width: '3em' }}></Column>
               <Column field="do_number" header="DO Number" sortable></Column>

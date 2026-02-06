@@ -183,7 +183,7 @@ const Addcontacts = () => {
 
         email: Yup.string()
             .email("Invalid email address")
-            .required("Email is required")
+            .notRequired()
             .test("unique-email", "Email should be unique", function (value) {
                 debugger
                 console.log("this.options.context", this.options.context);
@@ -216,13 +216,13 @@ const Addcontacts = () => {
             .typeError("Credit Limit must be a number")
             .notRequired(),
 
-        businessForm: Yup.string().required("Business Form is required"),
+        businessForm: Yup.string().notRequired(),
 
-        businessField: Yup.string().required("Business Field is required"),
+        businessField: Yup.string().notRequired(),
 
         city: Yup.string().required("City is required"),
 
-        zone: Yup.string().required("Zone is required"),
+        zone: Yup.string().notRequired(),
 
         btgcontactname: Yup.string().required("BTG Sales Person is required"),
 
@@ -359,25 +359,26 @@ const Addcontacts = () => {
         debugger
         try {
             const payload = {
+                command: "save",
                 customer: {
                     Id: values.id || 0,
                     CustomerName: values.contactname,
-                    Email: values.email,
-                    SalesPersonId: values.btgcontactname,
-                    CountryId: values.country,
+                    Email: values.email || null,
+                    SalesPersonId: values.btgcontactname ? parseInt(values.btgcontactname, 10) : 0,
+                    CountryId: values.country ? parseInt(values.country, 10) : 0,
                     Cc_Email: values.ccemail,
                     Remarks: values.remarks,
                     PhoneNumber: values.phoneno,
                     Fax: values.faxno,
-                    UserId: values.UserId,
-                    UserIP: values.UserIP,
+                    UserId: values.UserId || 1,
+                    UserIP: values.UserIP || "127.0.0.1",
                     IsActive: true,
                     OrgId: 1,
                     BranchId: 1,
-                    BusinessFormId: values.businessForm,
-                    BusinessFieldId: values.businessField,
-                    CityId: values.city,
-                    ZoneId: values.zone,
+                    BusinessFormId: values.businessForm ? parseInt(values.businessForm, 10) : 0,
+                    BusinessFieldId: values.businessField ? parseInt(values.businessField, 10) : 0,
+                    CityId: values.city ? parseInt(values.city, 10) : 0,
+                    ZoneId: values.zone ? parseInt(values.zone, 10) : 0,
                     PoNumber: !!values.poNumber,
                     CreditLimitinIDR: values.CreditLimitinIDR === "" ? null : Number(values.CreditLimitinIDR),
                 },
@@ -1194,8 +1195,10 @@ const Addcontacts = () => {
                                                                     />
                                                                 </FormGroup>
 
+
+
                                                                 <FormGroup>
-                                                                    <Label htmlFor="email" className="required-label">
+                                                                    <Label htmlFor="email" className="">
                                                                         Email
                                                                     </Label>
                                                                     <Field
@@ -1252,8 +1255,9 @@ const Addcontacts = () => {
                                                             </Col>
 
                                                             <Col xl="4">
+
                                                                 <FormGroup>
-                                                                    <Label htmlFor="businessForm" className="required-label">
+                                                                    <Label htmlFor="businessForm" className="">
                                                                         Business Form
                                                                     </Label>
                                                                     <Field
@@ -1276,7 +1280,7 @@ const Addcontacts = () => {
                                                                 </FormGroup>
 
                                                                 <FormGroup>
-                                                                    <Label htmlFor="businessField" className="required-label">
+                                                                    <Label htmlFor="businessField" className="">
                                                                         Business Field
                                                                     </Label>
                                                                     <Field
@@ -1297,6 +1301,7 @@ const Addcontacts = () => {
                                                                         className="invalid-feedback"
                                                                     />
                                                                 </FormGroup>
+
                                                                 <FormGroup>
                                                                     <Label htmlFor="btgcontactname" className="required-label">
                                                                         BTG Sales Person
@@ -1403,8 +1408,10 @@ const Addcontacts = () => {
                                                                     <ErrorMessage name="city" component="div" className="invalid-feedback" />
                                                                 </FormGroup>
 
+
+
                                                                 <FormGroup>
-                                                                    <Label htmlFor="zone" className="required-label">
+                                                                    <Label htmlFor="zone" className="">
                                                                         Zone
                                                                     </Label>
                                                                     <Field
