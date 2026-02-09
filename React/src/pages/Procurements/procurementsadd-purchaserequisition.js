@@ -1548,7 +1548,7 @@ const AddPurchaseRequisition = () => {
                                                                         // If updating (Edit Mode), force Submit (1) to set Status to 'Posted'. 
                                                                         // If creating new (Save), keep as Draft/Saved (0).
                                                                         const submitValue = isEditMode ? 1 : 0;
-                                                                        handleSubmit(values, submitValue);
+                                                                        handleSubmit(values, 0);
                                                                     }
                                                                 }}
                                                             >
