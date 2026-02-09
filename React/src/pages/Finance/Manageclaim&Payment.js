@@ -1044,6 +1044,13 @@ const ManageClaimsPayment = () => {
                 });
             }
 
+
+
+            // Inject Payment Method from row data
+            if (res.data && res.data.header) {
+                res.data.header.paymentmethodname = row.paymentmethodname;
+            }
+
             setSelectedDetail({
                 ...res.data,
                 details: details
@@ -1530,23 +1537,23 @@ const ManageClaimsPayment = () => {
               <td class="label">Applicant</td><td>${detail.header?.applicantname || ''}</td>
             </tr>
             <tr>
-              <td class="label">Job Title</td><td>${detail.header?.JobTitle || ''}</td>
               <td class="label">Department</td><td>${detail.header?.departmentname || ''}</td>
+              <td class="label">Attachment</td><td>${detail.header?.AttachmentName || 'No Attachment'}</td>
             </tr>
             <tr>
-              <td class="label">HOD</td><td>${detail.header?.HOD_Name || ''}</td>
               <td class="label">Currency</td><td>${detail.header?.transactioncurrency || ''}</td>
-            </tr>
-            <tr>
               <td class="label">Cost Center</td><td>${detail.header?.CostCenter || ''}</td>
-              <td class="label">Supplier</td><td>${detail.header?.SupplierName || ''}</td>
             </tr>
             <tr>
+              <td class="label">Payment Mode</td><td>${detail.header?.paymentmethodname || ''}</td>
               <td class="label">Claim Amt in TC</td><td>${detail.header?.ClaimAmountInTC?.toLocaleString('en-US', {
             style: 'decimal',
             minimumFractionDigits: 2
         }) || ''}</td>
-              <td class="label">Attachment</td><td>${detail.header?.AttachmentName || 'No Attachment'}</td>
+            </tr>
+            <tr>
+              <td class="label">HOD</td><td>${detail.header?.HOD_Name || ''}</td>
+              <td class="label">Supplier</td><td>${detail.header?.SupplierName || ''}</td>
             </tr>
           </table>
         `;
@@ -2224,9 +2231,10 @@ const ManageClaimsPayment = () => {
                                     ["Application No", selectedDetail.header?.ApplicationNo],
                                     ["Department ", selectedDetail.header?.departmentname],
                                     ["Applicant ", selectedDetail.header?.applicantname],
-                                    ["Job Title", selectedDetail.header?.JobTitle],
-                                    ["HOD", selectedDetail.header?.HOD_Name],
-                                    ["Trans Currency ", selectedDetail.header?.transactioncurrency],
+                                    // ["Job Title", selectedDetail.header?.JobTitle], // Removed as per request
+                                    // ["HOD", selectedDetail.header?.HOD_Name], // Moved down
+
+                                    // Attachment moved up
                                     ["Attachment ", selectedDetail.header?.AttachmentName ? (
                                         <button
                                             type="button"
@@ -2259,6 +2267,12 @@ const ManageClaimsPayment = () => {
                                     )
                                     ],
 
+                                    ["Trans Currency ", selectedDetail.header?.transactioncurrency],
+
+                                    ["HOD", selectedDetail.header?.HOD_Name], // Swapped with Attachment
+
+
+                                    ["Supplier", selectedDetail.header?.SupplierName], // Swapped with Payment Mode
 
                                     ["Cost Center", selectedDetail.header?.CostCenter],
                                     // ["Claim Amt in TC", <span key="amtintc"> {selectedDetail.header?.ClaimAmountInTC?.toLocaleString('en-US', {
@@ -2276,8 +2290,7 @@ const ManageClaimsPayment = () => {
                                             </span>,
                                         ]
                                         : null,
-                                    ["Supplier", selectedDetail.header?.SupplierName],
-
+                                    ["Payment Mode", selectedDetail.header?.paymentmethodname],
 
                                 ].filter(Boolean).map(([label, val], i) => (
                                     <Col md="4" key={i} className="form-group row ">

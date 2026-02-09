@@ -1518,7 +1518,7 @@ let severity = 'secondary'; // default gray
                       })
                     ).map(([summaryId, group]) => {
                       const allApproved = group.rows.every(
-                        row => Number(row.directorone) === 0
+                        row => Number(row.approvedtwo) === 1
                       );
                       const hasVoucher = group.rows.some(row => row.voucherid);
 

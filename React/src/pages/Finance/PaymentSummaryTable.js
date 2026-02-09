@@ -44,9 +44,24 @@ const PaymentSummaryTable = ({ claims, onRefresh, approvedata }) => {
   const [cashFromSales, setCashFromSales] = useState("");
   const [selectedsummaryRows, setselectedsummaryRows] = useState([]);
 
-  const combinedClaims = claims.filter(
-    c => (c.SupplierId && c.SupplierId !== 0) || (c.ApplicantId && c.ApplicantId !== 0)
-  );
+  // Hierarchical drill-down state
+  const [bankSupplierModalVisible, setBankSupplierModalVisible] = useState(false);
+  const [selectedBankData, setSelectedBankData] = useState({ bankName: "", suppliers: [] });
+  const [claimListModalVisible, setClaimListModalVisible] = useState(false);
+  const [selectedSupplierClaims, setSelectedSupplierClaims] = useState([]);
+
+  // Relaxed: include all claims so Cheque payments appear
+  const combinedClaims = claims;
+
+  useEffect(() => {
+    console.log("DEBUG: All Claims:", claims);
+    console.log("DEBUG: Combined Claims:", combinedClaims);
+    const excludedClaims = claims.filter(c => !((c.SupplierId && c.SupplierId !== 0) || (c.ApplicantId && c.ApplicantId !== 0)));
+    console.log("DEBUG: Excluded Claims:", excludedClaims);
+    if (excludedClaims.length > 0) {
+      console.log("DEBUG: Excluded Claim Payment Methods:", excludedClaims.map(c => c.PaymentMethod));
+    }
+  }, [claims, combinedClaims]);
   const [Seqno, setSeqno] = useState("");
   const togglePopup = () => setShowPopup(!showPopup);
 
@@ -620,6 +635,58 @@ word-break: break-word;
 
     }
   };
+
+  // Handler for Bank click - shows supplier list popup
+  const handleBankClick = (bankName, bankRows) => {
+    // Group by supplier/applicant
+    const supplierMap = {};
+    bankRows.forEach(row => {
+      const key = row.SupplierId ? `sup-${row.SupplierId}` : (row.ApplicantId ? `app-${row.ApplicantId}` : `other-${row.id}`);
+      // Use SupplierName if it's a valid non-empty string, otherwise fall back to ApplicantName
+      const name = (row.SupplierName && row.SupplierName !== 0 && row.SupplierName !== "0")
+        ? row.SupplierName
+        : (row.ApplicantName || "");
+      if (!supplierMap[key]) {
+        supplierMap[key] = {
+          id: row.SupplierId || row.ApplicantId,
+          name: name,
+          supplierId: row.SupplierId,
+          applicantId: row.ApplicantId,
+          claims: [],
+          totals: {}
+        };
+      }
+      supplierMap[key].claims.push(row);
+    });
+
+    // Calculate totals per supplier per currency
+    const currencies = ["IDR", "SGD", "USD", "MYR", "CNY"];
+    Object.values(supplierMap).forEach(supplier => {
+      currencies.forEach(curr => {
+        supplier.totals[curr] = supplier.claims
+          .filter(c => c.curr === curr)
+          .reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+      });
+    });
+
+    setSelectedBankData({
+      bankName,
+      suppliers: Object.values(supplierMap)
+    });
+    setBankSupplierModalVisible(true);
+  };
+
+  // Handler for Supplier click in bank modal - shows claim list
+  const handleSupplierClick = (supplier) => {
+    setSelectedSupplierClaims(supplier.claims);
+    setClaimListModalVisible(true);
+  };
+
+  // Handler for Claim click - shows claim details
+  const handleClaimClick = async (claim) => {
+    await handleShowDetails(claim);
+  };
+
   const buildTable = (title, data) => {
     if (!data || data.length === 0) return null;
 
@@ -633,20 +700,27 @@ word-break: break-word;
     // normal grouping (for non-cash-withdrawal)
     const grouped = {};
     otherData.forEach(row => {
-      debugger;
+      // debugger;
       const summaryId = row.SummaryId || "-";
       const method = (row.PaymentMethod || "-").trim();
       const bank = (row.BankName || "-").trim();
 
       // Defined these for use in grouped object below
-      const nameKey = row.SupplierId || row.ApplicantId;
-      const groupId = row.SupplierName || row.ApplicantName;
+      const nameKey = row.SupplierId || row.ApplicantId || 0;
+      // Use SupplierName if it's a valid non-empty string, otherwise fall back to ApplicantName
+      const groupId = (row.SupplierName && row.SupplierName !== 0 && row.SupplierName !== "0")
+        ? row.SupplierName
+        : (row.ApplicantName || "");
 
       // Robust Grouping Key:
       // 1. Prefer SupplierId if available, else ApplicantId.
       // 2. Normalize ID (so 0 and null don't split).
-      // 3. Exclude nameKeyid which caused issues.
-      const normalizedId = row.SupplierId ? `sup-${row.SupplierId}` : `app-${row.ApplicantId}`;
+      // 3. Last resort unique key if neither exists
+      let normalizedId = "unknown";
+      if (row.SupplierId) normalizedId = `sup-${row.SupplierId}`;
+      else if (row.ApplicantId) normalizedId = `app-${row.ApplicantId}`;
+      else normalizedId = `other-${row.id || Math.random()}`; // Fallback
+
       const key = `${method}||${bank}||${normalizedId}`;
 
 
@@ -672,6 +746,21 @@ word-break: break-word;
         .reduce((sum, r) => sum + parseFloat(r.amount || 0), 0);
       return acc;
     }, {});
+    console.log("DEBUG buildTable: data length:", data.length, "overallTotals:", overallTotals);
+
+    // Debug: Check Cheque claims specifically
+    const chequeClaims = data.filter(r => (r.PaymentMethod || "").toLowerCase().includes("cheque"));
+    console.log("DEBUG buildTable: Cheque claims count:", chequeClaims.length);
+    if (chequeClaims.length > 0) {
+      console.log("DEBUG buildTable: Cheque claims sample:", chequeClaims.slice(0, 3).map(c => ({
+        PaymentMethod: c.PaymentMethod,
+        ClaimCategory: c.ClaimCategory,
+        curr: c.curr,
+        amount: c.amount,
+        SupplierId: c.SupplierId,
+        ApplicantId: c.ApplicantId
+      })));
+    }
 
     // cash withdrawal grouped by bank
     const cashGrouped = Object.values(
@@ -701,49 +790,87 @@ word-break: break-word;
             </tr>
           </thead>
           <tbody>
-            {/* Normal rows - only show if at least one currency has non-zero amount */}
-            {Object.values(grouped).map((group, index) => {
-              const rowTotals = currencies.reduce((acc, curr) => {
-                acc[curr] = group.rows
-                  .filter(r => r.curr === curr)
-                  .reduce((sum, r) => sum + parseFloat(r.amount || 0), 0);
-                return acc;
-              }, {});
+            {/* Group by Bank first, then show suppliers */}
+            {(() => {
+              // First, group the grouped data by bank
+              const groupedArray = Object.values(grouped).filter(group => {
+                const rowTotals = currencies.reduce((acc, curr) => {
+                  acc[curr] = group.rows
+                    .filter(r => r.curr === curr)
+                    .reduce((sum, r) => sum + parseFloat(r.amount || 0), 0);
+                  return acc;
+                }, {});
+                return currencies.some(curr => rowTotals[curr] > 0);
+              });
 
-              // Check if all amounts are zero
-              const hasNonZeroAmount = currencies.some(curr => rowTotals[curr] > 0);
-              if (!hasNonZeroAmount) return null;
+              // Group by bank
+              const bankGroups = {};
+              groupedArray.forEach(group => {
+                const bankKey = group.bank || "-";
+                if (!bankGroups[bankKey]) {
+                  bankGroups[bankKey] = [];
+                }
+                bankGroups[bankKey].push(group);
+              });
 
-              // Skip rows where groupName is "0" or empty (N/A cases)
-              if (!group.groupName || group.groupName === "0") return null;
+              const rows = [];
+              Object.entries(bankGroups).forEach(([bankName, suppliers]) => {
+                suppliers.forEach((group, supplierIndex) => {
+                  const rowTotals = currencies.reduce((acc, curr) => {
+                    acc[curr] = group.rows
+                      .filter(r => r.curr === curr)
+                      .reduce((sum, r) => sum + parseFloat(r.amount || 0), 0);
+                    return acc;
+                  }, {});
 
-              return (
-                <tr key={`row-${index}`}>
-                  <td style={{ textAlign: "left" }}>{group.method}</td>
-                  <td style={{ textAlign: "left" }}>{group.bank || "-"}</td>
-                  <td style={{ textAlign: "left" }}>
-                    <span
-                      className="linkcolor"
-                      style={{ cursor: "pointer" }}
-                      onClick={() =>
-                        openPopup(group.summaryId, group.id, "Party",
-                          group.supplierId, group.applicantId,
-                          group.modeOfPaymentId, group.bankId, group.rows)
-                      }
-                    >
-                      {group.groupName}
-                    </span>
-                  </td>
-                  {currencies.map(curr => (
-                    <td style={{ textAlign: "right" }} key={curr}>
-                      {rowTotals[curr]
-                        ? rowTotals[curr].toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                        : "0.00"}
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
+                  rows.push(
+                    <tr key={`row-${bankName}-${supplierIndex}`}>
+                      <td style={{ textAlign: "left" }}>{group.method}</td>
+                      {/* Only show bank name for first supplier in group */}
+                      {supplierIndex === 0 ? (
+                        <td
+                          style={{ textAlign: "left", verticalAlign: "middle" }}
+                          rowSpan={suppliers.length}
+                        >
+                          <span
+                            className="linkcolor"
+                            style={{ cursor: "pointer" }}
+                            onClick={() => {
+                              const bankRows = data.filter(r => (r.BankName || "-") === bankName);
+                              handleBankClick(bankName, bankRows);
+                            }}
+                          >
+                            {bankName}
+                          </span>
+                        </td>
+                      ) : null}
+                      <td style={{ textAlign: "left" }}>
+                        <span
+                          className="linkcolor"
+                          style={{ cursor: "pointer" }}
+                          onClick={() =>
+                            openPopup(group.summaryId, group.id, "Party",
+                              group.supplierId, group.applicantId,
+                              group.modeOfPaymentId, group.bankId, group.rows)
+                          }
+                        >
+                          {group.groupName}
+                        </span>
+                      </td>
+                      {currencies.map(curr => (
+                        <td style={{ textAlign: "right" }} key={curr}>
+                          {rowTotals[curr]
+                            ? rowTotals[curr].toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            : "0.00"}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                });
+              });
+
+              return rows;
+            })()}
 
             {/* Cash Alone Row - Only show if there's data */}
             {(() => {
@@ -1322,6 +1449,97 @@ word-break: break-word;
             </button>)}
           <button type="button" className="btn btn-danger" onClick={() => setDetailVisible(false)}> <i className="bx bx-export label-icon font-size-16 align-middle me-2"></i> Close</button>
 
+        </ModalFooter>
+      </Modal>
+
+      {/* Bank Supplier Modal - Shows suppliers for selected bank */}
+      <Modal isOpen={bankSupplierModalVisible} toggle={() => setBankSupplierModalVisible(false)} size="xl">
+        <ModalHeader toggle={() => setBankSupplierModalVisible(false)}>
+          Suppliers for Bank: {selectedBankData.bankName}
+        </ModalHeader>
+        <ModalBody>
+          <Table className="table table-bordered">
+            <thead className="table-light">
+              <tr>
+                <th>#</th>
+                <th>Supplier / Applicant Name</th>
+                <th>IDR</th>
+                <th>SGD</th>
+                <th>USD</th>
+                <th>MYR</th>
+                <th>CNY</th>
+              </tr>
+            </thead>
+            <tbody>
+              {selectedBankData.suppliers.map((supplier, idx) => (
+                <tr key={idx}>
+                  <td>{idx + 1}</td>
+                  <td>
+                    <span
+                      className="linkcolor"
+                      style={{ cursor: "pointer" }}
+                      onClick={() => handleSupplierClick(supplier)}
+                    >
+                      {supplier.name || "(No Name)"}
+                    </span>
+                  </td>
+                  {["IDR", "SGD", "USD", "MYR", "CNY"].map(curr => (
+                    <td key={curr} style={{ textAlign: "right" }}>
+                      {(supplier.totals[curr] || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </ModalBody>
+        <ModalFooter>
+          <button type="button" className="btn btn-danger" onClick={() => setBankSupplierModalVisible(false)}>
+            <i className="bx bx-x-circle me-2"></i>Close
+          </button>
+        </ModalFooter>
+      </Modal>
+
+      {/* Claim List Modal - Shows claims for selected supplier */}
+      <Modal isOpen={claimListModalVisible} toggle={() => setClaimListModalVisible(false)} size="xl">
+        <ModalHeader toggle={() => setClaimListModalVisible(false)}>
+          Claims List
+        </ModalHeader>
+        <ModalBody>
+          <DataTable value={selectedSupplierClaims} paginator rows={10}>
+            <Column header="#" body={(_, { rowIndex }) => rowIndex + 1} />
+            <Column field="claimno" header="Claim No"
+              body={(row) => (
+                <span
+                  className="linkcolor"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => handleClaimClick(row)}
+                >
+                  {row.claimno || row.ClaimNo || "-"}
+                </span>
+              )}
+            />
+            <Column field="ClaimCategory" header="Category" />
+            <Column field="PaymentMethod" header="Payment Method" />
+            <Column field="curr" header="Currency" />
+            <Column field="amount" header="Amount"
+              body={(row) => parseFloat(row.amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              style={{ textAlign: "right" }}
+            />
+          </DataTable>
+        </ModalBody>
+        <ModalFooter>
+          <button type="button" className="btn btn-secondary" onClick={() => {
+            setClaimListModalVisible(false);
+          }}>
+            <i className="bx bx-arrow-back me-2"></i>Back to Suppliers
+          </button>
+          <button type="button" className="btn btn-danger" onClick={() => {
+            setClaimListModalVisible(false);
+            setBankSupplierModalVisible(false);
+          }}>
+            <i className="bx bx-x-circle me-2"></i>Close All
+          </button>
         </ModalFooter>
       </Modal>
     </>

@@ -1172,12 +1172,23 @@ const AddManualInvoice = () => {
 
                                                 {/* Qty Column */}
                                                 <td>
-                                                  <Input name={`manualinvoiceDetails.${index}.pickedQty`} type="text" inputMode="numeric" className="text-end" maxLength={5}
-                                                    onChange={e => handleQtyUpdate(index, e.target.value)}
+                                                  <Input
+                                                    name={`manualinvoiceDetails.${index}.pickedQty`}
+                                                    type="text"
+                                                    inputMode="decimal"  // [FIX] Decimal input
+                                                    className="text-end"
+                                                    maxLength={10}
                                                     value={manualinvoiceDetails[index]?.pickedQty || ""}
                                                     id={`Qty-${index}`}
+                                                    onChange={e => {
+                                                      // Allow numbers and one dot only
+                                                      const raw = e.target.value.replace(/[^0-9.]/g, "");
+                                                      if ((raw.match(/\./g) || []).length > 1) return;
+                                                      handleQtyUpdate(index, raw);
+                                                    }}
                                                     onKeyDown={e => {
-                                                      if (!/[0-9]/.test(e.key) && e.key !== "Backspace" && e.key !== "Delete" && e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "Tab") {
+                                                      const allowedKeys = ["Backspace", "Tab", "ArrowLeft", "ArrowRight", "Delete"];
+                                                      if (!/[0-9.]/.test(e.key) && !allowedKeys.includes(e.key)) {
                                                         e.preventDefault();
                                                       }
                                                     }}

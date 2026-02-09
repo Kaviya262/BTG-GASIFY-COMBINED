@@ -169,7 +169,7 @@ class SidebarContent extends Component {
         // Only show Mktg Verify menu for specific users
         const authUserMktg = JSON.parse(localStorage.getItem("authUser"));
         const currentUserIdMktg = authUserMktg ? (parseInt(authUserMktg.u_id) || 0) : 0;
-        const mktgVerifyUsers = [142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 188, 190];
+        const mktgVerifyUsers = [142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 188, 190, 158, 159, 162, 163, 191];
 
         if (mktgVerifyUsers.includes(currentUserIdMktg)) {
             const testMenu = {
@@ -676,7 +676,7 @@ class SidebarContent extends Component {
             }
 
             // 1. Filter menus to show ONLY Finance, Invoice, Reports, and Claim
-            const allowedModules = ["Finance", "Invoice", "Invoices", "Reports", "Report", "Claim", "Claims"];
+            const allowedModules = ["Finance", "Invoice", "Invoices", "Reports", "Report", "Claim", "Claims", "Mktg Verify"];
             menuData.menus = menuData.menus.filter(m => allowedModules.includes(m.moduleName));
             console.log(`[RESTRICTION APPLIED] Filtered to Finance/Invoice/Reports/Claim for user ${currentUserIdFilter}`);
 
@@ -821,10 +821,10 @@ class SidebarContent extends Component {
                 allowedModules.push("Reports");
             }
             // Special Case: Mktg Verify users get Mktg Verify menu
-            const mktgVerifyUsers = [142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 188, 190];
-            if (mktgVerifyUsers.includes(currentUserIdFilter)) {
-                allowedModules.push("Mktg Verify");
-            }
+            //const mktgVerifyUsers = [142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 188, 190];
+            //if (mktgVerifyUsers.includes(currentUserIdFilter)) {
+            //  allowedModules.push("Mktg Verify");
+            // }
 
             menuData.menus = menuData.menus.filter(m => allowedModules.includes(m.moduleName));
 

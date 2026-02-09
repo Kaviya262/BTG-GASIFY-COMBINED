@@ -1301,7 +1301,17 @@ const ProcurementsManagePurchaseOrder = () => {
                                                 (() => {
                                                     // Safely get the values
                                                     const prConcat = selectedDetail.Header?.PRConcat || "";
-                                                    const prIdsList = selectedDetail.Header?.PRIdsList || [];
+
+                                                    // Build a mapping of PR number -> PR ID from Requisition data
+                                                    const prIdMap = {};
+                                                    if (selectedDetail.Requisition && Array.isArray(selectedDetail.Requisition)) {
+                                                        selectedDetail.Requisition.forEach(req => {
+                                                            if (req.prnumber && req.prid) {
+                                                                prIdMap[req.prnumber.trim()] = req.prid;
+                                                            }
+                                                        });
+                                                    }
+                                                    console.log("DEBUG: PR ID Map:", prIdMap);
 
                                                     if (!prConcat || prConcat === "NA" || prConcat.trim() === "") {
                                                         return "N/A";
@@ -1315,7 +1325,8 @@ const ProcurementsManagePurchaseOrder = () => {
                                                                 const cleanPR = prNumber.trim();
                                                                 if (!cleanPR) return null;
 
-                                                                const prid = prIdsList[index];
+                                                                // Look up the PR ID from our mapping
+                                                                const prid = prIdMap[cleanPR];
                                                                 const isLast = index === prNumbers.length - 1;
 
                                                                 return (
@@ -1330,6 +1341,7 @@ const ProcurementsManagePurchaseOrder = () => {
                                                                                 }}
                                                                                 onClick={(e) => {
                                                                                     e.preventDefault();
+                                                                                    console.log("DEBUG: Clicking PR:", cleanPR, "with ID:", prid);
                                                                                     handlePRClick(prid); // Opens correct PR
                                                                                 }}
                                                                                 title={`View ${cleanPR}`}
