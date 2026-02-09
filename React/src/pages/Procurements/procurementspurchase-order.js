@@ -677,6 +677,81 @@ const ProcurementsManagePurchaseOrder = () => {
         );
     };
 
+    // Cancel PO handler - only for user 135
+    // This will cancel the PO and reset PR approval status
+    const handleDeletePO = async (rowData) => {
+        Swal.fire({
+            title: "Are you sure?",
+            text: `This will cancel PO: ${rowData.pono} and reset the PR approval status. The PR will need to be approved again.`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#d33",
+            cancelButtonColor: "#3085d6",
+            confirmButtonText: "Yes, cancel it!"
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    // Call cancel PO API - this will cancel PO and reset PR approval
+                    const response = await axios.post(
+                        `${process.env.REACT_APP_API_DNAP_URL}/api/PurchaseOrder/CancelPO`,
+                        {
+                            poid: rowData.poid,
+                            userId: UserData?.u_id,
+                            branchId: branchId,
+                            orgId: orgId
+                        }
+                    );
+                    if (response.data.status || response.status === 200) {
+                        Swal.fire("Cancelled!", "Purchase Order has been cancelled and PR approval has been reset.", "success");
+                        // Refresh the list
+                        const result = await GetAllPurchaseOrderList(0, branchId, 0, orgId, UserData?.u_id);
+                        setPurchaseOrders(Array.isArray(result.data) ? result.data : []);
+                    } else {
+                        Swal.fire("Error", response.data.message || "Failed to cancel PO.", "error");
+                    }
+                } catch (error) {
+                    console.error("Error cancelling PO:", error);
+                    Swal.fire("Error", "Failed to cancel Purchase Order.", "error");
+                }
+            }
+        });
+    };
+
+    // Delete button template - only visible to user 135
+    // Enabled when PO is created, disabled if GRN is raised
+    const actionDeleteBodyTemplate = (rowData) => {
+        // Only show for user ID 135
+        if (UserData?.u_id !== 135) {
+            return null;
+        }
+
+        // Debug: Log the rowData to see available fields
+        console.log("PO Row Data for delete check:", rowData);
+
+        // Check if GRN is raised for this PO - check multiple possible field names
+        // isgrnraised = 1 means GRN created, 0 means no GRN
+        const isGrnRaised =
+            rowData.isgrnraised === 1 ||
+            rowData.IsGrnRaised === 1 ||
+            rowData.IsGRNRaised === 1 ||
+            rowData.isGrnRaised === 1 ||
+            rowData.ISGRNRAISED === 1 ||
+            rowData.grnraised === 1 ||
+            rowData.GrnRaised === 1;
+
+        return (
+            <button
+                className={`btn ${isGrnRaised ? 'btn-secondary' : 'btn-danger'}`}
+                style={{ cursor: isGrnRaised ? "not-allowed" : "pointer", color: "white" }}
+                onClick={() => !isGrnRaised && handleDeletePO(rowData)}
+                disabled={isGrnRaised}
+                title={isGrnRaised ? "Cannot delete - GRN already created" : "Delete PO"}
+            >
+                <i className="bx bx-trash" style={{ color: "white" }}></i>
+            </button>
+        );
+    };
+
     // const handlePrint = () => {
     //     if (printRef.current) {
     //         const printContents = printRef.current.innerHTML;
@@ -1089,6 +1164,17 @@ const ProcurementsManagePurchaseOrder = () => {
                                         className="text-center"
                                         style={{ width: "5%" }}
                                     />
+                                    {/* Delete column - only visible to user 135 */}
+                                    {UserData?.u_id === 135 && (
+                                        <Column
+                                            field="delete"
+                                            header="Delete"
+                                            showFilterMatchModes={false}
+                                            body={actionDeleteBodyTemplate}
+                                            className="text-center"
+                                            style={{ width: "5%" }}
+                                        />
+                                    )}
                                 </DataTable>
                             </Card>
                         </Col>
@@ -1272,7 +1358,10 @@ const ProcurementsManagePurchaseOrder = () => {
             </Modal>
 
             <Modal isOpen={detailVisible} toggle={() => setDetailVisible(false)} size="xl">
-                <ModalHeader toggle={() => setDetailVisible(false)}>Purchase Order Details</ModalHeader>
+                <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', top: '15px', right: '50px', fontWeight: 'bold', color: '#333', fontSize: '12px', zIndex: 10 }}>F-BTG-PUR-06 (Rev.01)</span>
+                    <ModalHeader toggle={() => setDetailVisible(false)}>Purchase Order Details</ModalHeader>
+                </div>
                 <ModalBody>
                     {selectedDetail && (
                         <>

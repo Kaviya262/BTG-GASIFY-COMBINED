@@ -1196,7 +1196,12 @@ const ProcurementManagePurchaseRequistion = () => {
                 </ModalBody>
             </Modal>
             <Modal isOpen={detailVisible} toggle={() => setDetailVisible(false)} size="xl">
-                <ModalHeader toggle={() => setDetailVisible(false)}>PR Details</ModalHeader>
+                <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', top: '15px', right: '50px', fontWeight: 'bold', color: '#333', fontSize: '12px', zIndex: 10 }}>F-BTG-PUR-03 (Rev.03)</span>
+                    <ModalHeader toggle={() => setDetailVisible(false)}>
+                        PR Details
+                    </ModalHeader>
+                </div>
                 <ModalBody>
                     {selectedDetail && (
                         <>
@@ -1581,7 +1586,7 @@ const ProcurementManagePurchaseRequistion = () => {
                     <Button color="secondary" onClick={() => setDiscussionModalOpen(false)}>Cancel</Button>
                 </ModalFooter>
             </Modal>
-        </React.Fragment>
+        </React.Fragment >
     );
 };
 

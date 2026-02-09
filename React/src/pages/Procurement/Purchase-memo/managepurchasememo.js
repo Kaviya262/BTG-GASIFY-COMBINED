@@ -668,6 +668,25 @@ const ManagePurchaseMemo = () => {
                                         filterPlaceholder="Search by created by"
                                         className="text-left"
                                     />
+                                    <Column
+                                        field="LatestGRNDate"
+                                        header="GRN Date"
+                                        filter
+                                        filterPlaceholder="Search by GRN date"
+                                        className="text-center"
+                                        sortable
+                                        body={(rowData) => {
+                                            if (!rowData.LatestGRNDate || rowData.LatestGRNDate === '-') {
+                                                return '-';
+                                            }
+                                            const date = new Date(rowData.LatestGRNDate);
+                                            return isNaN(date.getTime()) ? rowData.LatestGRNDate : date.toLocaleDateString("en-GB", {
+                                                day: '2-digit',
+                                                month: 'short',
+                                                year: 'numeric'
+                                            });
+                                        }}
+                                    />
                                     <Column field="ApproveStatus" header="PR Generated" sortable filterMenuStyle={{ width: '14rem' }} body={statusBodyTemplate1} filter className="text-center" style={{ width: "15%" }} />
 
                                     <Column field="Status" sortable header="Status" filterMenuStyle={{ width: '14rem' }} body={statusBodyTemplate} filter filterElement={statusFilterTemplate} className="text-center" style={{ width: "10%" }} />

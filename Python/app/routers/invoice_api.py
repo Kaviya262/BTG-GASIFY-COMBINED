@@ -455,7 +455,7 @@ async def get_invoice_details(invoiceid: str):
                         COALESCE(d.PONumber, '') AS PONumber,
                         COALESCE(d.uomid, 0) AS uomid
                     FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_details d
-                    LEFT JOIN {DB_NAME_USER}.master_gascode g ON d.gascodeid = g.Id
+                    LEFT JOIN {DB_NAME_USER_NEW}.master_gascode g ON d.gascodeid = g.Id
                     WHERE d.salesinvoicesheaderid IN :hids
                 """)
                 

@@ -2217,7 +2217,12 @@ const ManageClaimsPayment = () => {
 
 
             <Modal isOpen={detailVisible} toggle={() => setDetailVisible(false)} size="xl">
-                <ModalHeader toggle={() => setDetailVisible(false)}>Claim Details</ModalHeader>
+                <div style={{ position: 'relative' }}>
+                    {selectedDetail?.header?.ClaimCategoryId === 3 && (
+                        <span style={{ position: 'absolute', top: '15px', right: '50px', fontWeight: 'bold', color: '#333', fontSize: '12px', zIndex: 10 }}>F-BTG-PUR-05 (Rev.03)</span>
+                    )}
+                    <ModalHeader toggle={() => setDetailVisible(false)}>Claim Details</ModalHeader>
+                </div>
                 <ModalBody>
 
 

@@ -47,7 +47,7 @@ const numberToWords = (amount) => {
   let str = "";
   let i = 0;
 
-  const parts = amount.toString().split(".");
+  const parts = Math.abs(amount).toString().split(".");
   let num = parseInt(parts[0]);
 
   while (num > 0) {
@@ -59,6 +59,19 @@ const numberToWords = (amount) => {
   }
 
   return str.trim();
+};
+
+// --- HELPER: Date Formatter (dd-mm-yyyy) ---
+const formatDate = (dateInput) => {
+  if (!dateInput || dateInput === "N/A") return "";
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return dateInput;
+
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+
+  return `${day}-${month}-${year}`;
 };
 
 const Breadcrumbs = ({ title, breadcrumbItem }) => (
@@ -96,10 +109,7 @@ const VerifyCustomer = () => {
     invoices: []
   });
 
-  // --- 1. INITIAL LOAD WITH AUTH CHECK ---
   useEffect(() => {
-    // Retrieve User from LocalStorage
-    // NOTE: 'authUser' is the standard key. If you use 'user' or 'userDetails', change it here.
     const storedUser = localStorage.getItem("authUser");
     let userId = null;
     let dept = null;
@@ -107,7 +117,6 @@ const VerifyCustomer = () => {
     if (storedUser) {
       try {
         const parsedUser = JSON.parse(storedUser);
-        // Based on your JSON, the properties are 'id' (int) and 'department' (string)
         userId = parsedUser.id;
         dept = parsedUser.department;
       } catch (e) {
@@ -126,12 +135,10 @@ const VerifyCustomer = () => {
       const custOptions = Array.isArray(customers) ? customers.map(c => ({ value: c.CustomerID, label: c.CustomerName })) : [];
       setCustomerList(custOptions);
 
-      // Pass the user info to the list loader
       loadPendingList(custOptions, userId, dept);
     } catch (err) { console.error(err); }
   };
 
-  // --- 2. UPDATED LOAD LIST TO SEND PARAMS ---
   const loadPendingList = async (customers, userId, dept) => {
     try {
       const response = await axios.get(`${PYTHON_API_URL}/AR/get-pending-list`, {
@@ -154,7 +161,6 @@ const VerifyCustomer = () => {
     } catch (err) { toast.error("Failed to load list."); }
   };
 
-  // -------------------- GRID ACTIONS --------------------
   const handleVerifyOpen = async (record) => {
     setSelectedRecord(record);
     setVerifyModal(true);
@@ -234,7 +240,6 @@ const VerifyCustomer = () => {
     setVerificationData({ ...verificationData, invoices: updated });
   };
 
-  // --- LOGIC ---
   const totalAllocated = verificationData.invoices.filter(inv => inv.selected).reduce((sum, inv) => sum + (parseFloat(inv.amount) || 0), 0);
   const receiptAmount = selectedRecord ? parseFloat(selectedRecord.bank_amount) : 0;
   const totalDeductions = verificationData.bankCharges + verificationData.taxDeduction;
@@ -298,7 +303,15 @@ const VerifyCustomer = () => {
     } catch (err) { toast.error("Failed to post verification."); }
   };
 
-  // --- PRINT FUNCTIONALITY ---
+  // --- HELPER: GET BANK NAME ---
+  const getBankName = () => {
+    if (!selectedRecord) return "";
+    const bId = selectedRecord.deposit_bank_id || selectedRecord.bank_id;
+    return selectedRecord.bank_name ||
+      (bankList.find(b => b.value == bId)?.label) ||
+      "";
+  };
+
   const handlePrintPreview = (rowData) => {
     setSelectedRecord(rowData);
     setPrintModal(true);
@@ -308,74 +321,30 @@ const VerifyCustomer = () => {
     const printContent = document.getElementById("receipt-print-section").innerHTML;
     const printWindow = window.open("", "_blank");
 
-    // We add <base href> so that the relative path to the image works in the new window
     printWindow.document.write(`
         <html>
             <head>
-                <title>Official Receipt - ${selectedRecord?.receipt_id}</title>
+                <title>Receipt Voucher - ${selectedRecord?.receipt_id}</title>
                 <base href="${window.location.origin}/" />
                 <style>
                     body { font-family: 'Times New Roman', serif; margin: 0; padding: 20px; }
                     .receipt-container { border: 2px solid #1a2c5b; padding: 30px; position: relative; width: 100%; max-width: 1000px; margin: auto; height: 650px; }
-                    
-                    /* Header */
                     .header { display: flex; align-items: center; border-bottom: 2px solid #1a2c5b; padding-bottom: 10px; margin-bottom: 20px; }
                     .logo { width: 120px; margin-right: 25px; }
                     .company-details h2 { margin: 0; color: #1a2c5b; font-size: 26px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
                     .company-details p { margin: 3px 0; font-size: 13px; color: #333; }
-                    .receipt-no { position: absolute; top: 40px; right: 30px; font-size: 22px; color: #d92525; font-weight: bold; font-family: monospace; }
-                    
-                    /* Title */
+                    .receipt-no { position: absolute; top: 30px; right: 30px; font-size: 22px; color: #d92525; font-weight: bold; font-family: monospace; text-align: right; }
+                    .running-system { font-size: 11px; color: #666; font-style: italic; margin-top: 5px; }
                     .receipt-title { text-align: center; font-size: 24px; font-weight: bold; margin: 20px 0 35px 0; color: #1a2c5b; letter-spacing: 2px; text-decoration: underline double; }
-
-                    /* Body Grid */
                     .content-grid { display: grid; grid-template-columns: 180px 15px 1fr; grid-gap: 15px 5px; align-items: baseline; margin-bottom: 30px; }
                     .label { font-weight: bold; color: #1a2c5b; font-size: 16px; white-space: nowrap; }
                     .colon { font-weight: bold; color: #1a2c5b; font-size: 16px; text-align: center; }
                     .value { border-bottom: 1px solid #1a2c5b; padding-left: 10px; font-size: 16px; position: relative; min-height: 24px; color: #000; }
-                    
-                    /* Slanted Box Effect */
-                    .slanted-container {
-                        position: relative;
-                        display: inline-block;
-                        width: 100%;
-                        padding: 5px 10px;
-                    }
-                    .slanted-box {
-                        border: 1px solid #1a2c5b;
-                        transform: skewX(-20deg);
-                        padding: 8px;
-                        background: #fff;
-                    }
-                    .slanted-content {
-                        transform: skewX(20deg); /* Counter skew text */
-                        font-weight: bold;
-                    }
-
-                    /* Amount Row */
+                    .slanted-box { border: 1px solid #1a2c5b; transform: skewX(-20deg); padding: 8px; background: #fff; }
                     .amount-row { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 30px; }
                     .amount-label { font-weight: bold; color: #1a2c5b; font-size: 16px; margin-right: 15px; }
-                    
-                    .amount-box-container {
-                        border: 1px solid #1a2c5b;
-                        width: 300px;
-                        padding: 10px;
-                        transform: skewX(-20deg);
-                        text-align: center;
-                        background-color: white;
-                    }
-                    .amount-text {
-                        transform: skewX(20deg);
-                        font-weight: bold;
-                        font-size: 20px;
-                        color: #000;
-                    }
-
-                    /* Footer */
                     .footer { display: flex; justify-content: space-between; margin-top: 50px; align-items: flex-end; }
-                    .bank-note { font-size: 11px; color: #1a2c5b; width: 60%; line-height: 1.5; font-weight: 500; }
-                    .signature { text-align: center; width: 35%; }
-                    .signature-line { border-bottom: 1px solid #000; margin-top: 80px; width: 100%; }
+                    .print-meta { margin-top: 40px; text-align: right; font-size: 10px; color: #888; border-top: 1px solid #eee; padding-top: 5px; }
                 </style>
             </head>
             <body>
@@ -426,7 +395,7 @@ const VerifyCustomer = () => {
             responsiveLayout="scroll"
             emptyMessage="No pending verifications found."
           >
-            <Column field="receiptDate" header="Receipt Date" headerStyle={headerStyleObj}></Column>
+            <Column field="receiptDate" header="Receipt Date" body={(r) => formatDate(r.receiptDate)} headerStyle={headerStyleObj}></Column>
             <Column field="customerNameDisplay" header="Customer" headerStyle={headerStyleObj}></Column>
             <Column field="bank_amount" header="Receipt" body={(r) => parseFloat(r.bank_amount).toLocaleString()} className="text-end" headerStyle={headerStyleObj}></Column>
             <Column field="currencyCode" header="Currency" className="text-center" headerStyle={headerStyleObj}></Column>
@@ -434,9 +403,7 @@ const VerifyCustomer = () => {
           </DataTable>
         </div>
 
-        {/* ================= VERIFY MODAL ================= */}
         <Modal isOpen={verifyModal} toggle={() => setVerifyModal(false)} size="xl" centered>
-          {/* ... [KEEP VERIFY MODAL CONTENT AS IS] ... */}
           <ModalHeader toggle={() => setVerifyModal(false)}>AR Verification</ModalHeader>
           <ModalBody className="pb-4">
             <Row className="mb-3 bg-light p-3 rounded mx-0">
@@ -486,7 +453,6 @@ const VerifyCustomer = () => {
           </ModalBody>
         </Modal>
 
-        {/* ================= REPLY MODAL ================= */}
         <Modal isOpen={replyModal} toggle={() => setReplyModal(false)} centered>
           <ModalHeader toggle={() => setReplyModal(false)}>Send Reply</ModalHeader>
           <ModalBody>
@@ -501,7 +467,6 @@ const VerifyCustomer = () => {
           </ModalFooter>
         </Modal>
 
-        {/* ================= PRINT PREVIEW MODAL ================= */}
         <Modal
           isOpen={printModal}
           toggle={() => setPrintModal(false)}
@@ -521,10 +486,8 @@ const VerifyCustomer = () => {
               color: '#000',
               fontFamily: "'Times New Roman', serif"
             }}>
-              {/* Header */}
               <div className="header" style={{ display: 'flex', alignItems: 'center', borderBottom: '2px solid #1a2c5b', paddingBottom: '15px', marginBottom: '30px' }}>
                 <div className="logo" style={{ width: '120px', marginRight: '30px' }}>
-                  {/* --- UPDATED LOGO: Uses the imported logo variable --- */}
                   <img src={logo} alt="BTG Logo" style={{ width: '100%' }} />
                 </div>
                 <div className="company-details" style={{ flexGrow: 1 }}>
@@ -533,27 +496,27 @@ const VerifyCustomer = () => {
                   <p style={{ margin: '4px 0', fontSize: '14px', color: '#333' }}>Telp: (+62) 778 462959, 391918</p>
                   <p style={{ margin: '4px 0', fontSize: '14px', color: '#333' }}>Website: www.ptbtg.com | E-mail: ptbtg@ptbtg.com</p>
                 </div>
-                <div className="receipt-no" style={{ fontSize: '22px', color: '#d92525', fontWeight: 'bold', position: 'absolute', top: '40px', right: '40px', fontFamily: 'monospace' }}>
-                  No. : {selectedRecord?.receipt_id}
+                <div style={{ position: 'absolute', top: '40px', right: '40px', textAlign: 'right' }}>
+                  <div style={{ fontSize: '22px', color: '#d92525', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                    No. : {selectedRecord?.receipt_id}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#666', fontStyle: 'italic', marginTop: '4px' }}>
+                    Running system
+                  </div>
                 </div>
               </div>
 
-              {/* Title */}
               <div className="receipt-title" style={{ textAlign: 'center', fontSize: '24px', fontWeight: 'bold', textDecoration: 'underline double', marginBottom: '40px', color: '#1a2c5b', letterSpacing: '2px' }}>
-                OFFICIAL RECEIPT
+                RECEIPT VOUCHER
               </div>
 
-              {/* Content Grid */}
               <div style={{ display: 'grid', gridTemplateColumns: '180px 15px 1fr', gridGap: '20px 5px', alignItems: 'baseline', marginBottom: '40px' }}>
-
-                {/* Received From */}
                 <div className="label" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '16px', whiteSpace: 'nowrap' }}>Received From</div>
                 <div className="colon" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '16px', textAlign: 'center' }}>:</div>
                 <div className="value" style={{ borderBottom: '1px solid #1a2c5b', paddingLeft: '10px', fontSize: '16px' }}>
                   {selectedRecord?.customerNameDisplay}
                 </div>
 
-                {/* The Sum Of (Slanted Box) */}
                 <div className="label" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '16px', whiteSpace: 'nowrap' }}>The Sum Of</div>
                 <div className="colon" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '16px', textAlign: 'center' }}>:</div>
                 <div className="slanted-box" style={{ border: '1px solid #1a2c5b', transform: 'skewX(-20deg)', padding: '8px', background: '#fff' }}>
@@ -562,18 +525,14 @@ const VerifyCustomer = () => {
                   </div>
                 </div>
 
-                {/* Being Payment Of */}
                 <div className="label" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '16px', whiteSpace: 'nowrap' }}>Being Payment Of</div>
                 <div className="colon" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '16px', textAlign: 'center' }}>:</div>
                 <div className="value" style={{ borderBottom: '1px solid #1a2c5b', paddingLeft: '10px', fontSize: '16px' }}>
-                  {selectedRecord?.reference_no || "Payment for Invoices"}
+                  <strong>Invoice No:</strong> {selectedRecord?.reference_no || "______________________"}
                 </div>
               </div>
 
-              {/* Amount & Signature Row */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '40px' }}>
-
-                {/* Left Side: Amount & Cash/Cheque */}
                 <div style={{ width: '60%' }}>
                   <div style={{ display: 'flex', alignItems: 'center', marginBottom: '25px' }}>
                     <div className="label" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '16px', marginRight: '15px' }}>
@@ -593,24 +552,27 @@ const VerifyCustomer = () => {
                     </div>
                   </div>
 
+                  {/* 🟢 UPDATED: Payment Method Layout - Transfer is now above the line and not bold */}
                   <div style={{ display: 'flex', alignItems: 'baseline' }}>
                     <div className="label" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '16px', marginRight: '10px', whiteSpace: 'nowrap' }}>
-                      Cash/Cheque/Transfer :
+                      Payment Method :
                     </div>
-                    <div style={{ borderBottom: '1px solid #1a2c5b', flexGrow: 1 }}></div>
+                    <div className="value" style={{ borderBottom: '1px solid #1a2c5b', flexGrow: 1, paddingLeft: '10px', fontSize: '16px', color: '#000' }}>
+                      Transfer {getBankName()}
+                    </div>
                   </div>
                 </div>
 
-                {/* Right Side: Date & Signature */}
                 <div style={{ textAlign: 'center', width: '35%' }}>
-                  <div style={{ fontSize: '16px', marginBottom: '5px', color: '#000' }}>Batam, {selectedRecord?.receiptDate}</div>
+                  <div style={{ fontSize: '16px', marginBottom: '5px', color: '#000' }}>
+                    Batam, {formatDate(selectedRecord?.receiptDate)}
+                  </div>
                   <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#1a2c5b' }}>Received by,</div>
                   <div style={{ borderBottom: '1px solid #000', marginTop: '80px', width: '100%' }}></div>
-                  <div style={{ fontSize: '14px', marginTop: '5px' }}>( .............................................. )</div>
+                  <div style={{ fontSize: '14px', marginTop: '5px' }}>( sales person )</div>
                 </div>
               </div>
 
-              {/* Footer Note */}
               <div style={{ marginTop: '40px' }}>
                 <div style={{ fontSize: '11px', color: '#1a2c5b', width: '60%', lineHeight: '1.5', fontWeight: '500' }}>
                   <strong>Note :</strong><br />
@@ -622,6 +584,9 @@ const VerifyCustomer = () => {
                 </div>
               </div>
 
+              <div style={{ position: 'absolute', bottom: '10px', right: '30px', fontSize: '10px', color: '#999' }}>
+                printed by {formatDate(new Date())}, {new Date().toLocaleTimeString()}
+              </div>
             </div>
           </ModalBody>
           <ModalFooter>
@@ -629,7 +594,6 @@ const VerifyCustomer = () => {
             <Button color="info" onClick={triggerPrint}><i className="bx bx-printer me-1"></i> Print</Button>
           </ModalFooter>
         </Modal>
-
       </div>
     </div>
   );
