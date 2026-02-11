@@ -613,6 +613,9 @@ const PPP = ({ selectedType, setSelectedType }) => {
   const handleShowDetails = async (row) => {
     const res = await ClaimAndPaymentGetById(row.id, 1, 1);
     if (res.status) {
+      if (res.data && res.data.header) {
+        res.data.header.paymentmethodname = row.paymentMethod;
+      }
       let details = res.data.details || [];
 
       // Logic to fetch PRs via POs (similar to Manageclaim&Payment.js)
@@ -1521,6 +1524,7 @@ let severity = 'secondary'; // default gray
                         row => Number(row.approvedtwo) === 1
                       );
                       const hasVoucher = group.rows.some(row => row.voucherid);
+                      const allHaveVoucher = group.rows.every(row => row.voucherid);
 
                       // RESTRICTION: Hide "Update Voucher" for users 138, 139, 140
                       const authUser = JSON.parse(localStorage.getItem("authUser"));
@@ -1537,7 +1541,7 @@ let severity = 'secondary'; // default gray
                         >
                           <div className="d-flex justify-content-end mb-2">
                             {showVoucherButton && (
-                              <button className="btn btn-success" style={{ marginRight: "10px" }} disabled={!allApproved} onClick={() => handleGenerateVoucher(group.rows)}>
+                              <button className="btn btn-success" style={{ marginRight: "10px" }} disabled={allHaveVoucher} onClick={() => handleGenerateVoucher(group.rows)}>
                                 {hasVoucher ? "Update Voucher" : "Generate Voucher"}
                               </button>
                             )}
@@ -2207,9 +2211,6 @@ let severity = 'secondary'; // default gray
                   ["Application No", selectedDetail.header?.ApplicationNo],
                   ["Department ", selectedDetail.header?.departmentname],
                   ["Applicant ", selectedDetail.header?.applicantname],
-                  ["Job Title", selectedDetail.header?.JobTitle],
-                  ["HOD", selectedDetail.header?.HOD_Name],
-                  ["Trans Currency ", selectedDetail.header?.transactioncurrency],
                   ["Attachment ", selectedDetail.header?.AttachmentName ? (
                     <button
                       type="button"
@@ -2241,13 +2242,10 @@ let severity = 'secondary'; // default gray
                     "No Attachment"
                   )
                   ],
-
-
+                  ["Trans Currency ", selectedDetail.header?.transactioncurrency],
+                  ["HOD", selectedDetail.header?.HOD_Name],
+                  ["Supplier", selectedDetail.header?.SupplierName],
                   ["Cost Center", selectedDetail.header?.CostCenter],
-                  // ["Claim Amt in TC", <span key="amtintc"> {selectedDetail.header?.ClaimAmountInTC?.toLocaleString('en-US', {
-                  //   style: 'decimal',
-                  //   minimumFractionDigits: 2
-                  // })}</span>],
                   access?.canViewRate
                     ? [
                       "Claim Amt in TC",
@@ -2259,7 +2257,7 @@ let severity = 'secondary'; // default gray
                       </span>,
                     ]
                     : null,
-                  ["Supplier", selectedDetail.header?.SupplierName],
+                  ["Payment Mode", selectedDetail.header?.paymentmethodname],
                 ].filter(Boolean).map(([label, val], i) => (
                   <Col md="4" key={i} className="form-group row ">
                     <Label className="col-sm-4 col-form-label bold">{label}</Label>

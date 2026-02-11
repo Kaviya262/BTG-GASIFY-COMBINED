@@ -54,6 +54,7 @@ class VerifyCustomerUpdate(BaseModel):
     exchange_rate: float = 1.0
     allocations: List[InvoiceAllocation]
     reply_message: Optional[str] = None
+    user_id: Optional[int] = None
 
 class SaveDraftRequest(BaseModel):
     customer_id: int

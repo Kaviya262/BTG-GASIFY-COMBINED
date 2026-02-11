@@ -12,22 +12,37 @@ import * as XLSX from "xlsx";
 import { format } from "date-fns";
 import { toast } from "react-toastify";
 
-// Ensure these paths match your project structure
+// --- API IMPORTS ---
 import { getARBook, GetCustomerFilter } from "../service/financeapi";
-import { GetAllCurrencies } from "../../../common/data/mastersapi";
+import { GetAllCurrencies, GetBankList } from "../../../common/data/mastersapi";
 import { GetInvoiceDetails, GetSalesDetails, GetItemFilter } from "../../../common/data/invoiceapi";
+
+// --- HELPER: Date Formatter (dd-mm-yyyy) ---
+const formatDate = (dateInput) => {
+  if (!dateInput || dateInput === "N/A") return "";
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return "";
+
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+
+  return `${day}-${month}-${year}`;
+};
 
 const ARBookReport = () => {
   const today = new Date();
   const firstDay = new Date(today.getFullYear(), today.getMonth() - 2, 1);
 
+  // --- DATA STATES ---
   const [arBook, setArBook] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-
   const [items, setItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [bankList, setBankList] = useState([]);
 
+  // --- FILTER STATES ---
   const [fromDate, setFromDate] = useState(firstDay);
   const [toDate, setToDate] = useState(today);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -37,17 +52,22 @@ const ARBookReport = () => {
   const [currencyOptions, setCurrencyOptions] = useState([]);
   const [selectedCurrency, setSelectedCurrency] = useState(null);
 
-  // --- POPUP STATE ---
+  // --- INVOICE MODAL STATE ---
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
   const [invoiceDetails, setInvoiceDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+
+  // --- RECEIPT MODAL STATE ---
+  const [showReceiptDialog, setShowReceiptDialog] = useState(false);
+  const [selectedReceipt, setSelectedReceipt] = useState(null);
+
   const [loadingData, setLoadingData] = useState(false);
 
-  // --- STYLES (Standard alignment, no firebrick in popup) ---
+  // --- STYLES ---
   const popupLabelStyle = {
     minWidth: "120px",
     fontWeight: "bold",
-    color: "#495057" // Standard Bootstrap heading color
+    color: "#495057"
   };
 
   useEffect(() => {
@@ -68,7 +88,6 @@ const ARBookReport = () => {
 
         const currRes = await GetAllCurrencies({ currencyCode: "", currencyName: "" });
         const currencyData = currRes.data || currRes;
-
         if (Array.isArray(currencyData)) {
           const rates = {};
           currencyData.forEach(c => {
@@ -76,6 +95,11 @@ const ARBookReport = () => {
           });
           setCurrencyRates(rates);
         }
+
+        // Load Banks for Receipt Preview
+        const banks = await GetBankList(1, 1);
+        setBankList(banks.map(b => ({ value: b.value, label: b.BankName })));
+
       } catch (error) {
         console.error("Error loading masters:", error);
       }
@@ -141,12 +165,23 @@ const ARBookReport = () => {
         setCurrencyOptions(newCurrencyOptions);
 
         const convertedData = rawData.map(row => {
-          const currency = row.currencycode || row.CurrencyCode || "IDR";
-          const rate = (currency === "IDR") ? 1 : (currencyRates[currency] || 1);
+          const rawCurrency = row.currencycode || row.CurrencyCode || "";
+          const currency = rawCurrency || "IDR";
+
+          // LOGIC CHANGE: If a specific currency (other than IDR) is selected, DO NOT CONVERT.
+          // Use Rate = 1 so the columns show the original values.
+          let rate = (currency === "IDR") ? 1 : (currencyRates[currency] || 1);
+
+          if (selectedCurrency && selectedCurrency.value !== "IDR") {
+            if (currency === selectedCurrency.value) {
+              rate = 1; // No conversion
+            }
+          }
 
           return {
             ...row,
             currencyCode: currency,
+            _hasExplicitCurrency: !!rawCurrency,
             exchangeRate: rate,
             convertedInvoiceAmount: (parseFloat(row.invoice_amount) || 0) * rate,
             convertedReceiptAmount: (parseFloat(row.receipt_amount) || 0) * rate,
@@ -223,9 +258,20 @@ const ARBookReport = () => {
     }
   };
 
+  const handleReceiptClick = (rowData) => {
+    setSelectedReceipt(rowData);
+    setShowReceiptDialog(true);
+  };
+
+  const getBankName = (record) => {
+    if (!record) return "";
+    const bId = record.deposit_bank_id || record.bank_id;
+    return record.bank_name || (bankList.find(b => b.value == bId)?.label) || "";
+  };
+
   const finalProcessedData = useMemo(() => {
     let filtered = selectedCurrency
-      ? arBook.filter((x) => (x.CurrencyCode || x.currencycode) === selectedCurrency.value)
+      ? arBook.filter((x) => x._hasExplicitCurrency && x.currencyCode === selectedCurrency.value)
       : arBook;
 
     filtered = filtered.filter(item => {
@@ -276,9 +322,15 @@ const ARBookReport = () => {
   };
 
   const referenceBodyTemplate = (row) => {
+    // Check if it is a Receipt (Amount in Receipt Column > 0)
     if (row.convertedReceiptAmount > 0) {
-      return row.receipt_no || row.invoice_no || "-";
+      return (
+        <span className="text-success fw-bold">
+          {row.receipt_no || row.invoice_no || "-"}
+        </span>
+      );
     }
+    // Else it is likely an Invoice or Note
     return (
       <span
         className="text-primary fw-bold"
@@ -394,7 +446,7 @@ const ARBookReport = () => {
                   >
                     <Column field="ledger_date" header="Date" body={(row) => format(new Date(row.ledger_date), "dd-MMM-yyyy")} headerStyle={{ whiteSpace: 'nowrap' }} />
                     <Column field="invoice_no" header="Reference No." body={referenceBodyTemplate} headerStyle={{ whiteSpace: 'nowrap' }} />
-                    {hasForeignCurrency && (
+                    {hasForeignCurrency && (!selectedCurrency || selectedCurrency.value === 'IDR') && (
                       <Column
                         header="Other Currency"
                         body={otherCurrencyBodyTemplate}
@@ -403,9 +455,10 @@ const ARBookReport = () => {
                       />
                     )}
                     <Column field="convertedInvoiceAmount" header="Invoice Amount (A)" body={(r) => r.convertedInvoiceAmount?.toLocaleString('en-US', { minimumFractionDigits: 2 })} className="text-end" />
-                    <Column field="balanceDue" header="Balance ToReceive" body={(r) => r.balanceDue?.toLocaleString('en-US', { minimumFractionDigits: 2 })} className="text-end" />
+                    {/* REMOVED: Balance ToReceive Column */}
+                    {/* <Column field="balanceDue" header="Balance ToReceive" body={(r) => r.balanceDue?.toLocaleString('en-US', { minimumFractionDigits: 2 })} className="text-end" /> */}
+                    <Column field="convertedReceiptAmount" header="Receipt (C)" body={(r) => r.convertedReceiptAmount > 0 ? <span style={{ color: 'red', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => handleReceiptClick(r)} title="View Receipt Voucher">{r.convertedReceiptAmount?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span> : <span style={{ color: 'red' }}>{r.convertedReceiptAmount?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>} className="text-end" />
                     <Column field="convertedDebitNote" header="Debit Note (B)" body={(r) => r.convertedDebitNote?.toLocaleString('en-US', { minimumFractionDigits: 2 })} className="text-end" />
-                    <Column field="convertedReceiptAmount" header="Receipt (C)" body={(r) => <span style={{ color: 'red' }}>{r.convertedReceiptAmount?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>} className="text-end" />
                     <Column field="convertedCreditNote" header="Credit Note (D)" body={(r) => <span style={{ color: 'red' }}>{r.convertedCreditNote?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>} className="text-end" />
                     <Column field="cumulativeBalance" header="Balance ((A+B)-(C+D))" body={(d) => d.cumulativeBalance?.toLocaleString('en-US', { minimumFractionDigits: 2 })} className="text-end" />
                   </DataTable>
@@ -432,7 +485,6 @@ const ARBookReport = () => {
             </div>
           ) : invoiceDetails ? (
             <div>
-              {/* HEADER INFO SECTION - ALIGNED & STANDARD COLOR */}
               <div className="mb-4">
                 <Row className="mb-2">
                   <Col md={6} className="d-flex">
@@ -444,7 +496,6 @@ const ARBookReport = () => {
                     <span>: {invoiceDetails.Salesinvoicesdate ? format(new Date(invoiceDetails.Salesinvoicesdate), "dd-MMM-yyyy") : ''}</span>
                   </Col>
                 </Row>
-
                 <Row className="mb-2">
                   <Col md={6} className="d-flex">
                     <span style={popupLabelStyle}>Total Amount</span>
@@ -456,8 +507,6 @@ const ARBookReport = () => {
                   </Col>
                 </Row>
               </div>
-
-              {/* TABLE WITHOUT FIREBRICK HEADERS */}
               <DataTable
                 value={invoiceDetails.Items || []}
                 className="p-datatable-sm p-datatable-gridlines"
@@ -469,7 +518,6 @@ const ARBookReport = () => {
                 <Column field="UnitPrice" header="Unit Price" className="text-end" body={(r) => r.UnitPrice?.toLocaleString()} />
                 <Column field="TotalPrice" header="Total" className="text-end" body={(r) => r.TotalPrice?.toLocaleString()} />
               </DataTable>
-
               <div className="text-end mt-3">
                 <button className="btn btn-secondary btn-sm" onClick={() => setShowInvoiceDialog(false)}>Close</button>
               </div>
@@ -478,6 +526,88 @@ const ARBookReport = () => {
             <div className="text-center p-3 text-muted">
               No details found for this invoice.
             </div>
+          )}
+        </Dialog>
+
+        {/* --- RECEIPT VIEW POPUP (Styled like Invoice View) --- */}
+        <Dialog
+          header={`Receipt View: ${selectedReceipt?.receipt_no || selectedReceipt?.invoice_no || ''}`}
+          visible={showReceiptDialog}
+          style={{ width: '60vw' }}
+          onHide={() => setShowReceiptDialog(false)}
+          draggable={false}
+          resizable={false}
+        >
+          {selectedReceipt ? (
+            <div>
+              {/* HEADER INFO SECTION - Matching Invoice View Format */}
+              <div className="mb-4">
+                <Row className="mb-2">
+                  <Col md={6} className="d-flex">
+                    <span style={popupLabelStyle}>Customer</span>
+                    <span>: {selectedReceipt.customer_name || selectedCustomer?.label}</span>
+                  </Col>
+                  <Col md={6} className="d-flex">
+                    <span style={popupLabelStyle}>Receipt Date</span>
+                    <span>: {formatDate(selectedReceipt.ledger_date)}</span>
+                  </Col>
+                </Row>
+
+                <Row className="mb-2">
+                  <Col md={6} className="d-flex">
+                    <span style={popupLabelStyle}>Total Amount</span>
+                    <span>: {parseFloat(selectedReceipt.receipt_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                  </Col>
+                  <Col md={6} className="d-flex">
+                    <span style={popupLabelStyle}>Status</span>
+                    <span>: <span className="badge bg-success">Posted</span></span>
+                  </Col>
+                </Row>
+
+                {/* PAYMENT METHOD SECTION - Custom Underline Style */}
+                <Row className="mb-2">
+                  <Col md={12} className="d-flex align-items-baseline">
+                    <span style={popupLabelStyle}>Payment Method</span>
+                    <span className="me-1">:</span>
+                    <div style={{
+                      borderBottom: '1px solid #ced4da',
+                      flexGrow: 1,
+                      paddingLeft: '5px',
+                      fontSize: '14.5px', // Matching standard font size
+                      color: '#495057',
+                      fontWeight: 'normal' // Ensuring 'Transfer' and Bank are NOT bold
+                    }}>
+                      Bank Transfer {getBankName(selectedReceipt)}
+                    </div>
+                  </Col>
+                </Row>
+              </div>
+
+              {/* ALLOCATIONS TABLE - COMMENTED OUT */}
+              {/* <Label className="fw-bold text-muted mb-2" style={{ fontSize: '12px', textTransform: 'uppercase' }}>
+                Invoices Paid by this Receipt
+              </Label>
+              <DataTable
+                value={selectedReceipt.allocations || []} 
+                className="p-datatable-sm p-datatable-gridlines"
+                responsiveLayout="scroll"
+                emptyMessage="No direct allocations found for this receipt."
+              >
+                <Column field="invoice_no" header="Invoice No." />
+                <Column 
+                  field="amount_allocated" 
+                  header="Amount Paid" 
+                  className="text-end" 
+                  body={(r) => parseFloat(r.amount_allocated || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} 
+                />
+              </DataTable> */}
+
+              <div className="text-end mt-3">
+                <button className="btn btn-secondary btn-sm" onClick={() => setShowReceiptDialog(false)}>Close</button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center p-3 text-muted">No details found for this receipt.</div>
           )}
         </Dialog>
 

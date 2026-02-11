@@ -1,4 +1,5 @@
 from sqlalchemy import text
+import re
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from . import schemas
@@ -14,6 +15,7 @@ load_dotenv()
 DB_NAME_FINANCE = os.getenv('DB_NAME_FINANCE', 'btggasify_finance_live')
 DB_NAME_USER = os.getenv('DB_NAME_USER', 'btggasify_live')
 DB_NAME_USER_NEW = os.getenv('DB_NAME_USER_NEW', 'btggasify_userpanel_live')
+DB_NAME_MASTER = os.getenv('DB_NAME_MASTER', 'btggasify_masterpanel_live')
 
 # ----------------------------------------------------------
 # 1. CREATE AR RECEIPT
@@ -57,7 +59,8 @@ async def create_ar_receipt(db: AsyncSession, command: schemas.CreateARCommand):
             # ... other fields ...
             flag=is_cleared_status, 
             is_cleared=is_cleared_status,
-            is_active=True
+            is_active=True,
+            
         )
         db.add(db_receipt)
         created_records.append(db_receipt)
@@ -116,16 +119,12 @@ async def update_customer_and_verify(
     record.tax_rate = data.tax_deduction 
     record.exchange_rate = data.exchange_rate
     
-    if data.reply_message:
-        current_desc = record.reference_no or ""
-        record.reference_no = f"{current_desc} | Reply: {data.reply_message}"
-
-    record.pending_verification = False
-    record.modified_on = datetime.now()
-
-    # 3. PROCESS ALLOCATIONS (Update Invoice Balances)
+    # 3. PROCESS ALLOCATIONS (Update Invoice Balances & Collect References)
+    linked_invoices = []
+    
     for alloc in data.allocations:
         if alloc.amount_allocated > 0:
+            # Update Paid Amount
             update_invoice_sql = text(f"""
                 UPDATE {DB_NAME_USER_NEW}.tbl_salesinvoices_header
                 SET PaidAmount = IFNULL(PaidAmount, 0) + :amount
@@ -135,6 +134,91 @@ async def update_customer_and_verify(
                 "amount": alloc.amount_allocated,
                 "inv_id": alloc.invoice_id
             })
+            
+            # 🟢 FIX TASK 2: Fetch Invoice Number for Linkage Display
+            get_inv_nbr = text(f"SELECT salesinvoicenbr FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header WHERE id = :inv_id")
+            inv_res = await db.execute(get_inv_nbr, {"inv_id": alloc.invoice_id})
+            inv_nbr = inv_res.scalar()
+            if inv_nbr:
+                linked_invoices.append(inv_nbr)
+            
+            # 🟢 TASK: Link Receipt to AR for Reporting
+            # 3.1 Fetch AR ID from tbl_accounts_receivable
+            get_ar_sql = text(f"SELECT ar_id, already_received FROM {DB_NAME_FINANCE}.tbl_accounts_receivable WHERE invoice_id = :inv_id LIMIT 1")
+            ar_res = await db.execute(get_ar_sql, {"inv_id": alloc.invoice_id})
+            ar_row = ar_res.fetchone()
+            
+            if ar_row:
+                 ar_id = ar_row.ar_id
+                 current_received = ar_row.already_received or 0
+                 
+                 # 3.2 Insert into tbl_receipt_ag_ar
+                 # FIX: Added 'created_ip' to resolve error
+                 insert_alloc_sql = text(f"""
+                    INSERT INTO {DB_NAME_FINANCE}.tbl_receipt_ag_ar 
+                    (receipt_id, ar_id, payment_amount, receipt_date, created_date, created_by, created_ip, is_active)
+                    VALUES (:rid, :arid, :amount, :rdate, NOW(), :uid, :ip, 1)
+                 """)
+                 
+                 # Determine user_id (New schema field or fallback)
+                 user_id = data.user_id if hasattr(data, 'user_id') and data.user_id else (record.created_by or 'System')
+                 # Use record.created_ip (from receipt) or fallback
+                 user_ip = record.created_ip or '127.0.0.1'
+
+                 await db.execute(insert_alloc_sql, {
+                    "rid": receipt_id,
+                    "arid": ar_id,
+                    "amount": alloc.amount_allocated,
+                    "rdate": record.receipt_date or datetime.now().date(),
+                    "uid": user_id,
+                    "ip": user_ip
+                 })
+                 
+                 # 3.3 Update tbl_accounts_receivable
+                 update_ar_sql = text(f"""
+                    UPDATE {DB_NAME_FINANCE}.tbl_accounts_receivable
+                    SET already_received = already_received + :amount,
+                        balance_amount = balance_amount - :amount,
+                        updated_date = NOW(),
+                        updated_by = :uid
+                    WHERE ar_id = :arid
+                 """)
+                 await db.execute(update_ar_sql, {
+                    "amount": alloc.amount_allocated,
+                    "uid": user_id,
+                    "arid": ar_id
+                 })
+                 
+                 # 3.4 Update Primary AR Link (if not set)
+                 if record.ar_id is None:
+                     record.ar_id = ar_id
+
+    # Update Reference with Linked Invoices
+    current_desc = record.reference_no or ""
+    
+    # Clean up existing automated suffixes (Old & New Format)
+    current_desc = re.sub(r'\s*\|\s*Inv:.*', '', current_desc, flags=re.IGNORECASE)
+    current_desc = re.sub(r'\s*\|\s*Reply:.*', '', current_desc, flags=re.IGNORECASE)
+    current_desc = re.sub(r'\s*\(Inv:.*?\)', '', current_desc, flags=re.IGNORECASE)
+    current_desc = re.sub(r'\s*\(Reply:.*?\)', '', current_desc, flags=re.IGNORECASE)
+    current_desc = current_desc.strip()
+    
+    # Construct new reference string (Reply + Linked Invoices)
+    additional_info = []
+    if data.reply_message:
+        additional_info.append(f"(Reply: {data.reply_message})")
+    
+    if linked_invoices:
+        # Join invoice numbers (e.g., "INV-001, INV-002")
+        inv_str = ", ".join(linked_invoices)
+        additional_info.append(f"(Inv: {inv_str})")
+        
+    if additional_info:
+        # User wants "test-1234 (Inv: 88730)"
+        record.reference_no = f"{current_desc} {' '.join(additional_info)}".strip()
+
+    record.pending_verification = False
+    record.modified_on = datetime.now()
 
     await db.commit()
     await db.refresh(record)
@@ -368,16 +452,65 @@ async def update_ar_receipt(db: AsyncSession, command: schemas.CreateARCommand):
     await db.commit()
     return updated_count > 0
 
-
+# ----------------------------------------------------------
+# 🟢 8. GET AR BOOK (FIXED: UNION OF INVOICES AND RECEIPTS)
+# ----------------------------------------------------------
 async def get_ar_book(db: AsyncSession, customer_id: int, from_date: str = None, to_date: str = None):
-    stmt = (
-        select(ARReceipt)
-        .where(ARReceipt.customer_id == customer_id)
-        .where(ARReceipt.is_active == True)
-        .order_by(desc(ARReceipt.receipt_date))
-    )
-    result = await db.execute(stmt)
-    return result.scalars().all()
+    # 🟢 FIX: Fetch BOTH Invoices (from AR Table) and Receipts (from Receipt Table)
+    # This solves "Missing Receipts" and "Currency Bug"
+    
+    sql = text(f"""
+        -- 1. INVOICES
+        SELECT 
+            'Invoice' as doc_type,
+            ar.ar_id as id,
+            DATE_FORMAT(ar.invoice_date, '%Y-%m-%d') as ledger_date,
+            ar.invoice_no,
+            ar.invoice_no as reference_no, -- For display
+            ar.inv_amount as invoice_amount,
+            0 as receipt_amount,
+            0 as debit_note_amount, 
+            0 as credit_note_amount,
+            ar.currencyid,
+            mc.CurrencyCode,
+            ar.created_date,
+            NULL as deposit_bank_id,
+            NULL as bank_name,
+            ar.customer_name
+        FROM {DB_NAME_FINANCE}.tbl_accounts_receivable ar
+        LEFT JOIN {DB_NAME_USER}.master_currency mc ON ar.currencyid = mc.CurrencyId
+        WHERE ar.customer_id = :cid AND ar.is_active = 1
+
+        UNION ALL
+
+        -- 2. RECEIPTS
+        SELECT 
+            'Receipt' as doc_type,
+            r.receipt_id as id,
+            DATE_FORMAT(r.receipt_date, '%Y-%m-%d') as ledger_date,
+            r.reference_no as invoice_no, -- Map Reference to invoice_no for grouping in frontend
+            r.receipt_no as reference_no, -- Display Receipt No (e.g. REC-1001)
+            0 as invoice_amount,
+            r.bank_amount as receipt_amount,
+            0 as debit_note_amount,
+            0 as credit_note_amount,
+            r.currencyid,
+            mc.CurrencyCode,
+            r.created_date,
+            r.deposit_bank_id,
+            b.BankName as bank_name,
+            c.CustomerName as customer_name
+        FROM {DB_NAME_FINANCE}.tbl_ar_receipt r
+        LEFT JOIN {DB_NAME_USER}.master_currency mc ON r.currencyid = mc.CurrencyId
+        LEFT JOIN {DB_NAME_MASTER}.master_bank b ON CAST(NULLIF(r.deposit_bank_id, '') AS UNSIGNED) = b.BankId
+        LEFT JOIN {DB_NAME_USER_NEW}.master_customer c ON r.customer_id = c.Id
+        WHERE r.customer_id = :cid AND r.is_active = 1 AND r.is_posted = 1
+
+        ORDER BY ledger_date DESC, created_date DESC
+    """)
+    
+    result = await db.execute(sql, {"cid": customer_id})
+    return result.mappings().all()
 
 # ----------------------------------------------------------
 # SAVE DRAFT

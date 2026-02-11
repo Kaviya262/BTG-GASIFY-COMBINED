@@ -62,7 +62,8 @@ class SidebarContent extends Component {
                 //{ screenId: 99916, screenName: "Over Draft", url: "/ManageOverDraft", icon: "bx bx-transfer" },
                 { screenId: 99917, screenName: "Petty Cash", url: "/pettyCash", icon: "bx bx-coin-stack" },
                 // --- NEW AP SCREEN ADDED HERE ---
-                { screenId: 99919, screenName: "AP", url: "/AP", icon: "bx bx-file" }
+                { screenId: 99919, screenName: "AP", url: "/AP", icon: "bx bx-file" },
+                { screenId: 99920, screenName: "DN/CN", url: "/dn-cn", icon: "bx bx-file" }
             ];
 
             missingScreens.forEach(item => {
@@ -778,6 +779,11 @@ class SidebarContent extends Component {
                         if (restrictedApprovalUsers.includes(currentUserIdFilter)) {
                             // EXCEPTION: Explicitly ALLOW "PPP" page
                             if (item.url === "/PPP" || item.screenName === "PPP") {
+                                return true;
+                            }
+
+                            // EXCEPTION: User 140 also gets "Claim & Payment" page
+                            if (currentUserIdFilter === 140 && (item.screenName === "Claim & Payment" || item.url === "/Manageclaim&Payment")) {
                                 return true;
                             }
 

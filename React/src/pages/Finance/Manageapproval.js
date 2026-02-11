@@ -39,7 +39,7 @@ import {
   Getclaimremarksdetails,
   DownloadFileById, ClaimAndPaymentGetById, Getclaimapprovaldetails,
   Getclaimhistorydetails, SaveClaimApprove, GetApprovalSettings, ClaimReject, getClaimDetailsById
-  , GetPRNoBySupplierAndCurrency, GetByIdPurchaseOrder, GetByIdPurchaseRequisition, AutoApprove
+  , GetPRNoBySupplierAndCurrency, GetByIdPurchaseOrder, GetByIdPurchaseRequisition, AutoApprove, GetBankList
 } from "common/data/mastersapi";
 
 import Swal from 'sweetalert2';
@@ -557,83 +557,123 @@ const ManageApproval = ({ selectedType, setSelectedType }) => {
 
 
   const load = async () => {
-    const res = await Getclaimapprovaldetails(1, 1, 1, UserData?.u_id);
-    if (res.status) {
-      // res.data.push(
-      //   { isSelected: false, approvedone: 1, discussedone: 0, approvedtwo: 1, discussedtwo: 0, comment: "", type: "PPV", id: 5, claimno: "CLM0000122", date: "25‑Jun‑25", name: "Shafiq", dept: "HR", amount: "376.80", curr: "MYR", transactions: "Txn E" },
-      //   { isSelected: false, approvedone: 1, discussedone: 0, approvedtwo: 1, discussedtwo: 0, comment: "", type: "PPV", id: 6, claimno: "CLM0000132", date: "26‑Jun‑25", name: "Sandy", dept: "Sales & Marketing", amount: "433.00", curr: "IDR", transactions: "Txn F" },
-      //   { isSelected: false, approvedone: 1, discussedone: 0, approvedtwo: 1, discussedtwo: 0, comment: "", type: "PPV PV", id: 5, claimno: "CLM0000122", date: "25‑Jun‑25", name: "Shafiq", dept: "HR", amount: "376.80", curr: "MYR", transactions: "Txn E" },
-      //   { isSelected: false, approvedone: 1, discussedone: 0, approvedtwo: 1, discussedtwo: 0, comment: "", type: "PPV PV", id: 6, claimno: "CLM0000132", date: "26‑Jun‑25", name: "Sandy", dept: "Sales & Marketing", amount: "433.00", curr: "IDR", transactions: "Txn F" });
-
-      setclaims(res.data);
-      const initialAction1 = {};
-      const initialAction2 = {};
-      const initialAction3 = {};
-      const initialPPPAction1 = {};
-      const initialPPPAction2 = {};
-      const initialPPPAction3 = {};
-
-      const initialPPPPVAction1 = {};
-      const initialPPPPVAction2 = {};
-
-      res.data.forEach((claim) => {
-        // For normal claim approvals (GM)
-        if (claim.approvedone) initialAction1[claim.id] = 'approve';
-        else if (claim.discussedone) initialAction1[claim.id] = 'discuss';
-
-        // For normal claim approvals (Director)
-        if (claim.approvedtwo) initialAction2[claim.id] = 'approve';
-        else if (claim.discussedtwo) initialAction2[claim.id] = 'discuss';
-
-        // For normal claim approvals (Director)
-        if (claim.approvedeight) initialAction3[claim.id] = 'approve';
-        else if (claim.discussedeight) initialAction3[claim.id] = 'discuss';
-
-        // For PPP approvals (GM)
-        if (claim.ppp_gm_approvalone) initialPPPAction1[claim.id] = 'approve';
-        else if (claim.ppp_gm_discussed) initialPPPAction1[claim.id] = 'discuss'; // if you have a discussed flag for PPP GM
-
-        // For PPP approvals (Director)
-        if (claim.ppp_director_approvalone) initialPPPAction2[claim.id] = 'approve';
-        else if (claim.ppp_director_discussed) initialPPPAction2[claim.id] = 'discuss'; // if exists
-
-        // For PPP approvals (Commissioner)
-        if (claim.ppp_commissioner_approvalone) initialPPPAction3[claim.id] = 'approve';
-        else if (claim.ppp_commissioner_discussed) initialPPPAction3[claim.id] = 'discuss'; // if exists
-
-        // For PPP PV approvals (Commissioner)
-        if (claim.PPP_PV_Commissioner_approveone) {
-          initialPPPPVAction2[claim.id] = 'approve';
-        } else if (claim.ppp_pv_Commissioner_discussedone) {
-          initialPPPPVAction2[claim.id] = 'discuss';
+    try {
+      // 1. Fetch Banks
+      let bankMap = {};
+      try {
+        // Use current user ID and branch 1
+        const banks = await GetBankList(UserData?.u_id || 1, 1);
+        console.log("DEBUG: GetBankList response:", banks);
+        if (banks && Array.isArray(banks)) {
+          banks.forEach(b => {
+            bankMap[b.value] = b.BankName;
+          });
         }
+      } catch (err) {
+        console.error("Failed to fetch bank list", err);
+      }
+      console.log("DEBUG: Constructed BankMap:", bankMap);
+
+      // 2. Fetch Claims
+      const res = await Getclaimapprovaldetails(1, 1, 1, UserData?.u_id);
+
+      if (res.status) {
+        console.log("DEBUG: Claims Data Sample:", res.data && res.data[0]);
+
+        setclaims(res.data);
+        const initialAction1 = {};
+        const initialAction2 = {};
+        const initialAction3 = {};
+        const initialPPPAction1 = {};
+        const initialPPPAction2 = {};
+        const initialPPPAction3 = {};
+
+        const initialPPPPVAction1 = {};
+        const initialPPPPVAction2 = {};
+
+        res.data.forEach((claim) => {
+          // Normalize Bank Name
+          if (!claim.BankName) {
+            if (claim.bankname) claim.BankName = claim.bankname;
+            else if (claim.bankName) claim.BankName = claim.bankName;
+          }
+
+          // Map from ID if BankName is still missing
+          if (!claim.BankName) {
+            const bId = claim.BankId || claim.bankid || claim.bank_id || claim.deposit_bank_id;
+            if (bId && bankMap[bId]) {
+              claim.BankName = bankMap[bId];
+            } else if (bId) {
+              console.log("DEBUG: Found ID", bId, "but not in map. Type:", typeof bId);
+            }
+          }
 
 
-        if (claim.PPP_PV_Director_approve) {
-          initialPPPPVAction1[claim.id] = 'approve';
-        } else if (claim.ppp_pv_Director_discussed) {
-          initialPPPPVAction1[claim.id] = 'discuss';
-        }
+          // For normal claim approvals (GM)
+          if (claim.approvedone) initialAction1[claim.id] = 'approve';
+          else if (claim.discussedone) initialAction1[claim.id] = 'discuss';
+
+          // For normal claim approvals (Director)
+          if (claim.approvedtwo) initialAction2[claim.id] = 'approve';
+          else if (claim.discussedtwo) initialAction2[claim.id] = 'discuss';
+
+          // For normal claim approvals (Director)
+          if (claim.approvedeight) initialAction3[claim.id] = 'approve';
+          else if (claim.discussedeight) initialAction3[claim.id] = 'discuss';
+
+          // For PPP approvals (GM)
+          if (claim.ppp_gm_approvalone) initialPPPAction1[claim.id] = 'approve';
+          else if (claim.ppp_gm_discussed) initialPPPAction1[claim.id] = 'discuss'; // if you have a discussed flag for PPP GM
+
+          // For PPP approvals (Director)
+          if (claim.ppp_director_approvalone) initialPPPAction2[claim.id] = 'approve';
+          else if (claim.ppp_director_discussed) initialPPPAction2[claim.id] = 'discuss'; // if exists
+
+          // For PPP approvals (Commissioner)
+          if (claim.ppp_commissioner_approvalone) initialPPPAction3[claim.id] = 'approve';
+          else if (claim.ppp_commissioner_discussed) initialPPPAction3[claim.id] = 'discuss'; // if exists
+
+          // For PPP PV approvals (Commissioner)
+          if (claim.PPP_PV_Commissioner_approveone) {
+            initialPPPPVAction2[claim.id] = 'approve';
+          } else if (claim.ppp_pv_Commissioner_discussedone) {
+            initialPPPPVAction2[claim.id] = 'discuss';
+          }
 
 
-      });
-      debugger
-      // Set the states accordingly
-      setAction1(initialAction1);
-      setAction2(initialAction2);
-      setAction3(initialAction3);
-      setPPPAction1(initialPPPAction1);
-      setPPPAction2(initialPPPAction2);
-      setPPPAction3(initialPPPAction3);
+          if (claim.PPP_PV_Director_approve) {
+            initialPPPPVAction1[claim.id] = 'approve';
+          } else if (claim.ppp_pv_Director_discussed) {
+            initialPPPPVAction1[claim.id] = 'discuss';
+          }
 
 
-      setPPPPVAction1(initialPPPPVAction1);
-      setPPPPVAction2(initialPPPPVAction2);
-    } else {
+        });
+        debugger
+        // Set the states accordingly
+        setAction1(initialAction1);
+        setAction2(initialAction2);
+        setAction3(initialAction3);
+        setPPPAction1(initialPPPAction1);
+        setPPPAction2(initialPPPAction2);
+        setPPPAction3(initialPPPAction3);
+
+
+        setPPPPVAction1(initialPPPPVAction1);
+        setPPPPVAction2(initialPPPPVAction2);
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Initial Load Failed',
+          text: res.message || 'Unable to fetch claim approve data.',
+        });
+      }
+    } catch (error) {
+      console.error("Load failed", error);
       Swal.fire({
         icon: 'error',
-        title: 'Initial Load Failed',
-        text: res.message || 'Unable to fetch claim approve data.',
+        title: 'Error',
+        text: 'Failed to load data.'
       });
     }
   };
@@ -1381,6 +1421,9 @@ const ManageApproval = ({ selectedType, setSelectedType }) => {
     console.log("Response data.details:", res.data?.details);
 
     if (res.status) {
+      if (res.data && res.data.header) {
+        res.data.header.paymentmethodname = row.PaymentMethod;
+      }
       setSelectedDetail(res.data);
       setDetailVisible(true);
       setPreviewUrl(res.data?.header?.AttachmentPath || "");
@@ -2912,9 +2955,6 @@ word-break: break-word;
                   ["Application No", selectedDetail.header?.ApplicationNo],
                   ["Department ", selectedDetail.header?.departmentname],
                   ["Applicant ", selectedDetail.header?.applicantname],
-                  ["Job Title", selectedDetail.header?.JobTitle],
-                  ["HOD", selectedDetail.header?.HOD_Name],
-                  ["Trans Currency ", selectedDetail.header?.transactioncurrency],
                   ["Attachment ", selectedDetail.header?.AttachmentName ? (
                     <button
                       type="button"
@@ -2946,14 +2986,15 @@ word-break: break-word;
                     "No Attachment"
                   )
                   ],
-
-
+                  ["Trans Currency ", selectedDetail.header?.transactioncurrency],
+                  ["HOD", selectedDetail.header?.HOD_Name],
+                  ["Supplier", selectedDetail.header?.SupplierName],
                   ["Cost Center", selectedDetail.header?.CostCenter],
                   ["Claim Amt in TC", <span key="amtintc"> {selectedDetail.header?.ClaimAmountInTC?.toLocaleString('en-US', {
                     style: 'decimal',
                     minimumFractionDigits: 2
                   })}</span>],
-                  ["Supplier", selectedDetail.header?.SupplierName],
+                  ["Payment Mode", selectedDetail.header?.paymentmethodname],
                 ].map(([label, val], i) => (
                   <Col md="4" key={i} className="form-group row ">
                     <Label className="col-sm-4 col-form-label bold">{label}</Label>

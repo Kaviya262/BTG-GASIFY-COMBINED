@@ -342,6 +342,9 @@ import Pendingpo from '../pages/FinanceModule/Reports/Pendingpo';
 import AddBankBook from "../pages/FinanceModule/Report/AddBankBook";
 import AddCashBook from "../pages/FinanceModule/Report/AddCashBook";
 import BankReconciliation from "../pages/FinanceModule/Reports/BankReconciliation";
+import DnCn from "../pages/FinanceModule/DnCn";
+import AddDnCn from "../pages/FinanceModule/add_dn_cn";
+import EditDnCn from "../pages/FinanceModule/edit_dn_cn";
 
 const authProtectedRoutes = [
 
@@ -711,6 +714,10 @@ const authProtectedRoutes = [
 
     { path: "/EditDirectSalesForm", component: EditDirectSalesForm },
     { path: "/roles-access-rights", component: AccessRights },
+
+    { path: "/dn-cn", component: DnCn },
+    { path: "/add-dn-cn", component: AddDnCn },
+    { path: "/edit-dn-cn/:id", component: EditDnCn },
 ];
 
 const publicRoutes = [
