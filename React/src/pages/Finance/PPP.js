@@ -690,8 +690,8 @@ const PPP = ({ selectedType, setSelectedType }) => {
         "Applicant Name": item.name,
         "Applicant Department": item.dept,
         "Supplier Name": item.suppliername,
-        "Tax Amount": item.taxrate,
-        "Vat Amount": item.vatrate,
+        "Tax Amount": (item.taxrate || item.taxvalue || item.TaxValue || item.taxAmount || item.TaxAmount || item.tax_rate || item.TaxRate || item.taxAmt || item.TaxAmt || 0),
+        "Vat Amount": (item.vatrate || item.vatvalue || item.vatValue || item.VatValue || item.vatAmount || item.VatAmount || item.vat_rate || item.VatRate || item.vatAmt || item.VatAmt || 0),
         "Claim Amount in TC": item.amount,
         "Currency": item.curr,
         "GM Status": item.approvedone === 1 ? 'Approved' : item.discussedone === 1 ? 'Discussed' : 'Pending',
@@ -957,7 +957,9 @@ const PPP = ({ selectedType, setSelectedType }) => {
         <th>Date</th>
         <th>Name</th>
         <th>Department</th>
-              <th>Supplier</th>
+        <th>Supplier</th>
+        <th>Tax</th>
+        <th>VAT</th>
         <th>Amount</th>
         <th>Currency</th>
         <th>GM</th>
@@ -987,6 +989,8 @@ const PPP = ({ selectedType, setSelectedType }) => {
             <td>${item.name}</td>
             <td>${item.dept}</td>
                 <td>${item.suppliername}</td>
+            <td style="text-align:right">${(item.taxrate || item.taxvalue || item.TaxValue || item.taxAmount || item.TaxAmount || item.tax_rate || item.TaxRate || item.taxAmt || item.TaxAmt || 0)}</td>
+            <td style="text-align:right">${(item.vatrate || item.vatvalue || item.vatValue || item.VatValue || item.vatAmount || item.VatAmount || item.vat_rate || item.VatRate || item.vatAmt || item.VatAmt || 0)}</td>
             <td style="text-align:right">${item.amount}</td>
             <td>${item.curr}</td>
             <td>${gm}</td>
@@ -1414,8 +1418,8 @@ word-break: break-word;
       "Applicant Name": item.name,
       "Applicant Department": item.dept,
       "Supplier Name": item.suppliername,
-      "Tax Amount": item.taxrate,
-      "Vat Amount": item.vatrate,
+      "Tax Amount": (item.taxrate || item.taxvalue || item.TaxValue || item.taxAmount || item.TaxAmount || item.tax_rate || item.TaxRate || item.taxAmt || item.TaxAmt || 0),
+      "Vat Amount": (item.vatrate || item.vatvalue || item.vatValue || item.VatValue || item.vatAmount || item.VatAmount || item.vat_rate || item.VatRate || item.vatAmt || item.VatAmt || 0),
       "Claim Amount in TC": item.amount,
       "Currency": item.curr,
       "GM Status": item.approvedone === 1 ? 'Approved' : item.discussedone === 1 ? 'Discussed' : 'Pending',
@@ -1541,7 +1545,9 @@ let severity = 'secondary'; // default gray
                         >
                           <div className="d-flex justify-content-end mb-2">
                             {showVoucherButton && (
-                              <button className="btn btn-success" style={{ marginRight: "10px" }} disabled={allHaveVoucher} onClick={() => handleGenerateVoucher(group.rows)}>
+                              <button className="btn btn-success" style={{ marginRight: "10px" }}
+                                disabled={allHaveVoucher && group.rows.some(row => row.VouCmrStatus === 1 || row.VouCmrStatus === 'Approved')}
+                                onClick={() => handleGenerateVoucher(group.rows)}>
                                 {hasVoucher ? "Update Voucher" : "Generate Voucher"}
                               </button>
                             )}
