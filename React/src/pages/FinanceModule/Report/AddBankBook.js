@@ -24,11 +24,63 @@ import "flatpickr/dist/themes/material_blue.css";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { format } from "date-fns";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 // Configuration
 import { GetCustomerFilter } from "../../FinanceModule/service/financeapi";
-import { GetBankList } from "common/data/mastersapi";
+import { GetBankList, GetAllCurrencies } from "common/data/mastersapi";
 import { PYTHON_API_URL } from "common/pyapiconfig";
+
+// --- IMPORT LOGO FOR PRINT ---
+import logo from "../../../assets/images/logo.png";
+
+// --- HELPER: Number to Words ---
+const numberToWords = (amount) => {
+    const units = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+    const teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+    const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+    const thousands = ["", "Thousand", "Million", "Billion"];
+
+    const toWords = (num) => {
+        if (num === 0) return "";
+        else if (num < 10) return units[num];
+        else if (num < 20) return teens[num - 10];
+        else if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? " " + units[num % 10] : "");
+        else return units[Math.floor(num / 100)] + " Hundred" + (num % 100 !== 0 ? " " + toWords(num % 100) : "");
+    };
+
+    if (amount === 0) return "Zero";
+
+    let str = "";
+    let i = 0;
+
+    const parts = Math.abs(amount).toString().split(".");
+    let num = parseInt(parts[0]);
+
+    while (num > 0) {
+        if (num % 1000 !== 0) {
+            str = toWords(num % 1000) + " " + thousands[i] + " " + str;
+        }
+        num = Math.floor(num / 1000);
+        i++;
+    }
+
+    return str.trim();
+};
+
+// --- HELPER: Date Formatter (dd-mm-yyyy) ---
+const formatDatePrint = (dateInput) => {
+    if (!dateInput || dateInput === "N/A") return "";
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return dateInput;
+
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+
+    return `${day}-${month}-${year}`;
+};
 
 const AddBankBook = () => {
     // --- UI STATES ---
@@ -50,17 +102,37 @@ const AddBankBook = () => {
     const [totals, setTotals] = useState({ receipt: 0, payment: 0 });
     const [editMode, setEditMode] = useState(false);
 
+    // --- CURRENCY STATES ---
+    const [currencyList, setCurrencyList] = useState([]);
+    const [selectedCurrency, setSelectedCurrency] = useState(null);
+
     // --- PREVIEW MODAL STATES ---
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [selectedEntry, setSelectedEntry] = useState(null);
     const [invoiceList, setInvoiceList] = useState([]);
     const [loadingInvoices, setLoadingInvoices] = useState(false);
 
+    // --- PRINT MODAL STATES ---
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+    const [printRecord, setPrintRecord] = useState(null);
+
     // --- INITIAL LOAD ---
     useEffect(() => {
         const loadInitialData = async () => {
             const banks = await GetBankList(1, 1);
-            setBankList(banks.map(item => ({ value: item.value, label: item.BankName })));
+            setBankList(banks.map(item => ({ value: item.value, label: item.BankName, currencyId: item.CurrencyId })));
+
+            // Load Currencies
+            try {
+                const currRes = await GetAllCurrencies({ currencyCode: "", currencyName: "" });
+                const currData = currRes.data || currRes;
+                if (Array.isArray(currData)) {
+                    setCurrencyList(currData.map(c => ({
+                        value: c.CurrencyId,
+                        label: c.CurrencyCode
+                    })));
+                }
+            } catch (err) { console.error("Failed to load currencies", err); }
 
             // 1. Load Customers
             const customers = await GetCustomerFilter(1, "%");
@@ -202,6 +274,7 @@ const AddBankBook = () => {
     const openNewModal = () => {
         setEditMode(false);
         setSelectedBank(null);
+        setSelectedCurrency(null);
         setTotals({ receipt: 0, payment: 0 });
 
         const initialRow = {
@@ -354,6 +427,123 @@ const AddBankBook = () => {
         }
     };
 
+    // --- PRINT RECEIPT FUNCTIONS ---
+    const handlePrintPreview = (rowData) => {
+        setPrintRecord(rowData);
+        setIsPrintModalOpen(true);
+    };
+
+    const getPrintBankName = () => {
+        if (!printRecord) return "";
+        const bId = printRecord.deposit_bank_id || printRecord.bank_id;
+        return printRecord.bank_name ||
+            (bankList.find(b => b.value == bId)?.label) ||
+            "";
+    };
+
+    const getReceiptHTML = () => {
+        const receiptContent = document.getElementById("receipt-print-section").innerHTML;
+        const metaContent = document.getElementById("receipt-print-meta")?.innerHTML || "";
+        return `
+            <html>
+                <head>
+                    <title>Receipt Voucher - ${printRecord?.receipt_id}</title>
+                    <base href="${window.location.origin}/" />
+                    <style>
+                        @page { size: A5 landscape; margin: 8mm; }
+                        body { font-family: 'Times New Roman', serif; margin: 0; padding: 8px; }
+                        .receipt-container { border: 2px solid #1a2c5b; padding: 18px 22px; position: relative; width: 100%; max-width: 700px; margin: auto; box-sizing: border-box; }
+                        .header { display: flex; align-items: center; border-bottom: 2px solid #1a2c5b; padding-bottom: 6px; margin-bottom: 12px; }
+                        .logo { width: 70px; margin-right: 15px; }
+                        .company-details h2 { margin: 0; color: #1a2c5b; font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+                        .company-details p { margin: 1px 0; font-size: 9px; color: #333; }
+                        .receipt-no { position: absolute; top: 18px; right: 22px; font-size: 14px; color: #d92525; font-weight: bold; font-family: monospace; text-align: right; }
+                        .running-system { font-size: 8px; color: #666; font-style: italic; margin-top: 2px; }
+                        .receipt-title { text-align: center; font-size: 15px; font-weight: bold; margin: 10px 0 18px 0; color: #1a2c5b; letter-spacing: 1.5px; text-decoration: underline double; }
+                        .label { font-weight: bold; color: #1a2c5b; font-size: 11px; white-space: nowrap; }
+                        .colon { font-weight: bold; color: #1a2c5b; font-size: 11px; text-align: center; }
+                        .value { border-bottom: 1px solid #1a2c5b; padding-left: 6px; font-size: 11px; position: relative; min-height: 16px; color: #000; }
+                        .slanted-box { border: 1px solid #1a2c5b; transform: skewX(-20deg); padding: 4px 6px; background: #fff; }
+                        .print-meta { max-width: 700px; margin: 2px auto 0 auto; text-align: right; font-size: 6px; color: #aaa; padding-top: 1px; }
+                    </style>
+                </head>
+                <body>
+                    ${receiptContent}
+                    ${metaContent}
+                </body>
+            </html>
+        `;
+    };
+
+    const triggerPrint = () => {
+        const printWindow = window.open("", "_blank");
+        printWindow.document.write(getReceiptHTML());
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 500);
+    };
+
+    const triggerDownload = async () => {
+        try {
+            const receiptEl = document.getElementById("receipt-print-section");
+            const metaEl = document.getElementById("receipt-print-meta");
+
+            // Create a temporary wrapper to capture both elements together
+            const wrapper = document.createElement("div");
+            wrapper.style.position = "absolute";
+            wrapper.style.left = "-9999px";
+            wrapper.style.top = "0";
+            wrapper.style.background = "#fff";
+            wrapper.style.padding = "10px";
+            wrapper.style.width = "700px";
+
+            const receiptClone = receiptEl.cloneNode(true);
+            wrapper.appendChild(receiptClone);
+
+            if (metaEl) {
+                const metaClone = metaEl.cloneNode(true);
+                wrapper.appendChild(metaClone);
+            }
+
+            document.body.appendChild(wrapper);
+
+            const canvas = await html2canvas(wrapper, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff'
+            });
+
+            document.body.removeChild(wrapper);
+
+            const imgData = canvas.toDataURL("image/png");
+
+            // A5 landscape: 210mm x 148mm
+            const pdf = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: 'a5'
+            });
+
+            const pageWidth = pdf.internal.pageSize.getWidth();   // 210mm
+            const pageHeight = pdf.internal.pageSize.getHeight();  // 148mm
+            const margin = 5;
+            const usableWidth = pageWidth - (margin * 2);
+            const scaledHeight = (canvas.height * usableWidth) / canvas.width;
+
+            pdf.addImage(imgData, "PNG", margin, margin, usableWidth, scaledHeight);
+            pdf.save(`Receipt_Voucher_${printRecord?.receipt_id || 'receipt'}.pdf`);
+
+            toast.success("Receipt downloaded successfully!");
+        } catch (error) {
+            console.error("Download error:", error);
+            toast.error("Failed to download receipt");
+        }
+    };
+
     const statusBodyTemplate = (rowData) => (
         <div className="d-flex justify-content-center">
             <span className={`circle-badge ${rowData.is_posted ? 'bg-posted' : 'bg-saved'}`}>
@@ -385,8 +575,8 @@ const AddBankBook = () => {
                 <button className={`btn-icon ${isPreviewable ? 'text-info' : 'text-muted'}`} onClick={() => { if (isPreviewable) handlePreview(rowData); }} disabled={!isPreviewable} title="Preview Invoice">
                     <i className="bx bx-show font-size-18"></i>
                 </button>
-                <button className={`btn-icon ${isActionable ? 'text-warning' : 'text-muted'}`} disabled={!isActionable} title="Query">
-                    <i className="bx bx-question-mark font-size-18"></i>
+                <button className={`btn-icon ${isActionable ? 'text-secondary' : 'text-muted'}`} onClick={() => { if (isActionable) handlePrintPreview(rowData); }} disabled={!isActionable} title="Print Receipt">
+                    <i className="bx bx-printer font-size-18"></i>
                 </button>
                 <button className={`btn-icon ${isActionable ? 'text-success' : 'text-muted'}`} onClick={() => { if (isActionable) handleSubmitRow(rowData.receipt_id); }} disabled={!isActionable} title="Submit to Finance">
                     <i className="bx bx-check-circle font-size-18"></i>
@@ -439,16 +629,32 @@ const AddBankBook = () => {
                     resizable={false}
                 >
                     <div className="bg-light p-3 rounded mb-3 d-flex justify-content-between align-items-center">
-                        <div className="d-flex align-items-center gap-3" style={{ width: '40%' }}>
+                        <div className="d-flex align-items-center gap-3" style={{ width: '55%' }}>
                             <Label className="fw-bold mb-0 text-nowrap">Bank Account:</Label>
                             <Select
                                 className="flex-grow-1"
                                 options={bankList}
                                 value={selectedBank}
-                                onChange={setSelectedBank}
+                                onChange={(bank) => {
+                                    setSelectedBank(bank);
+                                    if (bank && bank.currencyId) {
+                                        const matchCur = currencyList.find(c => c.value === bank.currencyId);
+                                        if (matchCur) setSelectedCurrency(matchCur);
+                                    }
+                                }}
                                 placeholder="Select Bank..."
                                 styles={customSelectStyles}
                                 isDisabled={editMode}
+                            />
+                            <Label className="fw-bold mb-0 text-nowrap">Currency:</Label>
+                            <Select
+                                className="flex-grow-1"
+                                options={currencyList}
+                                value={selectedCurrency}
+                                onChange={setSelectedCurrency}
+                                placeholder="Currency..."
+                                styles={customSelectStyles}
+                                isClearable
                             />
                         </div>
                         <div className="d-flex gap-4">
@@ -613,6 +819,133 @@ const AddBankBook = () => {
                         )}
                     </ModalFooter>
                 </Dialog>
+
+                {/* --- PRINT RECEIPT MODAL --- */}
+                <Modal
+                    isOpen={isPrintModalOpen}
+                    toggle={() => setIsPrintModalOpen(false)}
+                    size="lg"
+                    centered
+                    style={{ maxWidth: '780px', width: '95%' }}
+                >
+                    <ModalHeader toggle={() => setIsPrintModalOpen(false)}>Receipt Preview</ModalHeader>
+                    <ModalBody className="p-3" style={{ backgroundColor: '#f9f9f9', overflowX: 'auto' }}>
+                        <div id="receipt-print-section" className="receipt-container" style={{
+                            backgroundColor: 'white',
+                            border: '2px solid #1a2c5b',
+                            padding: '18px 22px',
+                            position: 'relative',
+                            width: '100%',
+                            maxWidth: '700px',
+                            margin: '0 auto',
+                            color: '#000',
+                            fontFamily: "'Times New Roman', serif",
+                            boxSizing: 'border-box'
+                        }}>
+                            {/* Header */}
+                            <div className="header" style={{ display: 'flex', alignItems: 'center', borderBottom: '2px solid #1a2c5b', paddingBottom: '6px', marginBottom: '12px' }}>
+                                <div className="logo" style={{ width: '70px', marginRight: '15px', flexShrink: 0 }}>
+                                    <img src={logo} alt="BTG Logo" style={{ width: '100%' }} />
+                                </div>
+                                <div className="company-details" style={{ flexGrow: 1 }}>
+                                    <h2 style={{ margin: 0, color: '#1a2c5b', fontSize: '16px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>PT. BATAM TEKNOLOGI GAS</h2>
+                                    <p style={{ margin: '1px 0', fontSize: '9px', color: '#333' }}>Jalan Brigjen Katamso KM. 3, Tanjung Uncang, Batam - Indonesia</p>
+                                    <p style={{ margin: '1px 0', fontSize: '9px', color: '#333' }}>Telp: (+62) 778 462959, 391918</p>
+                                    <p style={{ margin: '1px 0', fontSize: '9px', color: '#333' }}>Website: www.ptbtg.com | E-mail: ptbtg@ptbtg.com</p>
+                                </div>
+                                <div style={{ position: 'absolute', top: '18px', right: '22px', textAlign: 'right' }}>
+                                    <div style={{ fontSize: '14px', color: '#d92525', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                                        No. : {printRecord?.receipt_id}
+                                    </div>
+                                    <div style={{ fontSize: '8px', color: '#666', fontStyle: 'italic', marginTop: '2px' }}>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Title */}
+                            <div className="receipt-title" style={{ textAlign: 'center', fontSize: '15px', fontWeight: 'bold', textDecoration: 'underline double', marginBottom: '18px', color: '#1a2c5b', letterSpacing: '1.5px' }}>
+                                RECEIPT VOUCHER
+                            </div>
+
+                            {/* Content Grid */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '120px 10px 1fr', gridGap: '10px 4px', alignItems: 'baseline', marginBottom: '18px' }}>
+                                <div className="label" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '11px', whiteSpace: 'nowrap' }}>Received From</div>
+                                <div className="colon" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '11px', textAlign: 'center' }}>:</div>
+                                <div className="value" style={{ borderBottom: '1px solid #1a2c5b', paddingLeft: '6px', fontSize: '11px' }}>
+                                    {printRecord?.customerName || printRecord?.customer_name}
+                                </div>
+
+                                <div className="label" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '11px', whiteSpace: 'nowrap' }}>The Sum Of</div>
+                                <div className="colon" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '11px', textAlign: 'center' }}>:</div>
+                                <div className="slanted-box" style={{ border: '1px solid #1a2c5b', transform: 'skewX(-20deg)', padding: '4px 6px', background: '#fff' }}>
+                                    <div style={{ transform: 'skewX(20deg)', fontWeight: 'bold', fontSize: '11px' }}>
+                                        {numberToWords(parseFloat(printRecord?.bank_amount || 0))} {printRecord?.currencyCode === "IDR" ? "Rupiah" : (printRecord?.currencyCode || "Rupiah")} Only
+                                    </div>
+                                </div>
+
+                                <div className="label" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '11px', whiteSpace: 'nowrap' }}>Being Payment Of</div>
+                                <div className="colon" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '11px', textAlign: 'center' }}>:</div>
+                                <div className="value" style={{ borderBottom: '1px solid #1a2c5b', paddingLeft: '6px', fontSize: '11px' }}>
+                                    <strong>Invoice No:</strong> {printRecord?.reference_no || "______________________"}
+                                </div>
+                            </div>
+
+                            {/* Amount + Signature Row */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '18px' }}>
+                                <div style={{ width: '58%' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '14px' }}>
+                                        <div className="label" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '11px', marginRight: '8px', whiteSpace: 'nowrap' }}>
+                                            Amount {printRecord?.currencyCode === 'IDR' || !printRecord?.currencyCode ? 'Rp' : '$'} :
+                                        </div>
+                                        <div style={{
+                                            border: '1px solid #1a2c5b',
+                                            width: '200px',
+                                            padding: '5px 8px',
+                                            transform: 'skewX(-20deg)',
+                                            textAlign: 'center',
+                                            background: '#fff'
+                                        }}>
+                                            <span style={{ display: 'inline-block', transform: 'skewX(20deg)', fontWeight: 'bold', fontSize: '14px' }}>
+                                                {parseFloat(printRecord?.bank_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                                        <div className="label" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '11px', marginRight: '6px', whiteSpace: 'nowrap' }}>
+                                            Payment Method :
+                                        </div>
+                                        <div className="value" style={{ borderBottom: '1px solid #1a2c5b', flexGrow: 1, paddingLeft: '6px', fontSize: '11px', color: '#000' }}>
+                                            Transfer {getPrintBankName()}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{ textAlign: 'center', width: '35%' }}>
+                                    <div style={{ fontSize: '11px', marginBottom: '3px', color: '#000' }}>
+                                        Batam, {formatDatePrint(printRecord?.date || printRecord?.receipt_date)}
+                                    </div>
+                                    <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#1a2c5b' }}>Received by,</div>
+
+                                    <div style={{ fontSize: '10px', marginTop: '3px', fontWeight: 'bold' }}>( Admin )</div>
+                                    <div style={{ fontSize: '8px', marginTop: '4px', color: '#666', fontStyle: 'italic' }}>This is computer generated, no signature required</div>
+                                </div>
+                            </div>
+
+
+
+                        </div>
+                        {/* Printed-by date OUTSIDE the border */}
+                        <div id="receipt-print-meta" className="print-meta" style={{ maxWidth: '700px', margin: '2px auto 0 auto', textAlign: 'right', fontSize: '6px', color: '#aaa', paddingTop: '1px' }}>
+                            printed by {formatDatePrint(new Date())}, {new Date().toLocaleTimeString()}
+                        </div>
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button color="secondary" onClick={() => setIsPrintModalOpen(false)}>Close</Button>
+                        <Button color="success" onClick={triggerDownload}><i className="bx bx-download me-1"></i> Download</Button>
+                        <Button color="info" onClick={triggerPrint}><i className="bx bx-printer me-1"></i> Print</Button>
+                    </ModalFooter>
+                </Modal>
 
             </Container>
 

@@ -363,3 +363,49 @@ async def get_customer_defaults(db: AsyncSession = Depends(get_db)):
     except Exception as e:
         print(f"❌ Error fetching customer defaults: {e}")
         return {"status": "error", "detail": str(e)}
+
+
+# --- NEW ENDPOINT: SYNC CLAIM TO AP ---
+@router.post("/sync-claim-to-ap/{claim_id}")
+async def sync_claim_to_ap(
+    claim_id: int, 
+    user_id: int, 
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Calls the stored procedure to sync a validated Claim into the 
+    Accounts Payable (AP) table.
+    """
+    try:
+        # 1. Optional: Verify if the claim exists and is posted before syncing
+        # This prevents accidental syncing of 'Saved' but 'Not Posted' claims
+        check_query = text("SELECT IsSubmitted FROM tbl_claimAndpayment_header WHERE Claim_ID = :cid")
+        check_result = await db.execute(check_query, {"cid": claim_id})
+        claim = check_result.mappings().first()
+
+        if not claim:
+            raise HTTPException(status_code=404, detail="Claim record not found")
+        
+        if claim['IsSubmitted'] == 0:
+            return {
+                "status": "warning", 
+                "message": "Only 'Posted' claims can be synced to Accounts Payable."
+            }
+
+        # 2. Call the Stored Procedure
+        # Note: We use db.execute with text() for calling procedures in SQLAlchemy Async
+        sync_query = text("CALL proc_sync_ClaimToAP(:cid, :uid)")
+        await db.execute(sync_query, {"cid": claim_id, "uid": user_id})
+        
+        # 3. Commit the transaction
+        await db.commit()
+
+        return {
+            "status": "success", 
+            "message": f"Claim {claim_id} successfully synced to Accounts Payable."
+        }
+
+    except Exception as e:
+        await db.rollback()
+        print(f"❌ Sync Error: {e}")
+        return {"status": "error", "detail": str(e)}

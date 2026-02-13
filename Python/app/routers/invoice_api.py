@@ -146,9 +146,6 @@ class UpdateInvoiceRequest(BaseModel):
 async def create_invoice(payload: CreateInvoiceRequest):
     async with engine.begin() as conn: 
         try:
-            # [FIX] Disable FK Checks for Cross-DB Reference
-            await conn.execute(text("SET FOREIGN_KEY_CHECKS=0"))
-
             # [FIX 1] Check for Duplicate Invoice Number
             if payload.header.salesInvoiceNbr:
                 dup_check = text(f"""
@@ -253,9 +250,6 @@ async def update_invoice(payload: UpdateInvoiceRequest):
             invoice_id = payload.header.id
             if not invoice_id:
                 raise HTTPException(status_code=400, detail="Invoice ID required for update")
-
-            # [FIX] Disable FK Checks for Cross-DB Reference
-            await conn.execute(text("SET FOREIGN_KEY_CHECKS=0"))
 
             # [FIX 1] Check for Duplicate Invoice Number (Excluding Current ID)
             if payload.header.salesInvoiceNbr:
@@ -455,7 +449,7 @@ async def get_invoice_details(invoiceid: str):
                         COALESCE(d.PONumber, '') AS PONumber,
                         COALESCE(d.uomid, 0) AS uomid
                     FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_details d
-                    LEFT JOIN {DB_NAME_USER_NEW}.master_gascode g ON d.gascodeid = g.Id
+                    LEFT JOIN {DB_NAME_USER}.master_gascode g ON d.gascodeid = g.Id
                     WHERE d.salesinvoicesheaderid IN :hids
                 """)
                 
@@ -522,9 +516,6 @@ async def create_invoice_from_do(payload: ConvertDORequest):
         try:
             if not payload.do_ids:
                  raise HTTPException(status_code=400, detail="No DOs selected")
-
-            # [FIX] Disable FK Checks for Cross-DB Reference
-            await conn.execute(text("SET FOREIGN_KEY_CHECKS=0"))
 
             # 1. [FIX 2] CHECK IF ANY DO IS ALREADY CONVERTED
             # Logic: Look for any active invoice details that reference these DO Numbers

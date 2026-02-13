@@ -1820,7 +1820,7 @@ export const GetAllGasListing = async (gasName, volume, pressure) => {
 
     try {
 
-        const response = await get(`/MasterGas/GetAllGasListing?gasName=${encodeURIComponent(gasName)}&volume=${volume}&pressure=${pressure}`);
+        const response = await get(`${PYTHON_API_URL}/pyapi/MasterGas/GetAllGasListing?gasName=${encodeURIComponent(gasName)}&volume=${volume}&pressure=${pressure}`);
         if (response?.status) {
             return response;
         } else {
@@ -1835,7 +1835,7 @@ export const GetAllGasListing = async (gasName, volume, pressure) => {
 export const GetAllGasTypes = async () => {
     try {
 
-        const response = await get(`/MasterGas/GetAllGasTypes`);
+        const response = await get(`${PYTHON_API_URL}/pyapi/MasterGas/GetAllGasTypes`);
         if (response?.status) {
             console.log(response)
             return transformData(response.data, 'Id', 'TypeName');
@@ -1883,7 +1883,7 @@ export const GetPressure = async (BranchId = 1, SearchText = "") => {
 
 export const GetgasbyId = async (gasid) => {
     try {
-        const response = await get(`/MasterGas/GetByID?gasID=${gasid}`);
+        const response = await get(`${PYTHON_API_URL}/pyapi/MasterGas/GetByID?gasID=${gasid}`);
         if (response?.status) {
             return response.data[0];
         } else {
@@ -1900,7 +1900,7 @@ export const AddGascode = async (GasCodeData) => {
 
         const payload = GasCodeData;
         console.log("payload ->post :", payload);
-        const response = await post('/MasterGas/Create', payload);
+        const response = await post(`${PYTHON_API_URL}/pyapi/MasterGas/Create`, payload);
         console.log("post response :", response);
         if (response?.status) {
             return response;
@@ -1917,7 +1917,7 @@ export const UpdateGascode = async (GasCodeData) => {
     try {
 
         const payload = GasCodeData;
-        const response = await put('/MasterGas/Update', payload);
+        const response = await put(`${PYTHON_API_URL}/pyapi/MasterGas/Update`, payload);
         if (response?.status) {
             return response;
         } else {
@@ -2068,7 +2068,7 @@ export const GetReturnOrderSeqNo = async (BranchId = "1") => {
 
 export const gastoggleactivestatus = async (gasStatusData) => {
     try {
-        const response = await put('/MasterGas/ToogleActiveStatus', gasStatusData);
+        const response = await put(`${PYTHON_API_URL}/pyapi/MasterGas/ToogleActiveStatus`, gasStatusData);
         if (response?.status) {
             return response;
         } else {
@@ -5404,6 +5404,167 @@ export const GetApprovalDiscussionList = async (orgId, branchId, userId) => {
     } catch (error) {
         console.log("Error in GetApprovalDiscussionList:", error); // Log silently, don't break app
         return { status: false, data: [] };
+    }
+};
+
+export const getAllCreditNotes = async () => {
+    try {
+        const response = await get(`${PYTHON_API_URL}/dn_cn/get-all-credit-notes`);
+        if (response?.status === "success") {
+            return response;
+        } else {
+            console.error(response?.message || "Failed to fetch credit notes");
+            return { status: "error", message: response?.message };
+        }
+    } catch (error) {
+        console.error("Error fetching credit notes:", error);
+        return { status: "error", message: error.message };
+    }
+};
+
+export const getAllDebitNotes = async () => {
+    try {
+        const response = await get(`${PYTHON_API_URL}/dn_cn/get-all-debit-notes`);
+        if (response?.status === "success") {
+            return response;
+        } else {
+            console.error(response?.message || "Failed to fetch debit notes");
+            return { status: "error", message: response?.message };
+        }
+    } catch (error) {
+        console.error("Error fetching debit notes:", error);
+        return { status: "error", message: error.message };
+    }
+};
+
+export const getCustomersDNCN = async () => {
+    try {
+        const response = await get(`${PYTHON_API_URL}/dn_cn/get-customers`);
+        if (response?.status === "success") {
+            return response;
+        } else {
+            console.error(response?.message || "Failed to fetch customers");
+            return { status: "error", message: response?.message };
+        }
+    } catch (error) {
+        console.error("Error fetching customers:", error);
+        return { status: "error", message: error.message };
+    }
+};
+
+export const getOutstandingInvoices = async (customerId) => {
+    try {
+        const response = await get(`${PYTHON_API_URL}/AR/get-outstanding-invoices/${customerId}`);
+        if (response?.status) {
+            return response;
+        } else {
+            return response;
+        }
+    } catch (error) {
+        console.error("Error fetching invoices:", error);
+        return { status: false, message: error.message };
+    }
+};
+
+export const createCreditNote = async (payload) => {
+    try {
+        const response = await post(`${PYTHON_API_URL}/dn_cn/create-credit-note`, payload);
+        if (response?.status === "success") {
+            return response;
+        } else {
+            throw new Error(response?.message || "Failed to create credit note");
+        }
+    } catch (error) {
+        console.error("Error creating credit note:", error);
+        throw error;
+    }
+};
+
+export const createDebitNote = async (payload) => {
+    try {
+        const response = await post(`${PYTHON_API_URL}/dn_cn/create-debit-note`, payload);
+        if (response?.status === "success") {
+            return response;
+        } else {
+            throw new Error(response?.message || "Failed to create debit note");
+        }
+    } catch (error) {
+        console.error("Error creating debit note:", error);
+        throw error;
+    }
+};
+
+export const updateCreditNote = async (payload) => {
+    try {
+        const response = await put(`${PYTHON_API_URL}/dn_cn/update-credit-note`, payload);
+        if (response?.status === "success") {
+            return response;
+        } else {
+            throw new Error(response?.message || "Failed to update credit note");
+        }
+    } catch (error) {
+        console.error("Error updating credit note:", error);
+        throw error;
+    }
+};
+
+export const updateDebitNote = async (payload) => {
+    try {
+        const response = await put(`${PYTHON_API_URL}/dn_cn/update-debit-note`, payload);
+        if (response?.status === "success") {
+            return response;
+        } else {
+            throw new Error(response?.message || "Failed to update debit note");
+        }
+    } catch (error) {
+        console.error("Error updating debit note:", error);
+        throw error;
+    }
+};
+
+export const getCreditNoteById = async (id) => {
+    try {
+        const response = await get(`${PYTHON_API_URL}/dn_cn/get-credit-note/${id}`);
+        if (response?.status === "success") {
+            return response;
+        } else {
+            console.error(response?.message || "Failed to fetch credit note");
+            return { status: "error", message: response?.message };
+        }
+    } catch (error) {
+        console.error("Error fetching credit note:", error);
+        return { status: "error", message: error.message };
+    }
+};
+
+export const getDebitNoteById = async (id) => {
+    try {
+        const response = await get(`${PYTHON_API_URL}/dn_cn/get-debit-note/${id}`);
+        if (response?.status === "success") {
+            return response;
+        } else {
+            console.error(response?.message || "Failed to fetch debit note");
+            return { status: "error", message: response?.message };
+        }
+    } catch (error) {
+        console.error("Error fetching debit note:", error);
+        return { status: "error", message: error.message };
+    }
+};
+//#endregion
+
+export const getLedgerCurrencies = async () => {
+    try {
+        const response = await get(`${PYTHON_API_URL}/ledger/get-currencies`);
+        if (response?.status === "success") {
+            return response;
+        } else {
+            console.error(response?.message || "Failed to fetch currencies");
+            return { status: "error", message: response?.message };
+        }
+    } catch (error) {
+        console.error("Error fetching currencies:", error);
+        return { status: "error", message: error.message };
     }
 };
 //#endregion

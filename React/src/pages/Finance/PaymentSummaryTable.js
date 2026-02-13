@@ -693,6 +693,11 @@ word-break: break-word;
     const currencies = ["IDR", "SGD", "USD", "MYR", "CNY"];
 
     // split data
+    if (data.length > 0) {
+      console.log("DEBUG buildTable: Sample row KEYS:", Object.keys(data[0]));
+      console.log("DEBUG buildTable: Sample row FULL:", JSON.stringify(data[0], null, 2));
+    }
+
     const cashWithdrawalData = data.filter(r => r.PaymentMethod === "Cash Withdrawal");
     const cashAloneData = data.filter(r => r.PaymentMethod === "Cash");
     const otherData = data.filter(r => r.PaymentMethod !== "Cash Withdrawal" && r.PaymentMethod !== "Cash");
@@ -758,8 +763,12 @@ word-break: break-word;
         curr: c.curr,
         amount: c.amount,
         SupplierId: c.SupplierId,
-        ApplicantId: c.ApplicantId
+        ApplicantId: c.ApplicantId,
+        BankName: c.BankName,
+        BankId: c.BankId,
+        DepositBankId: c.deposit_bank_id
       })));
+      if (data.length > 0) console.log("DEBUG FIRST ROW FULL:", data[0]);
     }
 
     // cash withdrawal grouped by bank
@@ -826,24 +835,18 @@ word-break: break-word;
                   rows.push(
                     <tr key={`row-${bankName}-${supplierIndex}`}>
                       <td style={{ textAlign: "left" }}>{group.method}</td>
-                      {/* Only show bank name for first supplier in group */}
-                      {supplierIndex === 0 ? (
-                        <td
-                          style={{ textAlign: "left", verticalAlign: "middle" }}
-                          rowSpan={suppliers.length}
+                      <td style={{ textAlign: "left" }}>
+                        <span
+                          className="linkcolor"
+                          style={{ cursor: "pointer" }}
+                          onClick={() => {
+                            const bankRows = data.filter(r => (r.BankName || "-") === bankName);
+                            handleBankClick(bankName, bankRows);
+                          }}
                         >
-                          <span
-                            className="linkcolor"
-                            style={{ cursor: "pointer" }}
-                            onClick={() => {
-                              const bankRows = data.filter(r => (r.BankName || "-") === bankName);
-                              handleBankClick(bankName, bankRows);
-                            }}
-                          >
-                            {bankName}
-                          </span>
-                        </td>
-                      ) : null}
+                          {bankName}
+                        </span>
+                      </td>
                       <td style={{ textAlign: "left" }}>
                         <span
                           className="linkcolor"

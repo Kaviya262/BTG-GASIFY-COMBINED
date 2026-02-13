@@ -94,7 +94,7 @@ const VerifyCustomer = () => {
   // Modal States
   const [verifyModal, setVerifyModal] = useState(false);
   const [replyModal, setReplyModal] = useState(false);
-  const [printModal, setPrintModal] = useState(false);
+  // const [printModal, setPrintModal] = useState(false); // MOVED TO AddBankBook.js
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -166,7 +166,7 @@ const VerifyCustomer = () => {
     setVerifyModal(true);
     setLoadingInvoices(true);
 
-    const initialBankCharges = parseFloat(record.bank_charges) || 0;
+    const initialBankCharges = Math.abs(parseFloat(record.bank_charges) || 0);
     const initialTaxDeduction = parseFloat(record.tax_rate) || parseFloat(record.tax_deduction) || 0;
     const initialExchangeRate = parseFloat(record.exchange_rate) || 1;
     const initialAdvance = parseFloat(record.cash_amount) || 0;
@@ -212,6 +212,17 @@ const VerifyCustomer = () => {
     }
   };
 
+  // --- HELPERS FOR NUMBER INPUTS ---
+  const formatNumber = (num) => {
+    if (!num && num !== 0) return "";
+    return num.toLocaleString('en-US');
+  };
+
+  const parseNumber = (str) => {
+    if (!str) return 0;
+    return parseFloat(str.replace(/,/g, '')) || 0;
+  };
+
   const handleInvoiceChange = (index, field, value) => {
     const updated = [...verificationData.invoices];
     if (field === "selected") {
@@ -235,8 +246,21 @@ const VerifyCustomer = () => {
       }
     }
     else if (field === "amount") {
-      updated[index].amount = parseFloat(value) || 0;
+      updated[index].amount = parseNumber(value);
     }
+    setVerificationData({ ...verificationData, invoices: updated });
+  };
+
+  const isAllSelected = verificationData.invoices.length > 0 && verificationData.invoices.every(inv => inv.selected);
+
+  const handleSelectAll = (e) => {
+    const checked = e.target.checked;
+    const updated = verificationData.invoices.map(inv => ({
+      ...inv,
+      selected: checked,
+      paymentType: checked ? "Full" : "",
+      amount: checked ? inv.balanceDue : ""
+    }));
     setVerificationData({ ...verificationData, invoices: updated });
   };
 
@@ -254,6 +278,7 @@ const VerifyCustomer = () => {
     advance_payment: verificationData.advancePayment,
     exchange_rate: verificationData.exchangeRate,
     reply_message: verificationData.replyMessage,
+    user_id: JSON.parse(localStorage.getItem("authUser"))?.id || 1,
     allocations: verificationData.invoices
       .filter(inv => inv.selected)
       .map(inv => ({
@@ -312,53 +337,54 @@ const VerifyCustomer = () => {
       "";
   };
 
-  const handlePrintPreview = (rowData) => {
-    setSelectedRecord(rowData);
-    setPrintModal(true);
-  };
+  // --- PRINT FUNCTIONS (MOVED TO AddBankBook.js) ---
+  // const handlePrintPreview = (rowData) => {
+  //   setSelectedRecord(rowData);
+  //   setPrintModal(true);
+  // };
 
-  const triggerPrint = () => {
-    const printContent = document.getElementById("receipt-print-section").innerHTML;
-    const printWindow = window.open("", "_blank");
-
-    printWindow.document.write(`
-        <html>
-            <head>
-                <title>Receipt Voucher - ${selectedRecord?.receipt_id}</title>
-                <base href="${window.location.origin}/" />
-                <style>
-                    body { font-family: 'Times New Roman', serif; margin: 0; padding: 20px; }
-                    .receipt-container { border: 2px solid #1a2c5b; padding: 30px; position: relative; width: 100%; max-width: 1000px; margin: auto; height: 650px; }
-                    .header { display: flex; align-items: center; border-bottom: 2px solid #1a2c5b; padding-bottom: 10px; margin-bottom: 20px; }
-                    .logo { width: 120px; margin-right: 25px; }
-                    .company-details h2 { margin: 0; color: #1a2c5b; font-size: 26px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-                    .company-details p { margin: 3px 0; font-size: 13px; color: #333; }
-                    .receipt-no { position: absolute; top: 30px; right: 30px; font-size: 22px; color: #d92525; font-weight: bold; font-family: monospace; text-align: right; }
-                    .running-system { font-size: 11px; color: #666; font-style: italic; margin-top: 5px; }
-                    .receipt-title { text-align: center; font-size: 24px; font-weight: bold; margin: 20px 0 35px 0; color: #1a2c5b; letter-spacing: 2px; text-decoration: underline double; }
-                    .content-grid { display: grid; grid-template-columns: 180px 15px 1fr; grid-gap: 15px 5px; align-items: baseline; margin-bottom: 30px; }
-                    .label { font-weight: bold; color: #1a2c5b; font-size: 16px; white-space: nowrap; }
-                    .colon { font-weight: bold; color: #1a2c5b; font-size: 16px; text-align: center; }
-                    .value { border-bottom: 1px solid #1a2c5b; padding-left: 10px; font-size: 16px; position: relative; min-height: 24px; color: #000; }
-                    .slanted-box { border: 1px solid #1a2c5b; transform: skewX(-20deg); padding: 8px; background: #fff; }
-                    .amount-row { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 30px; }
-                    .amount-label { font-weight: bold; color: #1a2c5b; font-size: 16px; margin-right: 15px; }
-                    .footer { display: flex; justify-content: space-between; margin-top: 50px; align-items: flex-end; }
-                    .print-meta { margin-top: 40px; text-align: right; font-size: 10px; color: #888; border-top: 1px solid #eee; padding-top: 5px; }
-                </style>
-            </head>
-            <body>
-                ${printContent}
-            </body>
-        </html>
-      `);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 500);
-  };
+  // const triggerPrint = () => {
+  //   const printContent = document.getElementById("receipt-print-section").innerHTML;
+  //   const printWindow = window.open("", "_blank");
+  //
+  //   printWindow.document.write(`
+  //       <html>
+  //           <head>
+  //               <title>Receipt Voucher - ${selectedRecord?.receipt_id}</title>
+  //               <base href="${window.location.origin}/" />
+  //               <style>
+  //                   body { font-family: 'Times New Roman', serif; margin: 0; padding: 20px; }
+  //                   .receipt-container { border: 2px solid #1a2c5b; padding: 30px; position: relative; width: 100%; max-width: 1000px; margin: auto; height: 650px; }
+  //                   .header { display: flex; align-items: center; border-bottom: 2px solid #1a2c5b; padding-bottom: 10px; margin-bottom: 20px; }
+  //                   .logo { width: 120px; margin-right: 25px; }
+  //                   .company-details h2 { margin: 0; color: #1a2c5b; font-size: 26px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+  //                   .company-details p { margin: 3px 0; font-size: 13px; color: #333; }
+  //                   .receipt-no { position: absolute; top: 30px; right: 30px; font-size: 22px; color: #d92525; font-weight: bold; font-family: monospace; text-align: right; }
+  //                   .running-system { font-size: 11px; color: #666; font-style: italic; margin-top: 5px; }
+  //                   .receipt-title { text-align: center; font-size: 24px; font-weight: bold; margin: 20px 0 35px 0; color: #1a2c5b; letter-spacing: 2px; text-decoration: underline double; }
+  //                   .content-grid { display: grid; grid-template-columns: 180px 15px 1fr; grid-gap: 15px 5px; align-items: baseline; margin-bottom: 30px; }
+  //                   .label { font-weight: bold; color: #1a2c5b; font-size: 16px; white-space: nowrap; }
+  //                   .colon { font-weight: bold; color: #1a2c5b; font-size: 16px; text-align: center; }
+  //                   .value { border-bottom: 1px solid #1a2c5b; padding-left: 10px; font-size: 16px; position: relative; min-height: 24px; color: #000; }
+  //                   .slanted-box { border: 1px solid #1a2c5b; transform: skewX(-20deg); padding: 8px; background: #fff; }
+  //                   .amount-row { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 30px; }
+  //                   .amount-label { font-weight: bold; color: #1a2c5b; font-size: 16px; margin-right: 15px; }
+  //                   .footer { display: flex; justify-content: space-between; margin-top: 50px; align-items: flex-end; }
+  //                   .print-meta { margin-top: 40px; text-align: right; font-size: 10px; color: #888; border-top: 1px solid #eee; padding-top: 5px; }
+  //               </style>
+  //           </head>
+  //           <body>
+  //               ${printContent}
+  //           </body>
+  //       </html>
+  //     `);
+  //   printWindow.document.close();
+  //   printWindow.focus();
+  //   setTimeout(() => {
+  //     printWindow.print();
+  //     printWindow.close();
+  //   }, 500);
+  // };
 
   const actionBodyTemplate = (rowData) => {
     return (
@@ -370,10 +396,11 @@ const VerifyCustomer = () => {
           setVerificationData(prev => ({ ...prev, replyMessage: "" }));
           setReplyModal(true);
         }}>Reply</button>
-        <span className="text-muted">|</span>
+        {/* PRINT BUTTON MOVED TO AddBankBook.js */}
+        {/* <span className="text-muted">|</span>
         <button className="btn btn-link p-0 text-secondary" onClick={() => handlePrintPreview(rowData)} title="Print Receipt">
           <i className="bx bx-printer font-size-18"></i>
-        </button>
+        </button> */}
       </div>
     );
   };
@@ -420,7 +447,7 @@ const VerifyCustomer = () => {
               <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
                 <Table bordered hover className="align-middle mb-0 table-sm">
                   <thead className="table-light text-center sticky-top" style={{ top: 0, zIndex: 10 }}>
-                    <tr><th>Invoice No.</th><th>Date</th><th>Balance Due</th><th style={{ width: '25%' }}>Payment Type</th><th>Allocate Amount</th><th style={{ width: '60px' }}>Select</th></tr>
+                    <tr><th>Invoice No.</th><th>Date</th><th>Balance Due</th><th style={{ width: '25%' }}>Payment Type</th><th>Allocate Amount</th><th style={{ width: '60px' }} className="text-center"><Input type="checkbox" checked={isAllSelected} onChange={handleSelectAll} /></th></tr>
                   </thead>
                   <tbody>
                     {verificationData.invoices.length === 0 ? <tr><td colSpan="6" className="text-center text-muted p-4">No Outstanding Invoices Found.</td></tr> : verificationData.invoices.map((inv, idx) => (
@@ -430,7 +457,7 @@ const VerifyCustomer = () => {
                           <FormGroup check inline><Input type="radio" name={`pay-${idx}`} checked={inv.paymentType === "Full"} onChange={() => handleInvoiceChange(idx, "paymentType", "Full")} /><Label check className="ms-1 small">Full</Label></FormGroup>
                           <FormGroup check inline><Input type="radio" name={`pay-${idx}`} checked={inv.paymentType === "Partial"} onChange={() => handleInvoiceChange(idx, "paymentType", "Partial")} /><Label check className="ms-1 small">Partial</Label></FormGroup>
                         </td>
-                        <td><Input type="number" className="text-end form-control-sm" value={inv.amount} disabled={inv.paymentType === "Full" || !inv.selected} onChange={(e) => handleInvoiceChange(idx, "amount", e.target.value)} style={{ maxWidth: '150px', margin: '0 auto' }} /></td>
+                        <td><Input type="text" className="text-end form-control-sm" value={inv.amount ? formatNumber(inv.amount) : ""} disabled={inv.paymentType === "Full" || !inv.selected} onChange={(e) => handleInvoiceChange(idx, "amount", e.target.value)} style={{ maxWidth: '150px', margin: '0 auto' }} /></td>
                         <td className="text-center"><Input type="checkbox" checked={inv.selected} onChange={(e) => handleInvoiceChange(idx, "selected", e.target.checked)} /></td>
                       </tr>
                     ))}
@@ -440,10 +467,10 @@ const VerifyCustomer = () => {
             )}
             <Row className="mt-4 pt-3 border-top align-items-end">
               <Col md={2}><Label className="fw-bold mb-1 small text-muted">Allocated</Label><Input type="text" className="fw-bold bg-white" value={totalAllocated.toLocaleString()} readOnly /></Col>
-              <Col md={2}><Label className="fw-bold mb-1 small text-muted">Bank Charges</Label><Input type="number" value={verificationData.bankCharges === 0 ? "" : verificationData.bankCharges} onChange={(e) => setVerificationData({ ...verificationData, bankCharges: parseFloat(e.target.value) || 0 })} /></Col>
-              <Col md={2}><Label className="fw-bold mb-1 small text-muted">Tax Deduction</Label><Input type="number" value={verificationData.taxDeduction === 0 ? "" : verificationData.taxDeduction} onChange={(e) => setVerificationData({ ...verificationData, taxDeduction: parseFloat(e.target.value) || 0 })} /></Col>
-              <Col md={3}><Label className="fw-bold mb-1 small text-success">Advance Payment</Label><Input type="number" className="fw-bold text-success" value={verificationData.advancePayment === 0 ? "" : verificationData.advancePayment} onChange={(e) => setVerificationData({ ...verificationData, advancePayment: parseFloat(e.target.value) || 0 })} placeholder="Enter advance..." /></Col>
-              <Col md={3}><Label className={`fw-bold mb-1 small ${isValid ? "text-success" : "text-danger"}`}>Total Utilized</Label><div className="input-group"><Input type="text" className={`fw-bold ${isValid ? "is-valid" : "is-invalid"}`} value={utilizedAmount.toLocaleString()} readOnly />{!isValid && <span className="input-group-text text-danger bg-light" style={{ fontSize: '0.8rem' }}>Diff: {variance.toLocaleString()}</span>}</div></Col>
+              <Col md={2}><Label className="fw-bold mb-1 small text-muted">Bank Charges</Label><Input type="text" value={verificationData.bankCharges === 0 ? "" : formatNumber(verificationData.bankCharges)} onChange={(e) => setVerificationData({ ...verificationData, bankCharges: parseNumber(e.target.value) })} /></Col>
+              <Col md={2}><Label className="fw-bold mb-1 small text-muted">Tax Deduction</Label><Input type="text" value={verificationData.taxDeduction === 0 ? "" : formatNumber(verificationData.taxDeduction)} onChange={(e) => setVerificationData({ ...verificationData, taxDeduction: parseNumber(e.target.value) })} /></Col>
+              <Col md={3}><Label className="fw-bold mb-1 small text-success">Advance Payment</Label><Input type="text" className="fw-bold text-success" value={verificationData.advancePayment === 0 ? "" : formatNumber(verificationData.advancePayment)} onChange={(e) => setVerificationData({ ...verificationData, advancePayment: parseNumber(e.target.value) })} placeholder="Enter advance..." /></Col>
+              <Col md={3}><Label className={`fw-bold mb-1 small ${isValid ? "text-success" : "text-danger"}`}>Total Utilized</Label><div className="input-group"><Input type="text" className={`fw-bold ${isValid ? "is-valid" : "is-invalid"}`} value={formatNumber(utilizedAmount)} readOnly />{!isValid && <span className="input-group-text text-danger bg-light" style={{ fontSize: '0.8rem' }}>Diff: {formatNumber(variance)}</span>}</div></Col>
             </Row>
             <div className="d-flex justify-content-end gap-2 mt-4">
               <Button color="primary" onClick={handleSaveDraft} disabled={savingDraft || loadingInvoices} style={{ width: '120px' }}>{savingDraft ? <Spinner size="sm" /> : "Save Draft"}</Button>
@@ -467,7 +494,8 @@ const VerifyCustomer = () => {
           </ModalFooter>
         </Modal>
 
-        <Modal
+        {/* --- PRINT MODAL (MOVED TO AddBankBook.js) --- */}
+        {/* <Modal
           isOpen={printModal}
           toggle={() => setPrintModal(false)}
           size="xl"
@@ -476,124 +504,13 @@ const VerifyCustomer = () => {
         >
           <ModalHeader toggle={() => setPrintModal(false)}>Receipt Preview</ModalHeader>
           <ModalBody className="p-4" style={{ backgroundColor: '#f9f9f9', overflowX: 'auto' }}>
-            <div id="receipt-print-section" className="receipt-container" style={{
-              backgroundColor: 'white',
-              border: '2px solid #1a2c5b',
-              padding: '40px',
-              position: 'relative',
-              width: '100%',
-              height: '650px',
-              color: '#000',
-              fontFamily: "'Times New Roman', serif"
-            }}>
-              <div className="header" style={{ display: 'flex', alignItems: 'center', borderBottom: '2px solid #1a2c5b', paddingBottom: '15px', marginBottom: '30px' }}>
-                <div className="logo" style={{ width: '120px', marginRight: '30px' }}>
-                  <img src={logo} alt="BTG Logo" style={{ width: '100%' }} />
-                </div>
-                <div className="company-details" style={{ flexGrow: 1 }}>
-                  <h2 style={{ margin: 0, color: '#1a2c5b', fontSize: '28px', fontWeight: 'bold' }}>PT. BATAM TEKNOLOGI GAS</h2>
-                  <p style={{ margin: '4px 0', fontSize: '14px', color: '#333' }}>Jalan Brigjen Katamso KM. 3, Tanjung Uncang, Batam - Indonesia</p>
-                  <p style={{ margin: '4px 0', fontSize: '14px', color: '#333' }}>Telp: (+62) 778 462959, 391918</p>
-                  <p style={{ margin: '4px 0', fontSize: '14px', color: '#333' }}>Website: www.ptbtg.com | E-mail: ptbtg@ptbtg.com</p>
-                </div>
-                <div style={{ position: 'absolute', top: '40px', right: '40px', textAlign: 'right' }}>
-                  <div style={{ fontSize: '22px', color: '#d92525', fontWeight: 'bold', fontFamily: 'monospace' }}>
-                    No. : {selectedRecord?.receipt_id}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#666', fontStyle: 'italic', marginTop: '4px' }}>
-                    Running system
-                  </div>
-                </div>
-              </div>
-
-              <div className="receipt-title" style={{ textAlign: 'center', fontSize: '24px', fontWeight: 'bold', textDecoration: 'underline double', marginBottom: '40px', color: '#1a2c5b', letterSpacing: '2px' }}>
-                RECEIPT VOUCHER
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '180px 15px 1fr', gridGap: '20px 5px', alignItems: 'baseline', marginBottom: '40px' }}>
-                <div className="label" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '16px', whiteSpace: 'nowrap' }}>Received From</div>
-                <div className="colon" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '16px', textAlign: 'center' }}>:</div>
-                <div className="value" style={{ borderBottom: '1px solid #1a2c5b', paddingLeft: '10px', fontSize: '16px' }}>
-                  {selectedRecord?.customerNameDisplay}
-                </div>
-
-                <div className="label" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '16px', whiteSpace: 'nowrap' }}>The Sum Of</div>
-                <div className="colon" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '16px', textAlign: 'center' }}>:</div>
-                <div className="slanted-box" style={{ border: '1px solid #1a2c5b', transform: 'skewX(-20deg)', padding: '8px', background: '#fff' }}>
-                  <div style={{ transform: 'skewX(20deg)', fontWeight: 'bold', fontSize: '16px' }}>
-                    {numberToWords(parseFloat(selectedRecord?.bank_amount || 0))} {selectedRecord?.currencyCode === "IDR" ? "Rupiah" : selectedRecord?.currencyCode} Only
-                  </div>
-                </div>
-
-                <div className="label" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '16px', whiteSpace: 'nowrap' }}>Being Payment Of</div>
-                <div className="colon" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '16px', textAlign: 'center' }}>:</div>
-                <div className="value" style={{ borderBottom: '1px solid #1a2c5b', paddingLeft: '10px', fontSize: '16px' }}>
-                  <strong>Invoice No:</strong> {selectedRecord?.reference_no || "______________________"}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '40px' }}>
-                <div style={{ width: '60%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '25px' }}>
-                    <div className="label" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '16px', marginRight: '15px' }}>
-                      Amount {selectedRecord?.currencyCode === 'IDR' ? 'Rp' : '$'} :
-                    </div>
-                    <div style={{
-                      border: '1px solid #1a2c5b',
-                      width: '300px',
-                      padding: '10px',
-                      transform: 'skewX(-20deg)',
-                      textAlign: 'center',
-                      background: '#fff'
-                    }}>
-                      <span style={{ display: 'inline-block', transform: 'skewX(20deg)', fontWeight: 'bold', fontSize: '20px' }}>
-                        {parseFloat(selectedRecord?.bank_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* 🟢 UPDATED: Payment Method Layout - Transfer is now above the line and not bold */}
-                  <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                    <div className="label" style={{ fontWeight: 'bold', color: '#1a2c5b', fontSize: '16px', marginRight: '10px', whiteSpace: 'nowrap' }}>
-                      Payment Method :
-                    </div>
-                    <div className="value" style={{ borderBottom: '1px solid #1a2c5b', flexGrow: 1, paddingLeft: '10px', fontSize: '16px', color: '#000' }}>
-                      Transfer {getBankName()}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ textAlign: 'center', width: '35%' }}>
-                  <div style={{ fontSize: '16px', marginBottom: '5px', color: '#000' }}>
-                    Batam, {formatDate(selectedRecord?.receiptDate)}
-                  </div>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#1a2c5b' }}>Received by,</div>
-                  <div style={{ borderBottom: '1px solid #000', marginTop: '80px', width: '100%' }}></div>
-                  <div style={{ fontSize: '14px', marginTop: '5px' }}>( sales person )</div>
-                </div>
-              </div>
-
-              <div style={{ marginTop: '40px' }}>
-                <div style={{ fontSize: '11px', color: '#1a2c5b', width: '60%', lineHeight: '1.5', fontWeight: '500' }}>
-                  <strong>Note :</strong><br />
-                  Cheque should be crossed and made payable to PT. BATAM TEKNOLOGI GAS<br />
-                  Payment Via Transfer, Bank details are as follows :<br />
-                  Bank Name : <strong>MAYBANK (Batam Branch)</strong>, A/C No. 2502-0000-59<br />
-                  A/C Name : <strong>PT. BATAM TEKNOLOGI GAS</strong><br />
-                  Payment is valid if the cheque can be withdrawn or cleared into our bank account
-                </div>
-              </div>
-
-              <div style={{ position: 'absolute', bottom: '10px', right: '30px', fontSize: '10px', color: '#999' }}>
-                printed by {formatDate(new Date())}, {new Date().toLocaleTimeString()}
-              </div>
-            </div>
+            ... Receipt Voucher Print Content ...
           </ModalBody>
           <ModalFooter>
             <Button color="secondary" onClick={() => setPrintModal(false)}>Close</Button>
             <Button color="info" onClick={triggerPrint}><i className="bx bx-printer me-1"></i> Print</Button>
           </ModalFooter>
-        </Modal>
+        </Modal> */}
       </div>
     </div>
   );

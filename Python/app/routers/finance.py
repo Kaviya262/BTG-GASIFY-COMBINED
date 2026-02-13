@@ -48,6 +48,185 @@ def get_db_connection_sync():
 # --------------------------------------------------
 # 3. CALLING STORED PROCEDURE
 # --------------------------------------------------
+# --------------------------------------------------
+# SHARED AR BOOK QUERY BUILDER
+# --------------------------------------------------
+def build_ar_book_query(org_id, branch_id, customer_id, from_date, to_date):
+    params = {"org_id": org_id, "branch_id": branch_id}
+    
+    # Base Filters
+    base_filter = f"ar.is_active = 1 AND ar.orgid = %(org_id)s AND ar.branchid = %(branch_id)s"
+    date_filter_ar = ""
+    date_filter_r = ""
+    date_filter_dn = ""
+    date_filter_cn = ""
+    
+    if customer_id and str(customer_id) != "0":
+        base_filter += f" AND ar.customer_id = %(cust_id)s"
+        cust_filter_dn = f" AND dn.CustomerId = %(cust_id)s"
+        cust_filter_cn = f" AND cn.CustomerId = %(cust_id)s"
+        cust_filter_r = f" AND r.customer_id = %(cust_id)s"
+        params["cust_id"] = customer_id
+    else:
+        cust_filter_dn = ""
+        cust_filter_cn = ""
+        cust_filter_r = ""
+
+    if from_date:
+        date_filter_ar += f" AND ar.invoice_date >= %(from_date)s"
+        date_filter_r += f" AND r.receipt_date >= %(from_date)s"
+        date_filter_dn += f" AND dn.TransactionDate >= %(from_date)s"
+        date_filter_cn += f" AND cn.TransactionDate >= %(from_date)s"
+        params["from_date"] = from_date
+
+    if to_date:
+        date_filter_ar += f" AND ar.invoice_date <= %(to_date)s"
+        date_filter_r += f" AND r.receipt_date <= %(to_date)s"
+        date_filter_dn += f" AND dn.TransactionDate <= %(to_date)s"
+        date_filter_cn += f" AND cn.TransactionDate <= %(to_date)s"
+        params["to_date"] = to_date
+
+    # 1. INVOICES
+    # Note: 'receipt_no' is NULL for Invoices
+    q_invoice = f"""
+        SELECT 
+            ar.ar_id as transaction_id, 
+            ar.invoice_amt_idr as invoice_amount_idr, 
+            cur.CurrencyCode as currencycode, 
+            ar.invoice_date as ledger_date, 
+            c.CustomerName as customer_name, 
+            ar.ar_no, 
+            ar.invoice_no, 
+            ar.inv_amount as invoice_amount, 
+            NULL as receipt_no, 
+            0 as receipt_amount, 
+            0 as debit_note_amount, 
+            0 as credit_note_amount, 
+            (ar.inv_amount - ar.already_received) as balance, 
+            'Invoice' as payment_mode, 
+            '-' as remarks,
+            0 as receipt_id, 
+            0 as deposit_bank_id, 
+            ar.invoice_id as real_invoice_id
+        FROM {DB_NAME_FINANCE}.tbl_accounts_receivable ar 
+        JOIN {DB_NAME_USER_NEW}.master_customer c ON ar.customer_id = c.Id 
+        LEFT JOIN {DB_NAME_OLD}.master_currency cur ON ar.currencyid = cur.CurrencyId 
+        WHERE {base_filter} {date_filter_ar}
+    """
+
+    # 2. RECEIPTS (Allocated)
+    # FIX: Select r.reference_no AS receipt_no to show Manual Reference
+    q_receipt = f"""
+        SELECT 
+            r.receipt_id as transaction_id, 
+            ar.invoice_amt_idr as invoice_amount_idr, 
+            cur.CurrencyCode as currencycode, 
+            r.receipt_date as ledger_date, 
+            c.CustomerName as customer_name, 
+            ar.ar_no, 
+            ar.invoice_no, 
+            0 as invoice_amount, 
+            r.reference_no as receipt_no, 
+            ra.payment_amount as receipt_amount, 
+            0 as debit_note_amount, 
+            0 as credit_note_amount, 
+            ar.balance_amount as balance, 
+            CASE WHEN(IFNULL(r.bank_amount,0) > 0) THEN 'Bank' ELSE 'Cash' END as payment_mode, 
+            '-' as remarks,
+            r.receipt_id, 
+            IFNULL(r.deposit_bank_id, 0) as deposit_bank_id, 
+            ar.invoice_id as real_invoice_id
+        FROM {DB_NAME_FINANCE}.tbl_receipt_ag_ar ra 
+        JOIN {DB_NAME_FINANCE}.tbl_ar_receipt r ON ra.receipt_id = r.receipt_id 
+        JOIN {DB_NAME_FINANCE}.tbl_accounts_receivable ar ON ra.ar_id = ar.ar_id 
+        LEFT JOIN {DB_NAME_OLD}.master_currency cur ON ar.currencyid = cur.CurrencyId 
+        JOIN {DB_NAME_USER_NEW}.master_customer c ON ar.customer_id = c.Id 
+        WHERE {base_filter} {date_filter_r}
+    """
+
+    # 3. DEBIT NOTES
+    q_dn = f"""
+        SELECT 
+            dn.DebitNoteId as transaction_id, 
+            0 as invoice_amount_idr, 
+            cur.CurrencyCode as currencycode, 
+            dn.TransactionDate as ledger_date, 
+            c.CustomerName as customer_name, 
+            dn.DebitNoteNumber as ar_no, 
+            dn.DebitNoteNumber as invoice_no, 
+            0 as invoice_amount, 
+            NULL as receipt_no, 
+            0 as receipt_amount, 
+            dn.Amount as debit_note_amount, 
+            0 as credit_note_amount, 
+            0 as balance, 
+            'Debit Note' as payment_mode, 
+            dn.Description as remarks,
+            0 as receipt_id, 0 as deposit_bank_id, 
+            dn.DebitNoteId as real_invoice_id
+        FROM {DB_NAME_FINANCE}.Debit_Notes dn 
+        JOIN {DB_NAME_USER_NEW}.master_customer c ON dn.CustomerId = c.Id 
+        LEFT JOIN {DB_NAME_OLD}.master_currency cur ON dn.CurrencyId = cur.CurrencyId 
+        WHERE 1=1 {cust_filter_dn} {date_filter_dn}
+    """
+
+    # 4. CREDIT NOTES
+    q_cn = f"""
+        SELECT 
+            cn.CreditNoteId as transaction_id, 
+            0 as invoice_amount_idr, 
+            cur.CurrencyCode as currencycode, 
+            cn.TransactionDate as ledger_date, 
+            c.CustomerName as customer_name, 
+            cn.CreditNoteNumber as ar_no, 
+            cn.CreditNoteNumber as invoice_no, 
+            0 as invoice_amount, 
+            NULL as receipt_no, 
+            0 as receipt_amount, 
+            0 as debit_note_amount, 
+            cn.Amount as credit_note_amount, 
+            0 as balance, 
+            'Credit Note' as payment_mode, 
+            cn.Description as remarks,
+            0 as receipt_id, 0 as deposit_bank_id, 
+            cn.CreditNoteId as real_invoice_id
+        FROM {DB_NAME_FINANCE}.Credit_Notes cn 
+        JOIN {DB_NAME_USER_NEW}.master_customer c ON cn.CustomerId = c.Id 
+        LEFT JOIN {DB_NAME_OLD}.master_currency cur ON cn.CurrencyId = cur.CurrencyId 
+        WHERE 1=1 {cust_filter_cn} {date_filter_cn}
+    """
+
+    # 5. UNALLOCATED RECEIPTS
+    q_unalloc = f"""
+        SELECT 
+            r.receipt_id as transaction_id, 
+            0 as invoice_amount_idr, 
+            IFNULL(cur.CurrencyCode, 'IDR') as currencycode, 
+            r.receipt_date as ledger_date, 
+            c.CustomerName as customer_name, 
+            IFNULL(r.reference_no, 'Unallocated') as ar_no, 
+            IFNULL(r.reference_no, 'Unallocated') as invoice_no, 
+            0 as invoice_amount, 
+            r.receipt_no as receipt_no, 
+            (r.cash_amount + r.bank_amount) as receipt_amount, 
+            0 as debit_note_amount, 
+            0 as credit_note_amount, 
+            -(r.cash_amount + r.bank_amount) as balance, 
+            CASE WHEN(IFNULL(r.bank_amount,0) > 0) THEN 'Bank' ELSE 'Cash' END as payment_mode, 
+            'Standalone Receipt' as remarks, 
+            r.receipt_id, 
+            IFNULL(r.deposit_bank_id, 0) as deposit_bank_id, 
+            '0' as real_invoice_id
+        FROM {DB_NAME_FINANCE}.tbl_ar_receipt r 
+        JOIN {DB_NAME_USER_NEW}.master_customer c ON r.customer_id = c.Id 
+        LEFT JOIN {DB_NAME_OLD}.master_currency cur ON r.currencyid = cur.CurrencyId 
+        WHERE r.is_active = 1 AND r.ar_id IS NULL AND r.orgid = %(org_id)s AND r.branchid = %(branch_id)s
+        {cust_filter_r} {date_filter_r}
+    """
+
+    full_query = f"{q_invoice} UNION ALL {q_receipt} UNION ALL {q_dn} UNION ALL {q_cn} UNION ALL {q_unalloc} ORDER BY customer_name, ledger_date, ar_no"
+    return full_query, params
+
 @router.post("/get_ar_book")
 def get_ar_book(request: ARBookRequest):
     conn = None
@@ -56,19 +235,16 @@ def get_ar_book(request: ARBookRequest):
         conn = get_db_connection_sync()
         cursor = conn.cursor(dictionary=True)
 
-        args = (
+        query, params = build_ar_book_query(
             request.org_id, 
             request.branch_id, 
             request.customer_id, 
             request.from_date, 
             request.to_date
         )
-
-        cursor.callproc('proc_ar_book', args)
-
-        result_rows = []
-        for result in cursor.stored_results():
-            result_rows = result.fetchall()
+        
+        cursor.execute(query, params)
+        result_rows = cursor.fetchall()
 
         for row in result_rows:
             if row.get('ledger_date'):
@@ -106,19 +282,16 @@ def get_ar_book_get(
         conn = get_db_connection_sync()
         cursor = conn.cursor(dictionary=True)
 
-        args = (
+        query, params = build_ar_book_query(
             orgid, 
             branchid, 
             customer_id, 
             from_date, 
             to_date
         )
-
-        cursor.callproc('proc_ar_book', args)
-
-        result_rows = []
-        for result in cursor.stored_results():
-            result_rows = result.fetchall()
+        
+        cursor.execute(query, params)
+        result_rows = cursor.fetchall()
 
         for row in result_rows:
             if row.get('ledger_date'):
