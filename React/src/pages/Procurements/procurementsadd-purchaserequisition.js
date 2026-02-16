@@ -1201,7 +1201,7 @@ const AddPurchaseRequisition = () => {
             if (data?.status && data.data) {
                 // Filter out files that might have been soft-deleted if the API returns them
                 // Assuming the API returns active ones, but if we need to filter:
-                // .filter(f => f.isactive) 
+                // .filter(f => f.isactive)
                 const updatedFiles = (data.data?.Attachment || []).map(file => ({
                     name: file.filename,
                     url: file.filepath ? `${file.filepath}/${file.filename}` : file.filename,
@@ -1545,10 +1545,10 @@ const AddPurchaseRequisition = () => {
                                                                     const validationErrors = await validateForm();
 
                                                                     if (Object.keys(validationErrors).length === 0) {
-                                                                        // If updating (Edit Mode), force Submit (1) to set Status to 'Posted'. 
+                                                                        // If updating (Edit Mode), force Submit (1) to set Status to 'Posted'.
                                                                         // If creating new (Save), keep as Draft/Saved (0).
                                                                         const submitValue = isEditMode ? 1 : 0;
-                                                                        handleSubmit(values, submitValue);
+                                                                        handleSubmit(values, 0);
                                                                     }
                                                                 }}
                                                             >
