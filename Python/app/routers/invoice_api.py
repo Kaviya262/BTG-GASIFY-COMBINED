@@ -449,7 +449,7 @@ async def get_invoice_details(invoiceid: str):
                         COALESCE(d.PONumber, '') AS PONumber,
                         COALESCE(d.uomid, 0) AS uomid
                     FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_details d
-                    LEFT JOIN {DB_NAME_USER}.master_gascode g ON d.gascodeid = g.Id
+                    LEFT JOIN {DB_NAME_USER_NEW}.master_gascode g ON d.gascodeid = g.Id
                     WHERE d.salesinvoicesheaderid IN :hids
                 """)
                 
@@ -491,7 +491,7 @@ async def get_available_dos(filter_data: DOFilter):
                     MAX(g.GasName) as GasName
                 FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header h
                 LEFT JOIN {DB_NAME_USER_NEW}.tbl_salesinvoices_details det ON h.id = det.salesinvoicesheaderid
-                LEFT JOIN {DB_NAME_USER}.master_gascode g ON det.gascodeid = g.Id
+                LEFT JOIN {DB_NAME_USER_NEW}.master_gascode g ON det.gascodeid = g.Id
                 WHERE h.customerid = :cust_id
                   AND h.isactive = 1 
                 GROUP BY h.id, h.salesinvoicenbr, h.Salesinvoicesdate, h.TotalQty, h.TotalAmount
@@ -628,7 +628,7 @@ async def get_gas_items():
         async with engine.connect() as conn:
             query = text(f"""
                 SELECT Id, GasName 
-                FROM {DB_NAME_USER}.master_gascode 
+                FROM {DB_NAME_USER_NEW}.master_gascode 
                 WHERE IsActive = 1 
                 ORDER BY GasName ASC
             """)
@@ -660,7 +660,7 @@ async def get_sales_details(filter_data: InvoiceFilter):
         FROM {DB_NAME_USER_NEW}.tbl_salesinvoices_header h
         JOIN {DB_NAME_USER_NEW}.tbl_salesinvoices_details d ON h.id = d.salesinvoicesheaderid
         LEFT JOIN {DB_NAME_USER_NEW}.master_customer c ON h.customerid = c.Id
-        LEFT JOIN {DB_NAME_USER}.master_gascode g ON d.gascodeid = g.Id
+        LEFT JOIN {DB_NAME_USER_NEW}.master_gascode g ON d.gascodeid = g.Id
         LEFT JOIN {DB_NAME_USER}.master_currency mc ON d.Currencyid = mc.CurrencyId
         WHERE DATE(h.Salesinvoicesdate) BETWEEN :from_date AND :to_date 
           AND h.isactive = 1 
@@ -688,7 +688,7 @@ async def get_sales_details(filter_data: InvoiceFilter):
 @router.get("/GetItemFilter")
 async def get_item_filter():
     try:
-        sql = text(f"SELECT Id as value, GasName as label FROM {DB_NAME_USER}.master_gascode WHERE IsActive = 1 ORDER BY GasName")
+        sql = text(f"SELECT Id as value, GasName as label FROM {DB_NAME_USER_NEW}.master_gascode WHERE IsActive = 1 ORDER BY GasName")
         async with engine.connect() as conn:
             result = await conn.execute(sql)
             return [dict(row._mapping) for row in result.fetchall()]

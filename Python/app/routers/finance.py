@@ -88,6 +88,8 @@ def build_ar_book_query(org_id, branch_id, customer_id, from_date, to_date):
 
     # 1. INVOICES
     # Note: 'receipt_no' is NULL for Invoices
+    # Updated to include DN/CN amounts for specific Invoice Logic
+    # Added TRIM to join keys to ensure match
     q_invoice = f"""
         SELECT 
             ar.ar_id as transaction_id, 
@@ -100,9 +102,22 @@ def build_ar_book_query(org_id, branch_id, customer_id, from_date, to_date):
             ar.inv_amount as invoice_amount, 
             NULL as receipt_no, 
             0 as receipt_amount, 
-            0 as debit_note_amount, 
-            0 as credit_note_amount, 
-            (ar.inv_amount - ar.already_received) as balance, 
+            
+            (SELECT COALESCE(SUM(dn.Amount), 0) 
+             FROM {DB_NAME_FINANCE}.debit_invoice di 
+             JOIN {DB_NAME_FINANCE}.Debit_Notes dn ON di.DebitNoteId = dn.DebitNoteId 
+             WHERE TRIM(di.InvoiceNo) = TRIM(ar.invoice_no) AND dn.IsSubmitted = 1) as debit_note_amount,
+            
+            (SELECT COALESCE(SUM(cn.Amount), 0) 
+             FROM {DB_NAME_FINANCE}.credit_invoice ci 
+             JOIN {DB_NAME_FINANCE}.Credit_Notes cn ON ci.CreditNoteId = cn.CreditNoteId 
+             WHERE TRIM(ci.InvoiceNo) = TRIM(ar.invoice_no) AND cn.IsSubmitted = 1) as credit_note_amount,
+            
+            (ar.inv_amount - ar.already_received + 
+                (SELECT COALESCE(SUM(dn.Amount), 0) FROM {DB_NAME_FINANCE}.debit_invoice di JOIN {DB_NAME_FINANCE}.Debit_Notes dn ON di.DebitNoteId = dn.DebitNoteId WHERE TRIM(di.InvoiceNo) = TRIM(ar.invoice_no) AND dn.IsSubmitted = 1) - 
+                (SELECT COALESCE(SUM(cn.Amount), 0) FROM {DB_NAME_FINANCE}.credit_invoice ci JOIN {DB_NAME_FINANCE}.Credit_Notes cn ON ci.CreditNoteId = cn.CreditNoteId WHERE TRIM(ci.InvoiceNo) = TRIM(ar.invoice_no) AND cn.IsSubmitted = 1)
+            ) as balance, 
+            
             'Invoice' as payment_mode, 
             '-' as remarks,
             0 as receipt_id, 
@@ -145,6 +160,7 @@ def build_ar_book_query(org_id, branch_id, customer_id, from_date, to_date):
     """
 
     # 3. DEBIT NOTES
+    # Filter out DNs that are linked to an invoice (already shown in invoice row)
     q_dn = f"""
         SELECT 
             dn.DebitNoteId as transaction_id, 
@@ -168,9 +184,14 @@ def build_ar_book_query(org_id, branch_id, customer_id, from_date, to_date):
         JOIN {DB_NAME_USER_NEW}.master_customer c ON dn.CustomerId = c.Id 
         LEFT JOIN {DB_NAME_OLD}.master_currency cur ON dn.CurrencyId = cur.CurrencyId 
         WHERE 1=1 {cust_filter_dn} {date_filter_dn}
+        AND NOT EXISTS (
+            SELECT 1 FROM {DB_NAME_FINANCE}.debit_invoice di 
+            WHERE di.DebitNoteId = dn.DebitNoteId
+        )
     """
 
     # 4. CREDIT NOTES
+    # Filter out CNs that are linked to an invoice (already shown in invoice row)
     q_cn = f"""
         SELECT 
             cn.CreditNoteId as transaction_id, 
@@ -194,6 +215,10 @@ def build_ar_book_query(org_id, branch_id, customer_id, from_date, to_date):
         JOIN {DB_NAME_USER_NEW}.master_customer c ON cn.CustomerId = c.Id 
         LEFT JOIN {DB_NAME_OLD}.master_currency cur ON cn.CurrencyId = cur.CurrencyId 
         WHERE 1=1 {cust_filter_cn} {date_filter_cn}
+        AND NOT EXISTS (
+            SELECT 1 FROM {DB_NAME_FINANCE}.credit_invoice ci 
+            WHERE ci.CreditNoteId = cn.CreditNoteId
+        )
     """
 
     # 5. UNALLOCATED RECEIPTS

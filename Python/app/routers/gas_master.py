@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DB_NAME_USER = os.getenv('DB_NAME_USER', 'btggasify_live')
+DB_NAME_USER_NEW = os.getenv('DB_NAME_USER_NEW', 'btggasify_userpanel_live')
 
 router = APIRouter()
 
@@ -57,8 +57,8 @@ async def get_all_gas_listing(gasName: str = "", volume: str = "", pressure: str
                     g.Descriptions,
                     CAST(g.IsActive AS UNSIGNED) as IsActive,
                     gt.TypeName as GasTypeName
-                FROM {DB_NAME_USER}.master_gascode g
-                LEFT JOIN {DB_NAME_USER}.master_gastypes gt ON g.GasTypeId = gt.Id
+                FROM {DB_NAME_USER_NEW}.master_gascode g
+                LEFT JOIN {DB_NAME_USER_NEW}.master_gastypes gt ON g.GasTypeId = gt.Id
                 WHERE 1=1
             """
             
@@ -91,7 +91,7 @@ async def get_by_id(gasID: int):
     try:
         async with engine.connect() as conn:
             sql = text(f"""
-                SELECT * FROM {DB_NAME_USER}.master_gascode WHERE Id = :id
+                SELECT * FROM {DB_NAME_USER_NEW}.master_gascode WHERE Id = :id
             """)
             result = await conn.execute(sql, {"id": gasID})
             row = result.fetchone()
@@ -111,7 +111,7 @@ async def create_gas(payload: GasCodeRequest):
             # We'll just insert.
             
             sql = text(f"""
-                INSERT INTO {DB_NAME_USER}.master_gascode 
+                INSERT INTO {DB_NAME_USER_NEW}.master_gascode 
                 (GasCode, GasName, Volume, Pressure, CreatedBy, CreatedDate, CreatedIP, IsActive, OrgId, BranchId, Descriptions, GasTypeId, VolumeId, PressureId)
                 VALUES 
                 (:code, :name, :vol, :press, :user, NOW(), :ip, :active, :org, :branch, :desc, :type, :volid, :pressid)
@@ -144,7 +144,7 @@ async def update_gas(payload: GasCodeRequest):
     async with engine.begin() as conn:
         try:
              sql = text(f"""
-                UPDATE {DB_NAME_USER}.master_gascode
+                UPDATE {DB_NAME_USER_NEW}.master_gascode
                 SET 
                     GasCode = :code,
                     GasName = :name,
@@ -194,7 +194,7 @@ async def toggle_active_status(payload: ToggleStatusRequest):
     async with engine.begin() as conn:
         try:
             sql = text(f"""
-                UPDATE {DB_NAME_USER}.master_gascode
+                UPDATE {DB_NAME_USER_NEW}.master_gascode
                 SET IsActive = :active
                 WHERE Id = :id
             """)
@@ -218,7 +218,7 @@ async def toggle_active_status(payload: ToggleStatusRequest):
 async def get_all_gas_types():
     try:
         async with engine.connect() as conn:
-            sql = text(f"SELECT Id, TypeName FROM {DB_NAME_USER}.master_gastypes WHERE IsActive = 1 ORDER BY TypeName")
+            sql = text(f"SELECT Id, TypeName FROM {DB_NAME_USER_NEW}.master_gastypes WHERE IsActive = 1 ORDER BY TypeName")
             result = await conn.execute(sql)
             rows = result.fetchall()
             return {"status": True, "data": [dict(row._mapping) for row in rows]}

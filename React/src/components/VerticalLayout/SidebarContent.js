@@ -62,8 +62,7 @@ class SidebarContent extends Component {
                 //{ screenId: 99916, screenName: "Over Draft", url: "/ManageOverDraft", icon: "bx bx-transfer" },
                 { screenId: 99917, screenName: "Petty Cash", url: "/pettyCash", icon: "bx bx-coin-stack" },
                 // --- NEW AP SCREEN ADDED HERE ---
-                { screenId: 99919, screenName: "AP", url: "/AP", icon: "bx bx-file" },
-                { screenId: 99920, screenName: "DN/CN", url: "/dn-cn", icon: "bx bx-file" }
+                { screenId: 99919, screenName: "AP", url: "/AP", icon: "bx bx-file" }
             ];
 
             missingScreens.forEach(item => {
@@ -283,6 +282,20 @@ class SidebarContent extends Component {
 
         if (!invoiceMenu.screen.find(s => s.screenName === "Direct Sales Invoice")) {
             invoiceMenu.screen.push(dsInvoiceScreen);
+            invoiceMenu.screen.sort((a, b) => a.screenName.localeCompare(b.screenName));
+        }
+
+        // INJECT DN/CN (Moved from Finance)
+        const dnCnScreen = {
+            screenId: 99921,
+            screenName: "DN/CN",
+            url: "/dn-cn",
+            icon: "bx bx-file",
+            module: []
+        };
+
+        if (!invoiceMenu.screen.find(s => s.screenName === "DN/CN")) {
+            invoiceMenu.screen.push(dnCnScreen);
             invoiceMenu.screen.sort((a, b) => a.screenName.localeCompare(b.screenName));
         }
 
