@@ -6,7 +6,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from .. import schemas
 from .. import crud 
-from ..database import get_db, DB_NAME_USER, DB_NAME_FINANCE, DB_NAME_MASTER, DB_NAME_OLD,DB_NAME_USER_NEW
+from ..database import get_db, DB_NAME_USER, DB_NAME_FINANCE, DB_NAME_MASTER, DB_NAME_OLD, DB_NAME_USER_NEW
 from ..models.finance import ARReceipt
 
 # Distinct prefix for Cash Book to avoid conflict with Bank Book
@@ -16,23 +16,23 @@ router = APIRouter(
 )
 
 # --- Pydantic Schemas ---
-class ReceiptItem(BaseModel):
+class CashReceiptItem(BaseModel):
     receipt_id: int = 0
     customer_id: int
-    bank_amount: float
-    bank_charges: float
-    deposit_bank_id: int
+    cash_amount: float
+    receipt_date: Optional[str] = None
     reference_no: Optional[str] = None
     sales_person_id: Optional[int] = None
     send_notification: bool = False
     status: str 
+    is_posted: bool = False
 
-class CreateReceiptRequest(BaseModel):
+class CreateCashReceiptRequest(BaseModel):
     orgId: int
     branchId: int
     userId: int
     userIp: str = "127.0.0.1"
-    header: List[ReceiptItem]
+    header: List[CashReceiptItem]
 
 # ==========================================
 # 1. LISTING & REPORTING (CASH SPECIFIC)
@@ -42,26 +42,27 @@ class CreateReceiptRequest(BaseModel):
 async def get_daily_cash_entries(db: AsyncSession = Depends(get_db)):
     """
     Fetches entries for the Cash Book Entry screen.
-    Ideally, this could filter by Cash Accounts (Type 2), but currently returns all AR Receipts
-    to ensure visibility, letting Frontend filter if necessary.
+    Filters by cash_amount != 0 to show only cash transactions.
     """
     try:
         query = text(f"""
             SELECT 
                 r.receipt_id,
-                r.created_date as date,
+                COALESCE(r.receipt_date, r.created_date) as date,
                 r.customer_id,
-                c.CustomerName as customerName,
-                r.bank_amount,
-                r.bank_charges,
-                r.deposit_bank_id,
+                
+                -- Dynamic Party Name Logic
+                CASE 
+                    WHEN r.cash_amount < 0 AND r.customer_id != 0 THEN COALESCE(s.SupplierName, 'Unknown Supplier')
+                    ELSE COALESCE(c.CustomerName, 'Unknown Customer')
+                END as customerName,
+                
+                r.cash_amount,
                 r.reference_no,
                 r.sales_person_id,
                 r.send_notification,
                 r.is_posted, 
                 r.pending_verification, 
-                
-                COALESCE(mc.CurrencyCode, 'IDR') as CurrencyCode,
 
                 CASE WHEN r.is_posted = 1 THEN 'P' ELSE 'S' END as status_code,
                 
@@ -73,11 +74,10 @@ async def get_daily_cash_entries(db: AsyncSession = Depends(get_db)):
 
             FROM tbl_ar_receipt r
             LEFT JOIN {DB_NAME_USER_NEW}.master_customer c ON r.customer_id = c.Id
-            LEFT JOIN {DB_NAME_MASTER}.master_bank b ON r.deposit_bank_id = b.BankId
-            LEFT JOIN {DB_NAME_USER}.master_currency mc ON b.CurrencyId = mc.CurrencyId
+            LEFT JOIN {DB_NAME_MASTER}.master_supplier s ON r.customer_id = s.SupplierId
             
-            -- Optional: Add filter for Cash Accounts here if needed
-            -- WHERE b.BankTypeId = 2 
+            WHERE r.cash_amount != 0
+              AND r.is_active = 1
             
             ORDER BY r.receipt_id DESC
         """)
@@ -97,41 +97,47 @@ async def get_cash_book_report(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Specific Report Endpoint for Cash Book.
+    Cash Book Report. Uses cash_amount for CashIn/CashOut.
     """
     try:
         sql = f"""
             SELECT 
                 r.receipt_id,
-                r.created_date as Date,
+                COALESCE(r.receipt_date, r.created_date) as Date,
                 r.reference_no as VoucherNo,
-                'Receipt' as TransactionType, 
-                b.BankName as Account,
-                c.CustomerName as Party,
+                
+                CASE 
+                    WHEN r.cash_amount < 0 THEN 'Payment' 
+                    ELSE 'Receipt' 
+                END as TransactionType, 
+                
+                -- Dynamic Party Name
+                CASE 
+                    WHEN r.cash_amount < 0 AND r.customer_id != 0 THEN COALESCE(s.SupplierName, 'Unknown Supplier')
+                    ELSE COALESCE(c.CustomerName, 'Unknown Customer') 
+                END as Party,
+                
                 r.reference_no as Description,
-                COALESCE(mc.CurrencyCode, 'IDR') as Currency, 
+                'IDR' as Currency, 
                 
-                CASE WHEN r.bank_amount >= 0 THEN r.bank_amount ELSE 0 END as CashIn,
-                CASE WHEN r.bank_amount < 0 THEN ABS(r.bank_amount) ELSE 0 END as CashOut,
+                CASE WHEN r.cash_amount >= 0 THEN r.cash_amount ELSE 0 END as CashIn,
+                CASE WHEN r.cash_amount < 0 THEN ABS(r.cash_amount) ELSE 0 END as CashOut,
                 
-                r.bank_amount as NetAmount
+                r.cash_amount as NetAmount
                 
             FROM tbl_ar_receipt r
             LEFT JOIN {DB_NAME_USER_NEW}.master_customer c ON r.customer_id = c.Id
-            LEFT JOIN {DB_NAME_MASTER}.master_bank b ON r.deposit_bank_id = b.BankId
-            LEFT JOIN {DB_NAME_USER}.master_currency mc ON b.CurrencyId = mc.CurrencyId
+            LEFT JOIN {DB_NAME_MASTER}.master_supplier s ON r.customer_id = s.SupplierId
             
-            WHERE r.created_date BETWEEN :from_date AND :to_date
+            WHERE DATE(COALESCE(r.receipt_date, r.created_date)) BETWEEN :from_date AND :to_date
               AND r.is_active = 1
+              AND r.is_submitted = 1
+              AND r.cash_amount != 0
         """
         
         params = {"from_date": from_date, "to_date": to_date}
-        
-        if bank_id and int(bank_id) != 0:
-            sql += " AND r.deposit_bank_id = :bank_id"
-            params["bank_id"] = bank_id
             
-        sql += " ORDER BY r.created_date ASC, r.receipt_id ASC"
+        sql += " ORDER BY COALESCE(r.receipt_date, r.created_date) ASC, r.receipt_id ASC"
         
         result = await db.execute(text(sql), params)
         rows = result.mappings().all()
@@ -153,6 +159,7 @@ async def get_cash_book_report(
         return {"status": "success", "data": data}
 
     except Exception as e:
+        print(f"Error fetching cash book report: {e}")
         return {"status": "error", "detail": str(e)}
 
 # ==========================================
@@ -160,18 +167,69 @@ async def get_cash_book_report(
 # ==========================================
 
 @router.post("/create")
-async def create_cash_receipt(payload: schemas.CreateARCommand, db: AsyncSession = Depends(get_db)):
+async def create_cash_receipt(payload: CreateCashReceiptRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Creates new cash book entries. Writes to cash_amount column 
+    instead of bank_amount to differentiate from bankbook entries.
+    """
     try:
-        new_records = await crud.create_ar_receipt(db, payload)
-        if new_records:
-            return {"status": "success", "message": "Cash entry created", "ids": [r.receipt_id for r in new_records]}
-        else:
-            raise HTTPException(status_code=400, detail="Failed to create entry")
+        created_records = []
+        
+        for item in payload.header:
+            is_posted = item.is_posted
+            pending_verification = True if is_posted else False
+
+            db_receipt = ARReceipt(
+                orgid=payload.orgId,
+                branchid=payload.branchId,
+                created_by=str(payload.userId),
+                created_ip=payload.userIp,
+                
+                receipt_date=item.receipt_date,
+                customer_id=item.customer_id,
+                
+                # KEY DIFFERENCE: Write to cash_amount, leave bank_amount as 0
+                cash_amount=item.cash_amount,
+                bank_amount=0,
+                bank_charges=0,
+                deposit_bank_id="0",
+                
+                # Standard fields
+                reference_no=item.reference_no,
+                sales_person_id=item.sales_person_id,
+                send_notification=item.send_notification,
+                
+                # Status flags
+                is_posted=is_posted,
+                pending_verification=pending_verification,
+                is_submitted=False,
+                
+                flag=False,
+                is_cleared=False,
+                is_active=True,
+            )
+            db.add(db_receipt)
+            created_records.append(db_receipt)
+
+        await db.commit()
+        for record in created_records:
+            await db.refresh(record)
+            
+        return {
+            "status": "success", 
+            "message": f"Created {len(created_records)} cash entries", 
+            "ids": [r.receipt_id for r in created_records]
+        }
     except Exception as e:
+        await db.rollback()
+        print(f"Cash Create Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.put("/update/{receipt_id}")
-async def update_cash_receipt(receipt_id: int, payload: CreateReceiptRequest, db: AsyncSession = Depends(get_db)):
+async def update_cash_receipt(receipt_id: int, payload: CreateCashReceiptRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Updates an existing cash book entry. Writes to cash_amount column.
+    """
     try:
         data = payload.header[0]
         stmt = select(ARReceipt).where(ARReceipt.receipt_id == receipt_id)
@@ -182,9 +240,16 @@ async def update_cash_receipt(receipt_id: int, payload: CreateReceiptRequest, db
             raise HTTPException(status_code=404, detail="Entry not found")
 
         entry.customer_id = data.customer_id
-        entry.deposit_bank_id = str(data.deposit_bank_id)
-        entry.bank_amount = data.bank_amount
-        entry.bank_charges = data.bank_charges
+        entry.deposit_bank_id = "0"  # Cash entries have no bank
+
+        if data.receipt_date:
+            entry.receipt_date = data.receipt_date 
+
+        # KEY DIFFERENCE: Write to cash_amount
+        entry.cash_amount = data.cash_amount
+        entry.bank_amount = 0
+        entry.bank_charges = 0
+        
         entry.reference_no = data.reference_no
         entry.sales_person_id = data.sales_person_id
         entry.send_notification = data.send_notification

@@ -41,7 +41,7 @@ const PurchaseOrderPrint = ({ poModalVisible, setPoModalVisible, poData }) => {
       acc.tax += item.taxvalue || 0;
       acc.vat += item.vatvalue || 0;
       acc.netto += item.nettotal || 0;
-      acc.totalamount +=item.totalamount || 0;
+      acc.totalamount += item.totalamount || 0;
       return acc;
     },
     { subtotal: 0, discount: 0, tax: 0, vat: 0, netto: 0 }
@@ -57,17 +57,22 @@ const PurchaseOrderPrint = ({ poModalVisible, setPoModalVisible, poData }) => {
       <ModalBody>
         <div ref={printRef} style={{ padding: 20, fontFamily: "Arial, sans-serif", color: "#000" }}>
           {/* Header Top: Logo + Company */}
-          <div style={{ display: "flex", alignItems: "flex-start" }}>
-            <img src="/logo.png" alt="Logo" style={{ height: 60, marginRight: 15 }} />
-            <div>
-              <p style={{ fontWeight: "bold", marginBottom: 2 }}>{poData.header[0].CompanyName}</p>
-              <p style={{ marginBottom: 1 }}>
-                {poData.header[0].Address1}, {poData.header[0].Address2}, {poData.header[0].Address3}
-              </p>
-              <p style={{ marginBottom: 1 }}>
-                {poData.header[0].WebSite} | {poData.header[0].Email}
-              </p>
-              <p style={{ marginBottom: 1 }}>Tel: {poData.header[0].TelePhone}</p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div style={{ display: "flex", alignItems: "flex-start" }}>
+              <img src="/logo.png" alt="Logo" style={{ height: 60, marginRight: 15 }} />
+              <div>
+                <p style={{ fontWeight: "bold", marginBottom: 2 }}>{poData.header[0].CompanyName}</p>
+                <p style={{ marginBottom: 1 }}>
+                  {poData.header[0].Address1}, {poData.header[0].Address2}, {poData.header[0].Address3}
+                </p>
+                <p style={{ marginBottom: 1 }}>
+                  {poData.header[0].WebSite} | {poData.header[0].Email}
+                </p>
+                <p style={{ marginBottom: 1 }}>Tel: {poData.header[0].TelePhone}</p>
+              </div>
+            </div>
+            <div style={{ fontWeight: "bold", color: "#333", fontSize: "12px", marginTop: "10px" }}>
+              F-BTG-PUR-06 (Rev.01)
             </div>
           </div>
 

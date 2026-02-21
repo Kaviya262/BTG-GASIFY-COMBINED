@@ -345,6 +345,8 @@ import BankReconciliation from "../pages/FinanceModule/Reports/BankReconciliatio
 import DnCn from "../pages/FinanceModule/DnCn";
 import AddDnCn from "../pages/FinanceModule/add_dn_cn";
 import EditDnCn from "../pages/FinanceModule/edit_dn_cn";
+import JournalCt from "../pages/FinanceModule/JournalCt";
+import AddJournal from "../pages/FinanceModule/add_journal";
 
 const authProtectedRoutes = [
 
@@ -380,6 +382,9 @@ const authProtectedRoutes = [
 
     { path: "/revenue/add", component: OtherRevenues },
     { path: "/revenue/edit/:id", component: OtherRevenues },
+
+    { path: "/journal-ct", component: JournalCt },
+    { path: "/add-journal", component: AddJournal },
 
 
     // Warehouse Routes

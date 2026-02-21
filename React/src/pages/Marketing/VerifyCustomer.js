@@ -149,14 +149,21 @@ const VerifyCustomer = () => {
       });
 
       if (response.data?.status === "success") {
-        setRows(response.data.data.map(item => ({
-          ...item,
-          receiptDate: item.receipt_date || "N/A",
-          notificationDate: new Date().toLocaleDateString(),
-          customerNameDisplay: customers.find(c => c.value === item.customer_id)?.label || `Cust: ${item.customer_id}`,
-          currencyCode: item.CurrencyCode || "IDR",
-          isPosted: false
-        })));
+        setRows(response.data.data.map(item => {
+          const cashAmt = parseFloat(item.cash_amount) || 0;
+          const bankAmt = parseFloat(item.bank_amount) || 0;
+          const isCashEntry = cashAmt > 0;
+          return {
+            ...item,
+            receiptDate: item.receipt_date || "N/A",
+            notificationDate: new Date().toLocaleDateString(),
+            customerNameDisplay: customers.find(c => c.value === item.customer_id)?.label || `Cust: ${item.customer_id}`,
+            currencyCode: item.CurrencyCode || "IDR",
+            isPosted: false,
+            entryType: isCashEntry ? "Cashbook" : "Bankbook",
+            receiptAmount: isCashEntry ? cashAmt : bankAmt
+          };
+        }));
       }
     } catch (err) { toast.error("Failed to load list."); }
   };
@@ -265,7 +272,7 @@ const VerifyCustomer = () => {
   };
 
   const totalAllocated = verificationData.invoices.filter(inv => inv.selected).reduce((sum, inv) => sum + (parseFloat(inv.amount) || 0), 0);
-  const receiptAmount = selectedRecord ? parseFloat(selectedRecord.bank_amount) : 0;
+  const receiptAmount = selectedRecord ? (selectedRecord.receiptAmount || 0) : 0;
   const totalDeductions = verificationData.bankCharges + verificationData.taxDeduction;
   const utilizedAmount = totalAllocated + totalDeductions + verificationData.advancePayment;
   const variance = receiptAmount - utilizedAmount;
@@ -424,14 +431,19 @@ const VerifyCustomer = () => {
           >
             <Column field="receiptDate" header="Receipt Date" body={(r) => formatDate(r.receiptDate)} headerStyle={headerStyleObj}></Column>
             <Column field="customerNameDisplay" header="Customer" headerStyle={headerStyleObj}></Column>
-            <Column field="bank_amount" header="Receipt" body={(r) => parseFloat(r.bank_amount).toLocaleString()} className="text-end" headerStyle={headerStyleObj}></Column>
+            <Column field="receiptAmount" header="Receipt" body={(r) => (r.receiptAmount || 0).toLocaleString()} className="text-end" headerStyle={headerStyleObj}></Column>
             <Column field="currencyCode" header="Currency" className="text-center" headerStyle={headerStyleObj}></Column>
+            <Column field="entryType" header="Type" className="text-center" headerStyle={headerStyleObj} body={(r) => (
+              <span className={`badge ${r.entryType === "Cashbook" ? "bg-info" : "bg-success"}`} style={{ fontSize: '12px', padding: '5px 10px' }}>
+                {r.entryType}
+              </span>
+            )}></Column>
             <Column header="Action" body={actionBodyTemplate} className="text-center" headerStyle={headerStyleObj}></Column>
           </DataTable>
         </div>
 
         <Modal isOpen={verifyModal} toggle={() => setVerifyModal(false)} size="xl" centered>
-          <ModalHeader toggle={() => setVerifyModal(false)}>AR Verification</ModalHeader>
+          <ModalHeader toggle={() => setVerifyModal(false)}>AR Verification — {selectedRecord?.entryType || ""}</ModalHeader>
           <ModalBody className="pb-4">
             <Row className="mb-3 bg-light p-3 rounded mx-0">
               <Col md={4}><span className="fw-bold">Customer:</span> <span className="ms-2">{selectedRecord?.customerNameDisplay}</span></Col>

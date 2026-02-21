@@ -531,3 +531,89 @@ async def post_invoice_endpoint(
         raise HTTPException(status_code=500, detail="Failed to post Invoice to AR Book.")
         
     return {"status": "success", "message": "Invoice posted to AR Book successfully"}
+
+
+# --------------------------------------------------
+# CREATE BOOK ENTRIES FROM CLAIM PAYMENTS
+# --------------------------------------------------
+class ClaimPaymentEntry(BaseModel):
+    claim_id: int
+    claim_no: str = ""
+    amount: float
+    payment_mode_id: int          # 1 = Cash, else Bank Transfer
+    bank_id: Optional[int] = None
+    payment_date: Optional[str] = None
+    supplier_id: Optional[int] = 0
+    supplier_name: Optional[str] = ""
+    applicant_name: Optional[str] = ""
+    currency_code: Optional[str] = "IDR"
+
+class CreateFromClaimRequest(BaseModel):
+    entries: List[ClaimPaymentEntry]
+    user_id: int = 1
+    org_id: int = 1
+    branch_id: int = 1
+
+@router.post("/create-from-claim")
+async def create_book_entries_from_claim(
+    payload: CreateFromClaimRequest,
+    db: AsyncSession = Depends(database.get_db)
+):
+    """
+    Called after PPP voucher generation.
+    Creates CashBook or BankBook payment entries from approved claims.
+    - ModeOfPaymentId == 1  → CashBook (cash_amount, deposit_bank_id='0')
+    - ModeOfPaymentId != 1  → BankBook (bank_amount, deposit_bank_id=bank_id)
+    Entries are auto-posted (no verification needed for outgoing payments).
+    """
+    try:
+        from ..models.finance import ARReceipt
+
+        created_ids = []
+
+        for entry in payload.entries:
+            is_cash = entry.payment_mode_id == 1
+
+            db_receipt = ARReceipt(
+                orgid=payload.org_id,
+                branchid=payload.branch_id,
+                created_by=str(payload.user_id),
+                created_ip="127.0.0.1",
+
+                receipt_date=entry.payment_date,
+                customer_id=entry.supplier_id or 0,
+
+                # Cash vs Bank
+                cash_amount=entry.amount if is_cash else 0,
+                bank_amount=0 if is_cash else entry.amount,
+                bank_charges=0,
+                deposit_bank_id="0" if is_cash else str(entry.bank_id or 0),
+
+                # Reference = claim number for traceability
+                reference_no=f"{entry.claim_no} - {entry.supplier_name or entry.applicant_name}".strip(" -"),
+
+                # Auto-posted, no verification
+                is_posted=True,
+                pending_verification=False,
+                is_submitted=False,
+                send_notification=False,
+
+                flag=False,
+                is_cleared=False,
+                is_active=True,
+            )
+            db.add(db_receipt)
+            created_ids.append(entry.claim_id)
+
+        await db.commit()
+
+        return {
+            "status": "success",
+            "message": f"Created {len(created_ids)} book entries from claims",
+            "claim_ids": created_ids
+        }
+
+    except Exception as e:
+        await db.rollback()
+        print(f"❌ Create from claim error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

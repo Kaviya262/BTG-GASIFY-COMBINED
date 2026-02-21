@@ -1523,43 +1523,48 @@ const ManageClaimsPayment = () => {
         `;
 
         const headerInfo = `
-        <div style="padding:20px; display: flex; justify-content: space-between; align-items: center;">
-    <h2 style="margin: 0 auto;padding-left:100px;">Claim Details</h2>
-    <div style="font-size: 10px; text-align: right;">Printed on: ${formattedDateTime}</div>
-  </div>
-          <table class="info-table">
-            <tr>
-              <td class="label">Category Type</td><td>${detail.header?.claimcategory || ''}</td>
-              <td class="label">Application Date</td><td>${detail.header?.ApplicationDatevw || ''}</td>
-            </tr>
-            <tr>
-              <td class="label">Application No</td><td>${detail.header?.ApplicationNo || ''}</td>
-              <td class="label">Applicant</td><td>${detail.header?.applicantname || ''}</td>
-            </tr>
-            <tr>
-              <td class="label">Department</td><td>${detail.header?.departmentname || ''}</td>
-              <td class="label">Attachment</td><td>${detail.header?.AttachmentName || 'No Attachment'}</td>
-            </tr>
-            <tr>
-              <td class="label">Currency</td><td>${detail.header?.transactioncurrency || ''}</td>
-              <td class="label">Cost Center</td><td>${detail.header?.CostCenter || ''}</td>
-            </tr>
-            <tr>
-              <td class="label">Payment Mode</td><td>${detail.header?.paymentmethodname || ''}</td>
-              <td class="label">Claim Amt in TC</td><td>${detail.header?.ClaimAmountInTC?.toLocaleString('en-US', {
+        <div style="padding:20px; display: flex; justify-content: space-between; align-items: flex-start;">
+          <div style="flex: 1; text-align: center;">
+            <h2 style="margin: 0; padding-left: 100px;">Claim Details</h2>
+          </div>
+          <div style="font-size: 10px; text-align: right;">
+            ${detail.header?.ClaimCategoryId === 3 ? '<div style="font-weight: bold; color: #333; font-size: 12px; margin-bottom: 5px;">F-BTG-PUR-05 (Rev.03)</div>' : ''}
+            <div>Printed on: ${formattedDateTime}</div>
+          </div>
+        </div>
+    <table class="info-table">
+        <tr>
+            <td class="label">Category Type</td><td>${detail.header?.claimcategory || ''}</td>
+            <td class="label">Application Date</td><td>${detail.header?.ApplicationDatevw || ''}</td>
+        </tr>
+        <tr>
+            <td class="label">Application No</td><td>${detail.header?.ApplicationNo || ''}</td>
+            <td class="label">Applicant</td><td>${detail.header?.applicantname || ''}</td>
+        </tr>
+        <tr>
+            <td class="label">Department</td><td>${detail.header?.departmentname || ''}</td>
+            <td class="label">Attachment</td><td>${detail.header?.AttachmentName || 'No Attachment'}</td>
+        </tr>
+        <tr>
+            <td class="label">Currency</td><td>${detail.header?.transactioncurrency || ''}</td>
+            <td class="label">Cost Center</td><td>${detail.header?.CostCenter || ''}</td>
+        </tr>
+        <tr>
+            <td class="label">Payment Mode</td><td>${detail.header?.paymentmethodname || ''}</td>
+            <td class="label">Claim Amt in TC</td><td>${detail.header?.ClaimAmountInTC?.toLocaleString('en-US', {
             style: 'decimal',
             minimumFractionDigits: 2
         }) || ''}</td>
-            </tr>
-            <tr>
-              <td class="label">HOD</td><td>${detail.header?.HOD_Name || ''}</td>
-              <td class="label">Supplier</td><td>${detail.header?.SupplierName || ''}</td>
-            </tr>
-          </table>
-        `;
+        </tr>
+        <tr>
+            <td class="label">HOD</td><td>${detail.header?.HOD_Name || ''}</td>
+            <td class="label">Supplier</td><td>${detail.header?.SupplierName || ''}</td>
+        </tr>
+    </table>
+`;
 
         const detailRows = detail.details.map((row, index) => `
-          <tr>
+    <tr>
             <td>${index + 1}</td>
             <td>${row.claimtype || ''}</td>
             <td>${row.PaymentDescription || ''}</td>
@@ -1567,37 +1572,37 @@ const ManageClaimsPayment = () => {
             <td>${row.ExpenseDatevw || ''}</td>
             <td>${row.Purpose || ''}</td>
           </tr>
-        `).join('');
+    `).join('');
 
         const claimTable = `
-        <div style="border-bottom: 1px solid #ccc;padding-top:5px;"></div>
-           <table class="claim-table">
+    <div style = "border-bottom: 1px solid #ccc;padding-top:5px;" ></div>
+        <table class="claim-table">
             <thead>
-              <tr>
-                <th>#</th>
-                <th>Claim Type</th>
-                <th>Description</th>
-                <th>Amount</th>
-                <th>Expense Date</th>
-                <th>Purpose</th>
-              </tr>
+                <tr>
+                    <th>#</th>
+                    <th>Claim Type</th>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Expense Date</th>
+                    <th>Purpose</th>
+                </tr>
             </thead>
             <tbody>
-              ${detailRows}
+                ${detailRows}
             </tbody>
-          </table>
-        `;
+        </table>
+`;
 
         const remarksSection = `
-          <div class="section-title">Remarks</div>
-          <div class="remarks-box">
+    <div class="section-title" > Remarks</div>
+        <div class="remarks-box">
             ${detail.header?.Remarks || ''}
-          </div>
-        `;
+        </div>
+`;
 
         const statusIndicators = `
-        
-         <table class="status-table">
+
+    <table class="status-table" >
           <thead>
            <tr class="status-header">
           <th colspan="3">Claim</th>
@@ -1628,18 +1633,18 @@ const ManageClaimsPayment = () => {
         </tr>
           </tbody>
         </table>
-       
-         <div class="legend" style="margin-top: 10px; font-size: 10px;">
-          <span>✔ Approved</span>
-          <span>✖ Discussed</span>
-          <span>⏳ Yet to Act</span>
-        </div>
 
-      `;
+    <div class="legend" style="margin-top: 10px; font-size: 10px;">
+        <span>✔ Approved</span>
+        <span>✖ Discussed</span>
+        <span>⏳ Yet to Act</span>
+    </div>
+
+`;
 
 
         printWindow.document.write(`
-          <html>
+    <html>
             <head>
               <title>Claim Details</title>
               ${printStyles}
@@ -1652,7 +1657,7 @@ const ManageClaimsPayment = () => {
               
             </body>
           </html>
-        `);
+    `);
 
 
         printWindow.document.close();
@@ -1714,7 +1719,7 @@ const ManageClaimsPayment = () => {
                     icon="pi pi-comment"
 
                     className={`  btn-circle p-button-rounded ${rowData.isclaimant_discussed === 1 ? 'p-button-warning' : 'p-button-outlined'
-                        }`}
+                        } `}
                     style={{ padding: "4px" }}
                     onClick={() => {
                         setCurrentClaimId(rowData.Claim_ID);
@@ -1731,7 +1736,7 @@ const ManageClaimsPayment = () => {
                     icon="pi pi-comment"
                     disabled={true}
                     className={`  btn-circle p-button-rounded ${rowData.isclaimant_discussed === 1 ? 'p-button-warning' : 'p-button-outlined'
-                        }`}
+                        } `}
                     style={{ padding: "4px" }}
 
                 > </PButton>
@@ -1826,7 +1831,7 @@ const ManageClaimsPayment = () => {
                                                         <Select
                                                             name="filtervalue"
                                                             options={autoSuggestionscate.map(f => ({ label: f.label, value: f.value }))}
-                                                            placeholder={`Search ${getDynamicLabel()}`}
+                                                            placeholder={`Search ${getDynamicLabel()} `}
                                                             classNamePrefix="select"
                                                             isClearable
                                                             value={selectedAutoItem}
@@ -1836,7 +1841,7 @@ const ManageClaimsPayment = () => {
                                                         <Select
                                                             name="filtervalue"
                                                             options={autoSuggestionscurr.map(f => ({ label: f.Currency, value: f.currencyid }))}
-                                                            placeholder={`Search ${getDynamicLabel()}`}
+                                                            placeholder={`Search ${getDynamicLabel()} `}
                                                             classNamePrefix="select"
                                                             isClearable
                                                             value={selectedAutoItem}
@@ -1847,7 +1852,7 @@ const ManageClaimsPayment = () => {
                                                         <Select
                                                             name="filtervalue"
                                                             options={autoSuggestionsclaimtype.map(f => ({ label: f.label, value: f.value }))}
-                                                            placeholder={`Search ${getDynamicLabel()}`}
+                                                            placeholder={`Search ${getDynamicLabel()} `}
                                                             classNamePrefix="select"
                                                             isClearable
                                                             value={selectedAutoItem}
@@ -1859,7 +1864,7 @@ const ManageClaimsPayment = () => {
                                                             <Select
                                                                 name="filtervalue"
                                                                 options={autoSuggestionsdept.map(f => ({ label: f.label, value: f.value }))}
-                                                                placeholder={`Search ${getDynamicLabel()}`}
+                                                                placeholder={`Search ${getDynamicLabel()} `}
                                                                 classNamePrefix="select"
                                                                 isClearable
                                                                 value={selectedAutoItem}
@@ -2385,15 +2390,15 @@ const ManageClaimsPayment = () => {
 
                                             </tr>
                                             <tr>
-                                                <td className="text-center p-1"><Button className={`btn-circle p-button-rounded btn ${getSeverity(selectedDetail.header?.ClmhodStatus)}`} /></td>
+                                                <td className="text-center p-1"><Button className={`btn-circle p-button-rounded btn ${getSeverity(selectedDetail.header?.ClmhodStatus)} `} /></td>
 
-                                                <td className="text-center p-1"><Button className={`btn-circle p-button-rounded btn ${getSeverity(selectedDetail.header?.ClmgmStatus)}`} /></td>
-                                                <td className="text-center p-1"><Button className={`btn-circle p-button-rounded btn ${getSeverity(selectedDetail.header?.ClmDrStatus)}`} /></td>
-                                                <td className="text-center p-1"><Button className={`btn-circle p-button-rounded btn ${getSeverity(selectedDetail.header?.PPPgmStatus)}`} /></td>
-                                                <td className="text-center p-1"><Button className={`btn-circle p-button-rounded btn ${getSeverity(selectedDetail.header?.PPPDrStatus)}`} /></td>
-                                                <td className="text-center p-1"><Button className={`btn-circle p-button-rounded btn ${getSeverity(selectedDetail.header?.PPPCEOStatus)}`} /></td>
-                                                <td className="text-center p-1"><Button className={`btn-circle p-button-rounded btn ${getSeverity(selectedDetail.header?.VouCmrStatus)}`} /> </td>
-                                                <td className="text-center p-1"><Button className={`btn-circle p-button-rounded btn ${getSeverity(selectedDetail.header?.VouDrStatus)}`} /> </td>
+                                                <td className="text-center p-1"><Button className={`btn-circle p-button-rounded btn ${getSeverity(selectedDetail.header?.ClmgmStatus)} `} /></td>
+                                                <td className="text-center p-1"><Button className={`btn-circle p-button-rounded btn ${getSeverity(selectedDetail.header?.ClmDrStatus)} `} /></td>
+                                                <td className="text-center p-1"><Button className={`btn-circle p-button-rounded btn ${getSeverity(selectedDetail.header?.PPPgmStatus)} `} /></td>
+                                                <td className="text-center p-1"><Button className={`btn-circle p-button-rounded btn ${getSeverity(selectedDetail.header?.PPPDrStatus)} `} /></td>
+                                                <td className="text-center p-1"><Button className={`btn-circle p-button-rounded btn ${getSeverity(selectedDetail.header?.PPPCEOStatus)} `} /></td>
+                                                <td className="text-center p-1"><Button className={`btn-circle p-button-rounded btn ${getSeverity(selectedDetail.header?.VouCmrStatus)} `} /> </td>
+                                                <td className="text-center p-1"><Button className={`btn-circle p-button-rounded btn ${getSeverity(selectedDetail.header?.VouDrStatus)} `} /> </td>
                                             </tr>
                                         </tbody>
                                     </Table>
@@ -2536,7 +2541,7 @@ const ManageClaimsPayment = () => {
                                                                                         handlePRClick(prid); // Opens correct PR
                                                                                     }
                                                                                 }}
-                                                                                title={`View ${cleanPR}`}
+                                                                                title={`View ${cleanPR} `}
                                                                             >
                                                                                 {cleanPR}
                                                                             </a>

@@ -173,7 +173,19 @@ const AP = () => {
                         POId: item.poid,
                         DueDate: item.due_dt,
                         SupplierName: item.suppliername,
-                        Amount: item.totalamount || 0
+                        Amount: item.totalamount || 0,
+                        // Additional fields needed for GenerateSPC payload
+                        grnid: item.grn_id || item.grnid || "0",
+                        supplierid: item.supplierid || item.supplier_id || 0,
+                        modeOfPaymentId: item.ModeOfPaymentId || item.modeOfPaymentId || 0,
+                        invoiceno: item.receiptno || item.receipt_no || "",
+                        invoicedate: item.receiptdate || "",
+                        duedate: item.due_dt || item.duedate || "",
+                        po_amount: item.po_amount || 0,
+                        adv_payment: item.adv_payment || 0,
+                        balance_payment: item.balance_payment || 0,
+                        alreadyrecivedamount: item.alreadyrecivedamount || 0,
+                        balancepaymentamount: item.balancepaymentamount || 0
                     }));
                     setPayableData(mappedData);
                 } else {
@@ -327,16 +339,43 @@ const AP = () => {
             return;
         }
         try {
+            // Build payload matching IRN page format: { item: [InvoiceReceiptEntry] }
+            const selectedRows = payableData.filter(row =>
+                selectedPayables.includes(row.IRNId || row.Id)
+            );
+
             const payload = {
-                Ids: selectedPayables,
-                OrgId: orgId,
-                BranchId: branchId,
-                UserId: userId,
-                CreatedDate: new Date().toISOString()
+                item: selectedRows.map(row => ({
+                    receiptnote_hdr_id: row.IRNId || row.Id || 0,
+                    grnid: String(row.grnid || "0"),
+                    poid: row.POId || 0,
+                    ModeOfPaymentId: row.modeOfPaymentId || 0,
+                    supplierid: row.supplierid || 0,
+                    invoiceno: row.invoiceno || row.Reference || "",
+                    invoicedate: row.invoicedate || "",
+                    duedate: row.duedate || "",
+                    paymenttermid: "0",
+                    filepath: "",
+                    filename: "",
+                    spc: true,
+                    isactive: true,
+                    createdby: userId,
+                    createdip: "",
+                    modifiedip: "",
+                    branchid: branchId,
+                    orgid: orgId,
+                    po_amount: parseFloat(row.po_amount) || 0,
+                    adv_payment: parseFloat(row.adv_payment) || 0,
+                    balance_payment: parseFloat(row.balance_payment) || 0,
+                    alreadyrecivedamount: parseFloat(row.alreadyrecivedamount) || 0,
+                    balancepaymentamount: parseFloat(row.balancepaymentamount) || 0
+                }))
             };
+
+            console.log("SPC Payload:", payload);
             const response = await GenerateSPC(payload);
             if (response && response.status) {
-                toast.success("Claims generated successfully!");
+                toast.success("SPC generated successfully!");
                 fetchData();
                 setSelectedPayables([]);
             } else {

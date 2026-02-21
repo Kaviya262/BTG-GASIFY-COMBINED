@@ -1555,26 +1555,31 @@ const ProcurementsManagePurchaseOrder = () => {
                             }}
                         >
                             {/* Header Top: Logo + Company */}
-                            <div style={{ display: "flex", alignItems: "flex-start" }}>
-                                <img
-                                    src="/logo.png"
-                                    alt="Logo"
-                                    style={{ height: 60, marginRight: 15 }}
-                                />
-                                <div>
-                                    <p style={{ fontWeight: "bold", marginBottom: 2 }}>
-                                        {poData?.header[0].CompanyName}
-                                    </p>
-                                    <p style={{ marginBottom: 1 }}>
-                                        {poData?.header[0].Address1}, {poData?.header[0].Address2},{" "}
-                                        {poData?.header[0].Address3}
-                                    </p>
-                                    <p style={{ marginBottom: 1 }}>
-                                        {poData?.header[0].WebSite}  {poData?.header[0].Email}
-                                    </p>
-                                    <p style={{ marginBottom: 1 }}>
-                                        {poData?.header[0].TelePhone}
-                                    </p>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                <div style={{ display: "flex", alignItems: "flex-start" }}>
+                                    <img
+                                        src="/logo.png"
+                                        alt="Logo"
+                                        style={{ height: 60, marginRight: 15 }}
+                                    />
+                                    <div>
+                                        <p style={{ fontWeight: "bold", marginBottom: 2 }}>
+                                            {poData?.header[0].CompanyName}
+                                        </p>
+                                        <p style={{ marginBottom: 1 }}>
+                                            {poData?.header[0].Address1}, {poData?.header[0].Address2},{" "}
+                                            {poData?.header[0].Address3}
+                                        </p>
+                                        <p style={{ marginBottom: 1 }}>
+                                            {poData?.header[0].WebSite}  {poData?.header[0].Email}
+                                        </p>
+                                        <p style={{ marginBottom: 1 }}>
+                                            {poData?.header[0].TelePhone}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div style={{ fontWeight: "bold", color: "#333", fontSize: "12px", marginTop: "10px" }}>
+                                    F-BTG-PUR-06 (Rev.01)
                                 </div>
                             </div>
 

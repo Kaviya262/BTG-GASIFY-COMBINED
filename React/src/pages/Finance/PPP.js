@@ -42,6 +42,8 @@ import {
 } from "common/data/mastersapi";
 import { GetPaymentPalnAccordianDetails, SaveVoucherAPI } from "common/data/pppapi";
 import { toWords } from 'number-to-words';
+import axios from "axios";
+import { PYTHON_API_URL } from "common/pyapiconfig";
 const PPP = ({ selectedType, setSelectedType }) => {
 
   const types = [
@@ -182,6 +184,39 @@ const PPP = ({ selectedType, setSelectedType }) => {
 
 
 
+  // --- Helper: Create CashBook/BankBook entries from claim rows ---
+  const createBookEntriesFromClaims = async (rows) => {
+    try {
+      const entries = rows.map(row => ({
+        claim_id: row.id,
+        claim_no: row.claimno || "",
+        amount: parseFloat(row.amount) || 0,
+        payment_mode_id: row.ModeOfPaymentId || 0,
+        bank_id: row.bank || 0,
+        payment_date: row.paymentDate
+          ? formatDateToDateOnly(row.paymentDate)
+          : row.date
+            ? formatDateToDateOnly(row.date)
+            : null,
+        supplier_id: row.supplierid || 0,
+        supplier_name: row.suppliername || "",
+        applicant_name: row.name || "",
+        currency_code: row.curr || "IDR"
+      }));
+
+      await axios.post(`${PYTHON_API_URL}/AR/create-from-claim`, {
+        entries,
+        user_id: 1,
+        org_id: 1,
+        branch_id: 1
+      });
+      console.log(`✅ Created ${entries.length} book entries from claims`);
+    } catch (err) {
+      console.error("❌ Failed to create book entries from claims:", err);
+      // Non-blocking: voucher was already generated, this is supplementary
+    }
+  };
+
   const handleGenerateVoucher = async (groupRows) => {
     if (!groupRows || groupRows.length === 0) {
       toast.warning('No records found in this group.');
@@ -204,6 +239,7 @@ const PPP = ({ selectedType, setSelectedType }) => {
     try {
       let successCount = 0;
       let failureCount = 0;
+      const successfulRows = []; // Track rows that generated vouchers successfully
 
       // Filter rows
       // Case-insensitive check just to be safe
@@ -238,6 +274,7 @@ const PPP = ({ selectedType, setSelectedType }) => {
           const res = await SaveVoucherAPI(payload);
           if (res.status) {
             successCount++;
+            successfulRows.push(row);
           } else {
             failureCount++;
             console.error(`Failed to generate voucher for Cash Advance claim ${row.claimno}: ${res.message}`);
@@ -276,6 +313,7 @@ const PPP = ({ selectedType, setSelectedType }) => {
           const res = await SaveVoucherAPI(payload);
           if (res.status) {
             successCount++; // Count as 1 successful batch voucher
+            successfulRows.push(...otherRows);
           } else {
             failureCount++;
             console.error(`Failed to generate grouped voucher: ${res.message}`);
@@ -284,6 +322,11 @@ const PPP = ({ selectedType, setSelectedType }) => {
           failureCount++;
           console.error(`Error generating grouped voucher:`, err);
         }
+      }
+
+      // 3. Create CashBook/BankBook entries for successfully vouchered claims
+      if (successfulRows.length > 0) {
+        await createBookEntriesFromClaims(successfulRows);
       }
 
       // Feedback
@@ -798,7 +841,7 @@ const PPP = ({ selectedType, setSelectedType }) => {
 
         combinedHtml += `
           <div class="voucher-page" style="position: relative; padding: 30px; font-family: Arial, sans-serif; font-size: 14px; color: #000; background-color: #fff; box-sizing: border-box; width: 210mm; height: 148mm; ${pageBreakStyle}">
-            
+           
             <div style="display: flex; justify-content: flex-start; align-items: flex-start; margin-bottom: 5px; gap: 15px;">
               <img src="/logo.png" alt="Logo" style="height: 90px; width: 100px;" />
               <div style="line-height: 1.3;">

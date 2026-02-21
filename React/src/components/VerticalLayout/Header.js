@@ -10,7 +10,7 @@ import { Link } from "react-router-dom";
 
 // Reactstrap
 import { Dropdown, DropdownToggle, DropdownMenu } from "reactstrap";
-import { GetUserById, GetDepartmentById } from "../../common/data/mastersapi";
+import { GetUserById, GetDepartmentById, GetApprovalDiscussionList } from "../../common/data/mastersapi";
 // Import menuDropdown
 import LanguageDropdown from "../CommonForBoth/TopbarDropdown/LanguageDropdown";
 import NotificationDropdown from "../CommonForBoth/TopbarDropdown/NotificationDropdown";
