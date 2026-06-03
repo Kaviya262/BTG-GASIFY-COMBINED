@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -30,6 +30,6 @@ namespace Core.Procurement.PurchaseRequisition
         Task<object> GetSupplierSearchFilter(int branchid, int orgid, string suppliername);
 
         Task<object> GetAllPO(int BranchId, int orgid, int PRId);
-
+        Task<object> CancelPRAsync(int prid, int userId, int branchId, int orgId);
     }
 }

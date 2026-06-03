@@ -1,4 +1,4 @@
-﻿using Application.Finance.ClaimAndPayment.Update;
+using Application.Finance.ClaimAndPayment.Update;
 using Application.Procurement.Purchase_Memo.CreatePurchaseMemoItem;
 using Application.Procurement.Purchase_Memo.GetAllPurchaseMemoItems;
 using Application.Procurement.Purchase_Memo.GetPurchaseMemoItem;
@@ -21,6 +21,7 @@ using Application.Procurement.Purchase_Requitision.GetSupplierCurrency;
 using Application.Procurement.Purchase_Requitision.RequisitionUploadDocument;
 using Application.Procurement.Purchase_Requitision.UpdatePurchaseRequitisionItem;
 using Application.Procurement.Purchase_Requitision.UploadDo;
+using Application.Procurement.Purchase_Requitision.Cancel;
 using Core.Models;
 using Core.Procurement.PurchaseMemo;
 using Core.Procurement.PurchaseRequisition;
@@ -265,6 +266,13 @@ namespace UserPanel.Controllers.Procurement
             if (result == null)
                 return NotFound();
 
+            return Ok(result);
+        }
+
+        [HttpPost("CancelPR")]
+        public async Task<IActionResult> CancelPR([FromBody] CancelPurchaseRequisitionCommand command)
+        {
+            var result = await _mediator.Send(command);
             return Ok(result);
         }
 
